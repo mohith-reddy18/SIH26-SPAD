@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { mockComponents } from '../data/mockData';
+import { mockComponents, mockParameterSpecs } from '../data/mockData';
+import ComponentDetailModal from '../components/dashboard/ComponentDetailModal';
 
 function SearchIcon() {
   return (
@@ -10,9 +11,22 @@ function SearchIcon() {
   );
 }
 
-export default function ComponentSearch({ onNavigateToComponent }) {
+export default function ComponentSearch({ onNavigateToComponent, initialComponentId }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeParamFilter, setActiveParamFilter] = useState('ALL');
+  const [selectedModalComponent, setSelectedModalComponent] = useState(() => {
+    if (initialComponentId) {
+      return mockComponents.find((c) => c.id === initialComponentId) || null;
+    }
+    return null;
+  });
+
+  React.useEffect(() => {
+    if (initialComponentId) {
+      const found = mockComponents.find((c) => c.id === initialComponentId);
+      if (found) setSelectedModalComponent(found);
+    }
+  }, [initialComponentId]);
 
   const filteredComponents = useMemo(() => {
     return mockComponents.filter((comp) => {
@@ -23,6 +37,10 @@ export default function ComponentSearch({ onNavigateToComponent }) {
       return matchesSearch && matchesFilter;
     });
   }, [searchTerm, activeParamFilter]);
+
+  const handleRowClick = (item) => {
+    setSelectedModalComponent(item);
+  };
 
   return (
     <div className="spad-page-container" role="main" aria-label="Component Search">
@@ -104,7 +122,7 @@ export default function ComponentSearch({ onNavigateToComponent }) {
                     <tr 
                       key={item.id} 
                       className="spad-table-row"
-                      onClick={() => onNavigateToComponent && onNavigateToComponent(item.id)}
+                      onClick={() => handleRowClick(item)}
                     >
                       <td className="spad-td-mono font-bold text-cyan">{item.id}</td>
                       <td className="spad-td-mono text-muted">{item.lotId}</td>
@@ -131,6 +149,16 @@ export default function ComponentSearch({ onNavigateToComponent }) {
           </table>
         </div>
       </div>
+
+      {/* Detailed Component Analysis & SHAP Explainability Dialog */}
+      <ComponentDetailModal
+        component={selectedModalComponent}
+        isOpen={Boolean(selectedModalComponent)}
+        onClose={() => setSelectedModalComponent(null)}
+        components={mockComponents}
+        onSelectComponent={(comp) => setSelectedModalComponent(comp)}
+        parameterSpecs={mockParameterSpecs}
+      />
     </div>
   );
 }

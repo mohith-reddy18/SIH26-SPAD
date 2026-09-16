@@ -26,6 +26,7 @@ export default function App() {
   const [currentPath, setCurrentPath] = useState(() => {
     return window.location.pathname in PAGE_ROUTES ? window.location.pathname : '/';
   });
+  const [selectedComponentId, setSelectedComponentId] = useState(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Handle browser back/forward history events
@@ -48,6 +49,7 @@ export default function App() {
   };
 
   const handleNavigateToComponent = (componentId) => {
+    setSelectedComponentId(componentId);
     handleNavigate('/components');
   };
 
@@ -72,7 +74,10 @@ export default function App() {
         />
 
         <main className="app-main-content">
-          <CurrentPageComponent onNavigateToComponent={handleNavigateToComponent} />
+          <CurrentPageComponent 
+            onNavigateToComponent={handleNavigateToComponent}
+            initialComponentId={selectedComponentId}
+          />
         </main>
       </div>
     </div>

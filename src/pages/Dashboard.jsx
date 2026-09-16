@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { mockDashboardData } from '../data/mockData';
 import StatCards from '../components/dashboard/StatCards';
 import ScreeningPipeline from '../components/dashboard/ScreeningPipeline';
@@ -7,6 +7,7 @@ import ParameterTrends from '../components/dashboard/ParameterTrends';
 import ComponentTable from '../components/dashboard/ComponentTable';
 import SystemStatus from '../components/dashboard/SystemStatus';
 import RecentAlerts from '../components/dashboard/RecentAlerts';
+import ComponentDetailModal from '../components/dashboard/ComponentDetailModal';
 import './Dashboard.css';
 
 export default function Dashboard({ onNavigateToComponent }) {
@@ -21,15 +22,20 @@ export default function Dashboard({ onNavigateToComponent }) {
     recentAlerts,
   } = mockDashboardData;
 
+  const [selectedModalComponent, setSelectedModalComponent] = useState(null);
+
   const handleSelectComponent = (component) => {
-    if (onNavigateToComponent) {
-      onNavigateToComponent(component.id);
-    }
+    setSelectedModalComponent(component);
   };
 
   const handleAlertClick = (alert) => {
-    if (alert.type === 'component' && onNavigateToComponent) {
-      onNavigateToComponent(alert.targetId);
+    if (alert.type === 'component') {
+      const target = componentRecords.find((c) => c.id === alert.targetId);
+      if (target) {
+        setSelectedModalComponent(target);
+      } else if (onNavigateToComponent) {
+        onNavigateToComponent(alert.targetId);
+      }
     }
   };
 
@@ -85,6 +91,16 @@ export default function Dashboard({ onNavigateToComponent }) {
         <SystemStatus subsystems={systemSubsystems} />
         <RecentAlerts alerts={recentAlerts} onAlertClick={handleAlertClick} />
       </section>
+
+      {/* 7. Detailed Component Analysis & SHAP Explainability Dialog */}
+      <ComponentDetailModal
+        component={selectedModalComponent}
+        isOpen={Boolean(selectedModalComponent)}
+        onClose={() => setSelectedModalComponent(null)}
+        components={componentRecords}
+        onSelectComponent={(comp) => setSelectedModalComponent(comp)}
+        parameterSpecs={parameterSpecs}
+      />
     </div>
   );
 }
