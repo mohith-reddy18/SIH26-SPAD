@@ -197,14 +197,14 @@ export const NAV_ITEMS = [
  * Sidebar Component for SPAD: Space-Grade Anomaly Detection
  * 
  * @param {Object} props
- * @param {string} [props.activeId='dashboard'] - Current active navigation id
- * @param {Function} [props.onItemSelect] - Callback when an item is selected
+ * @param {string} [props.activePath='/'] - Current active route path
+ * @param {Function} [props.onNavigate] - Navigation handler callback
  */
-export default function Sidebar({ activeId = 'dashboard', onItemSelect }) {
+export default function Sidebar({ activePath = '/', onNavigate }) {
   const handleItemClick = (item, e) => {
     e.preventDefault();
-    if (onItemSelect) {
-      onItemSelect(item);
+    if (onNavigate) {
+      onNavigate(item.path);
     }
   };
 
@@ -215,8 +215,8 @@ export default function Sidebar({ activeId = 'dashboard', onItemSelect }) {
         <div className="spad-brand-row">
           <SpadLogo />
           <div className="spad-title-block">
-            <div className="spad-brand-title">SPAD</div>
-            <div className="spad-brand-badge">AEROSPACE RELIABILITY</div>
+            <span className="spad-brand-title">SPAD</span>
+            <span className="spad-brand-badge">AEROSPACE GRADE</span>
           </div>
         </div>
         <div className="spad-brand-subtitle">
@@ -226,10 +226,10 @@ export default function Sidebar({ activeId = 'dashboard', onItemSelect }) {
 
       {/* 2. Navigation Items List */}
       <nav className="spad-nav-container">
-        <div className="spad-nav-section-label">MONITORING & CONTROL</div>
+        <div className="spad-nav-section-label">SCREENING & CONTROL</div>
         <ul className="spad-nav-list" role="list">
           {NAV_ITEMS.map((item) => {
-            const isActive = activeId === item.id;
+            const isActive = activePath === item.path;
             const Icon = item.icon;
 
             return (
@@ -252,13 +252,13 @@ export default function Sidebar({ activeId = 'dashboard', onItemSelect }) {
         </ul>
       </nav>
 
-      {/* 3. Mission Telemetry / System Status Footer */}
+      {/* 3. Bottom Version & System Indicator */}
       <div className="spad-sidebar-footer">
         <div className="spad-system-status">
           <span className="spad-status-dot" aria-hidden="true"></span>
           <div className="spad-status-text">
-            <span className="spad-status-header">SCREENING ENGINE</span>
-            <span className="spad-status-sub">SYSTEM NOMINAL</span>
+            <span className="spad-status-header">SPAD v1.0</span>
+            <span className="spad-status-sub">Screening System</span>
           </div>
         </div>
       </div>
