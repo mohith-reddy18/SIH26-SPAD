@@ -14,68 +14,61 @@ export default function ParameterTrends({
   components = mockComponents,
   context = mockScreeningContext,
 }) {
-  // 1. Interactive States
+  // 1. Interactive States driven entirely by passed/centralized data
   const [viewMode, setViewMode] = useState('component'); // 'component' | 'lot'
-  const [selectedComponentId, setSelectedComponentId] = useState('C-0003');
-  const [selectedParamKey, setSelectedParamKey] = useState('standby-current');
+  const [selectedComponentId, setSelectedComponentId] = useState(
+    () => (components && components.length > 0 ? components[0].id : 'C-0001')
+  );
+
+  const parameterKeys = Object.keys(parameterSpecs);
+  const [selectedParamKey, setSelectedParamKey] = useState(
+    () => parameterKeys[0] || 'standby-current'
+  );
   const [hoveredPoint, setHoveredPoint] = useState(null);
 
-  // 2. Active Parameter Specification
-  const activeSpec = parameterSpecs[selectedParamKey] || parameterSpecs['standby-current'];
+  // 2. Dynamic Parameter Specification lookup from centralized data
+  const activeSpec =
+    parameterSpecs[selectedParamKey] ||
+    parameterSpecs[parameterKeys[0]] ||
+    mockParameterSpecs['standby-current'];
 
-  const parameterOptions = [
-    { key: 'standby-current', label: 'Standby Current (Iddq)', unit: 'mA' },
-    { key: 'leakage-current', label: 'Leakage Current (I_leak)', unit: 'µA' },
-    { key: 'propagation-delay', label: 'Propagation Delay (t_pd)', unit: 'ns' },
-  ];
-
-  // 3. Selected Component & Lot Components
-  const currentLotId = context?.lotId || 'LOT-2026-001';
+  // 3. Dynamic Component lookup from centralized data
+  const currentLotId = context?.lotId || (components[0] && components[0].lotId) || 'LOT-2026-001';
   const lotComponents = components.filter((c) => c.lotId === currentLotId);
+
   const selectedComponent =
     components.find((c) => c.id === selectedComponentId) ||
     components[0] ||
-    { id: 'C-0001', lotId: currentLotId, decision: 'PASS', riskScore: 0.12, measurements: { iddq: [2.1, 2.12, 2.14, 2.16] } };
+    {};
 
-  // Representative components for Lot Overview (PASS: C-0001, HOLD: C-0002, REJECT: C-0003)
-  const repPass =
-    lotComponents.find((c) => c.id === 'C-0001') ||
-    lotComponents.find((c) => (c.decision || c.status) === 'PASS') ||
-    components[0];
-  const repHold =
-    lotComponents.find((c) => c.id === 'C-0002') ||
-    lotComponents.find((c) => (c.decision || c.status) === 'HOLD') ||
-    components[1];
-  const repReject =
-    lotComponents.find((c) => c.id === 'C-0003') ||
-    lotComponents.find((c) => (c.decision || c.status) === 'REJECT') ||
-    components[2];
-  const representativeList = [repPass, repHold, repReject].filter(Boolean);
+  const selectedStatus = selectedComponent.status || selectedComponent.decision || 'PASS';
 
-  // 4. Build Trajectory Series according to View Mode
+  // 4. Build Trajectory Series dynamically from component measurements & specs
   let activeSeries = [];
 
   if (viewMode === 'component') {
-    const compData = selectedComponent.measurements?.[activeSpec.key] || activeSpec.healthyRef;
-    const compStatus = selectedComponent.decision || selectedComponent.status || 'PASS';
+    const compData =
+      selectedComponent.measurements?.[activeSpec.key] ||
+      activeSpec.healthyRef ||
+      [0, 0, 0, 0];
 
     activeSeries = [
       {
         id: selectedComponent.id,
-        label: `${selectedComponent.id} — ${compStatus}`,
+        label: `${selectedComponent.id} — ${selectedStatus}`,
         componentId: selectedComponent.id,
         data: compData,
-        color: getStatusColor(compStatus),
+        color: getStatusColor(selectedStatus),
         strokeWidth: 2.8,
         dashed: false,
-        status: compStatus,
+        status: selectedStatus,
         isComponent: true,
       },
       {
         id: 'healthy-ref',
         label: 'Healthy / Nominal Reference',
         componentId: 'Healthy Reference',
-        data: activeSpec.healthyRef,
+        data: activeSpec.healthyRef || [0, 0, 0, 0],
         color: '#64748b',
         strokeWidth: 1.6,
         dashed: true,
@@ -84,19 +77,35 @@ export default function ParameterTrends({
       },
     ];
   } else {
-    // Lot Overview Mode: 3-5 representative components + healthy reference
-    activeSeries = representativeList.map((comp) => {
-      const compData = comp.measurements?.[activeSpec.key] || activeSpec.healthyRef;
-      const compStatus = comp.decision || comp.status || 'PASS';
+    // Lot Overview Mode: representative components across distinct statuses from lot
+    const candidateList = lotComponents.length > 0 ? lotComponents : components;
+    const repList = [];
+    const seenStatuses = new Set();
+
+    for (const c of candidateList) {
+      const st = c.status || c.decision || 'PASS';
+      if (!seenStatuses.has(st) && repList.length < 3) {
+        seenStatuses.add(st);
+        repList.push(c);
+      }
+    }
+
+    if (repList.length === 0) {
+      repList.push(...candidateList.slice(0, 3));
+    }
+
+    activeSeries = repList.map((comp) => {
+      const cData = comp.measurements?.[activeSpec.key] || activeSpec.healthyRef || [0, 0, 0, 0];
+      const cStatus = comp.status || comp.decision || 'PASS';
       return {
         id: comp.id,
-        label: `${comp.id} — ${compStatus}`,
+        label: `${comp.id} — ${cStatus}`,
         componentId: comp.id,
-        data: compData,
-        color: getStatusColor(compStatus),
+        data: cData,
+        color: getStatusColor(cStatus),
         strokeWidth: 2.2,
         dashed: false,
-        status: compStatus,
+        status: cStatus,
         isComponent: true,
       };
     });
@@ -105,7 +114,7 @@ export default function ParameterTrends({
       id: 'healthy-ref',
       label: 'Healthy / Nominal Reference',
       componentId: 'Healthy Reference',
-      data: activeSpec.healthyRef,
+      data: activeSpec.healthyRef || [0, 0, 0, 0],
       color: '#64748b',
       strokeWidth: 1.4,
       dashed: true,
@@ -121,26 +130,28 @@ export default function ParameterTrends({
   const chartW = width - padding.left - padding.right;
   const chartH = height - padding.top - padding.bottom;
 
-  // Calculate dynamic Min and Max for Y-axis
+  // Dynamic Y-axis Min and Max derived from active dataset and spec limit
   const allValues = [];
   activeSeries.forEach((s) => {
     if (Array.isArray(s.data)) allValues.push(...s.data);
   });
-  allValues.push(activeSpec.specLimitMax);
+  if (typeof activeSpec.specLimitMax === 'number') {
+    allValues.push(activeSpec.specLimitMax);
+  }
 
-  const dataMin = Math.min(...allValues);
-  const dataMax = Math.max(...allValues);
+  const dataMin = allValues.length > 0 ? Math.min(...allValues) : 0;
+  const dataMax = allValues.length > 0 ? Math.max(...allValues) : 10;
   const minVal = Math.max(0, dataMin * 0.82);
   const maxVal = dataMax * 1.15;
 
   const checkpoints = activeSpec.checkpoints || ['0h', '24h', '96h', '168h'];
-  const getX = (index) => padding.left + (index / (checkpoints.length - 1)) * chartW;
+  const getX = (index) => padding.left + (index / (checkpoints.length - 1 || 1)) * chartW;
   const getY = (val) => padding.top + chartH - ((val - minVal) / (maxVal - minVal || 1)) * chartH;
 
-  // Spec Limit Line Y
-  const specLimitY = getY(activeSpec.specLimitMax);
+  // Spec Limit Line Y coordinate
+  const specLimitY = typeof activeSpec.specLimitMax === 'number' ? getY(activeSpec.specLimitMax) : -100;
 
-  // Y-axis Ticks (5 steps)
+  // Y-axis Ticks (5 evenly distributed steps)
   const yTicks = [0, 1, 2, 3, 4].map((step) => {
     const val = minVal + ((maxVal - minVal) * step) / 4;
     return { val: val.toFixed(2), y: getY(val) };
@@ -148,7 +159,7 @@ export default function ParameterTrends({
 
   return (
     <div className="spad-card spad-trends-card">
-      {/* 1. Header with View Mode Switcher and Parameter Tabs */}
+      {/* 1. Header with View Mode Switcher and Dynamic Parameter Tabs */}
       <div className="spad-card-header spad-trends-header">
         <div className="spad-card-title-group">
           <span className="spad-card-section-label">PARAMETRIC TELEMETRY DYNAMICS</span>
@@ -173,29 +184,29 @@ export default function ParameterTrends({
           </button>
         </div>
 
-        {/* Parameter Selector Buttons */}
+        {/* Dynamic Parameter Selector Buttons derived from parameterSpecs */}
         <div className="spad-param-tabs" role="tablist" aria-label="Select Parameter">
-          {parameterOptions.map((opt) => {
-            const isSelected = selectedParamKey === opt.key;
+          {Object.entries(parameterSpecs).map(([key, spec]) => {
+            const isSelected = selectedParamKey === key;
             return (
               <button
-                key={opt.key}
+                key={key}
                 type="button"
                 role="tab"
                 aria-selected={isSelected}
                 className={`spad-param-tab-btn ${isSelected ? 'active' : ''}`}
-                onClick={() => setSelectedParamKey(opt.key)}
+                onClick={() => setSelectedParamKey(key)}
               >
                 <span className="spad-tab-radio-indicator">{isSelected ? '☑' : '☐'}</span>
-                <span>{opt.label}</span>
-                <span className="spad-tab-unit">[{opt.unit}]</span>
+                <span>{spec.name}</span>
+                <span className="spad-tab-unit">[{spec.unit}]</span>
               </button>
             );
           })}
         </div>
       </div>
 
-      {/* 2. Control and Summary Meta Bar */}
+      {/* 2. Dynamic Control and Summary Meta Bar */}
       <div className="spad-trends-meta-bar">
         {viewMode === 'component' ? (
           <div className="spad-trends-component-controls">
@@ -206,28 +217,36 @@ export default function ParameterTrends({
               <select
                 id="component-select"
                 className="spad-comp-select-input"
-                value={selectedComponent.id}
+                value={selectedComponent.id || ''}
                 onChange={(e) => setSelectedComponentId(e.target.value)}
               >
-                {components.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.id} ({c.decision || c.status})
-                  </option>
-                ))}
+                {components.map((c) => {
+                  const cStatus = c.status || c.decision || 'PASS';
+                  return (
+                    <option key={c.id} value={c.id}>
+                      {c.id} ({cStatus})
+                    </option>
+                  );
+                })}
               </select>
             </div>
 
-            {/* Compact Component Summary */}
+            {/* Compact Component Summary derived from selectedComponent data */}
             <div className="spad-comp-compact-summary">
               <span className="spad-summary-pill-id">{selectedComponent.id}</span>
               <span className="spad-summary-pill-lot">Lot: {selectedComponent.lotId}</span>
               <span
-                className={`spad-summary-pill-status status-${(selectedComponent.decision || selectedComponent.status || 'PASS').toLowerCase()}`}
+                className={`spad-summary-pill-status status-${selectedStatus.toLowerCase()}`}
               >
-                Status: {selectedComponent.decision || selectedComponent.status}
+                Status: {selectedStatus}
               </span>
               <span className="spad-summary-pill-risk">
-                Risk: {typeof selectedComponent.riskScore === 'number' ? selectedComponent.riskScore.toFixed(2) : '0.12'}
+                Risk:{' '}
+                {typeof selectedComponent.riskScore === 'number'
+                  ? selectedComponent.riskScore.toFixed(2)
+                  : typeof selectedComponent.aiRisk === 'number'
+                  ? (selectedComponent.aiRisk / 100).toFixed(2)
+                  : '0.00'}
               </span>
             </div>
           </div>
@@ -235,13 +254,17 @@ export default function ParameterTrends({
           <div className="spad-trends-lot-summary">
             <span className="spad-summary-pill-lot">Active Lot: {currentLotId}</span>
             <span className="spad-trends-desc">
-              Representative Cohort Comparison (PASS / HOLD / REJECT Trajectories)
+              Representative Cohort Comparison ({activeSeries.map(s => s.id).filter(id => id !== 'healthy-ref').join(' / ')})
             </span>
           </div>
         )}
 
         <span className="spad-spec-badge">
-          MAX SPEC LIMIT: <strong>{activeSpec.specLimitMax.toFixed(2)} {activeSpec.unit}</strong>
+          MAX SPEC LIMIT:{' '}
+          <strong>
+            {activeSpec.specLimitMax !== undefined ? activeSpec.specLimitMax.toFixed(2) : '—'}{' '}
+            {activeSpec.unit}
+          </strong>
         </span>
       </div>
 
@@ -251,16 +274,15 @@ export default function ParameterTrends({
           className="spad-trend-svg"
           viewBox={`0 0 ${width} ${height}`}
           preserveAspectRatio="xMidYMid meet"
-          aria-label={`Chart for ${activeSpec.name}`}
+          aria-label={`Chart for ${activeSpec.name || 'Parameter Trends'}`}
         >
           <defs>
-            {/* Spec Limit Glow */}
             <filter id="limitGlow" x="-20%" y="-20%" width="140%" height="140%">
               <feDropShadow dx="0" dy="0" stdDeviation="2" floodColor="#ef4444" floodOpacity="0.5" />
             </filter>
           </defs>
 
-          {/* Grid Background Horizontal Lines */}
+          {/* Horizontal Grid Lines */}
           {yTicks.map((tick, i) => (
             <g key={i}>
               <line
@@ -284,7 +306,7 @@ export default function ParameterTrends({
             </g>
           ))}
 
-          {/* Vertical X-Axis Checkpoint Lines */}
+          {/* Vertical Checkpoint Lines */}
           {checkpoints.map((cp, i) => {
             const x = getX(i);
             return (
@@ -311,7 +333,7 @@ export default function ParameterTrends({
             );
           })}
 
-          {/* Y-Axis Label */}
+          {/* Y-Axis Title & Unit */}
           <text
             x={-height / 2}
             y="20"
@@ -325,7 +347,7 @@ export default function ParameterTrends({
             {activeSpec.name} [{activeSpec.unit}]
           </text>
 
-          {/* Hard Spec Limit Horizontal Marker */}
+          {/* Engineering Limit Line & Badge */}
           {specLimitY >= padding.top && specLimitY <= padding.top + chartH && (
             <g filter="url(#limitGlow)">
               <line
@@ -354,13 +376,13 @@ export default function ParameterTrends({
                 fontWeight="700"
                 fontFamily="var(--font-mono)"
               >
-                LIMIT: {activeSpec.specLimitMax.toFixed(2)} {activeSpec.unit}
+                LIMIT: {activeSpec.specLimitMax?.toFixed(2)} {activeSpec.unit}
               </text>
             </g>
           )}
 
-          {/* Trajectory Series Lines */}
-          {activeSeries.map((series, sIndex) => {
+          {/* Trajectory Series Polylines */}
+          {activeSeries.map((series) => {
             const points = series.data.map((val, idx) => `${getX(idx)},${getY(val)}`).join(' ');
 
             return (
@@ -394,10 +416,10 @@ export default function ParameterTrends({
                           setHoveredPoint({
                             key: pointKey,
                             componentId: series.componentId,
-                            val: val.toFixed(2),
+                            val: typeof val === 'number' ? val.toFixed(2) : val,
                             checkpoint: checkpoints[idx],
                             unit: activeSpec.unit,
-                            paramName: activeSpec.shortName,
+                            paramName: activeSpec.shortName || activeSpec.name,
                             status: series.status,
                             cx,
                             cy,
@@ -444,7 +466,7 @@ export default function ParameterTrends({
         </svg>
       </div>
 
-      {/* 4. Chart Legend with Component IDs */}
+      {/* 4. Chart Legend completely derived from active data series and spec */}
       <div className="spad-chart-legend">
         {activeSeries.map((series) => (
           <div key={series.id} className="spad-legend-item">
@@ -458,10 +480,14 @@ export default function ParameterTrends({
             <span className="spad-legend-label">{series.label}</span>
           </div>
         ))}
-        <div className="spad-legend-item">
-          <span className="spad-legend-dot" style={{ backgroundColor: '#ef4444', borderStyle: 'dashed' }} />
-          <span className="spad-legend-label">Engineering Limit ({activeSpec.specLimitMax.toFixed(2)} {activeSpec.unit})</span>
-        </div>
+        {typeof activeSpec.specLimitMax === 'number' && (
+          <div className="spad-legend-item">
+            <span className="spad-legend-dot" style={{ backgroundColor: '#ef4444', borderStyle: 'dashed' }} />
+            <span className="spad-legend-label">
+              Engineering Limit ({activeSpec.specLimitMax.toFixed(2)} {activeSpec.unit})
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );
