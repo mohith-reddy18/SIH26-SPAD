@@ -300,12 +300,6 @@ export default function ParameterTrends({
           preserveAspectRatio="xMidYMid meet"
           aria-label={`Chart for ${activeSpec.name || 'Parameter Trends'}`}
         >
-          <defs>
-            <filter id="limitGlow" x="-20%" y="-20%" width="140%" height="140%">
-              <feDropShadow dx="0" dy="0" stdDeviation="2" floodColor="#ef4444" floodOpacity="0.5" />
-            </filter>
-          </defs>
-
           {/* Horizontal Grid Lines */}
           {yTicks.map((tick, i) => (
             <g key={i}>
@@ -387,9 +381,9 @@ export default function ParameterTrends({
             {activeSpec.name} [{activeSpec.unit}]
           </text>
 
-          {/* Engineering Limit Line & Badge */}
+          {/* Engineering Limit Line & Label (Flat, Crisp, No Glow) */}
           {specLimitY >= padding.top && specLimitY <= padding.top + chartH && (
-            <g filter="url(#limitGlow)">
+            <g>
               <line
                 x1={padding.left}
                 y1={specLimitY}
@@ -403,16 +397,17 @@ export default function ParameterTrends({
                 x={padding.left + chartW + 6}
                 y={specLimitY - 10}
                 width="112"
-                height="18"
+                height="19"
                 rx="3"
-                fill="rgba(239, 68, 68, 0.15)"
-                stroke="rgba(239, 68, 68, 0.4)"
+                fill="#0f172a"
+                stroke="#ef4444"
+                strokeWidth="1"
               />
               <text
                 x={padding.left + chartW + 12}
-                y={specLimitY + 2}
-                fill="#fca5a5"
-                fontSize="9"
+                y={specLimitY + 3}
+                fill="#f87171"
+                fontSize="9.5"
                 fontWeight="700"
                 fontFamily="var(--font-mono)"
               >
