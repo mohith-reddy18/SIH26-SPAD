@@ -1,6 +1,10 @@
 import React from 'react';
+import { mockPipelineStages, mockScreeningContext } from '../../data/mockData';
 
-export default function ScreeningPipeline({ stages, context }) {
+export default function ScreeningPipeline({
+  stages = mockPipelineStages,
+  context = mockScreeningContext,
+}) {
   return (
     <div className="spad-card spad-pipeline-card">
       <div className="spad-card-header">
@@ -9,13 +13,13 @@ export default function ScreeningPipeline({ stages, context }) {
           <h2 className="spad-card-title">Screening Pipeline</h2>
         </div>
         <div className="spad-progress-pill">
-          <span className="spad-progress-label">PROGRESS:</span>
+          <span className="spad-progress-label">LOT PROGRESS:</span>
           <span className="spad-progress-val">{context.currentProgressPercent}%</span>
         </div>
       </div>
 
       <p className="spad-card-desc">
-        Environmental stress screening checkpoints & test milestones for active lot <strong>{context.lotId}</strong>.
+        Environmental stress screening checkpoints &amp; test milestones for active lot <strong>{context.lotId}</strong>.
       </p>
 
       {/* Progress Bar Gauge */}
@@ -27,15 +31,15 @@ export default function ScreeningPipeline({ stages, context }) {
           aria-valuenow={context.currentProgressPercent}
           aria-valuemin="0"
           aria-valuemax="100"
+          aria-label={`Lot ${context.lotId} screening progress`}
         />
       </div>
 
       {/* Horizontal Stage Timeline */}
       <div className="spad-timeline-container">
-        {stages.map((stage, index) => {
+        {stages.map((stage) => {
           const isComplete = stage.status === 'complete';
           const isCurrent = stage.status === 'current';
-          const isPending = stage.status === 'pending';
 
           let statusClass = 'stage-pending';
           let statusSymbol = '○';
@@ -67,11 +71,15 @@ export default function ScreeningPipeline({ stages, context }) {
         })}
       </div>
 
-      {/* Bottom meta stats */}
+      {/* Bottom Lot & Test-Level Meta Stats */}
       <div className="spad-pipeline-meta">
         <div className="spad-meta-item">
           <span className="spad-meta-k">Active Stage:</span>
           <span className="spad-meta-v highlight">{context.currentStage} Checkpoint</span>
+        </div>
+        <div className="spad-meta-item">
+          <span className="spad-meta-k">Active Lot:</span>
+          <span className="spad-meta-v highlight">{context.lotId}</span>
         </div>
         <div className="spad-meta-item">
           <span className="spad-meta-k">Chamber:</span>
