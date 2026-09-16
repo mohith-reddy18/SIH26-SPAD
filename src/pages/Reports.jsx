@@ -6,10 +6,10 @@ export default function Reports() {
       <header className="spad-page-header">
         <div className="spad-page-title-row">
           <h1 className="spad-page-title">Reports</h1>
-          <span className="spad-page-tag">AUDIT & COMPLIANCE</span>
+          <span className="spad-page-tag">AUDIT &amp; COMPLIANCE</span>
         </div>
         <p className="spad-page-description">
-          Automated screening summary certificates, lot screening compliance logs, and exportable audit documentation.
+          Automated screening summary certificates, lot screening compliance logs, and exportable audit documentation combining physical ESS checkpoint data and early AI 168h forecasts.
         </p>
       </header>
 

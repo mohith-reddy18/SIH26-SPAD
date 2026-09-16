@@ -83,6 +83,20 @@ export const mockComponents = [
     evidence: 'Normal Baseline',
     decision: 'PASS',
     status: 'PASS',
+    modelExplanation: {
+      framework: 'SHAP (TreeExplainer)',
+      targetPrediction: 'Predicted 168h Limit Risk',
+      predictedRiskPercent: 12,
+      baseValue: 0.15,
+      features: [
+        { name: 'Pre-Burn-In Baseline Iddq', featureValue: '2.00 mA (Healthy)', shapValue: -0.14 },
+        { name: 'Leakage Current Rate (0h→96h)', featureValue: '+0.05 µA/100h', shapValue: -0.12 },
+        { name: 'Propagation Delay Stability', featureValue: '8.18 ns (Nominal)', shapValue: -0.10 },
+        { name: 'Iddq Drift Gradient', featureValue: '2.20 mA proj.', shapValue: -0.08 },
+        { name: '24h Intermediate Trace', featureValue: '0.40 µA (Stable)', shapValue: +0.02 },
+      ],
+      summaryText: 'Parametric measurements tightly track the healthy baseline curve, with negative SHAP contributions lowering predicted failure risk below lot baseline.',
+    },
   },
   {
     id: 'C-0002',
@@ -105,6 +119,20 @@ export const mockComponents = [
     evidence: 'Trajectory Divergence',
     decision: 'HOLD',
     status: 'HOLD',
+    modelExplanation: {
+      framework: 'SHAP (TreeExplainer)',
+      targetPrediction: 'Predicted 168h Limit Risk',
+      predictedRiskPercent: 74,
+      baseValue: 0.15,
+      features: [
+        { name: 'Leakage Current Rate (0h→96h)', featureValue: '+0.85 µA/100h (Steep)', shapValue: +0.36 },
+        { name: 'Iddq Degradation Slope', featureValue: '3.50 mA proj. (High Drift)', shapValue: +0.24 },
+        { name: '24h Intermediate Leakage', featureValue: '0.65 µA (Accelerating)', shapValue: +0.12 },
+        { name: 'Propagation Delay Stability', featureValue: '9.40 ns (Nominal)', shapValue: -0.04 },
+        { name: 'Pre-Burn-In Baseline Iddq', featureValue: '2.00 mA (Healthy)', shapValue: -0.06 },
+      ],
+      summaryText: 'Strong positive SHAP contributions from leakage current acceleration and Iddq trajectory slope drive elevated 168h risk prediction despite current measurements remaining within hard limits.',
+    },
   },
   {
     id: 'C-0003',
@@ -127,6 +155,20 @@ export const mockComponents = [
     evidence: 'Limit Violation & Drift',
     decision: 'REJECT',
     status: 'REJECT',
+    modelExplanation: {
+      framework: 'SHAP (TreeExplainer)',
+      targetPrediction: 'Predicted 168h Limit Risk',
+      predictedRiskPercent: 97,
+      baseValue: 0.15,
+      features: [
+        { name: 'Iddq Limit Breach Projection', featureValue: '4.60 mA (>4.00 mA limit)', shapValue: +0.44 },
+        { name: 'Leakage Current Breakdown', featureValue: '1.85 µA (>1.50 µA limit)', shapValue: +0.32 },
+        { name: 'Propagation Delay Degradation', featureValue: '12.40 ns (>11.00 ns limit)', shapValue: +0.18 },
+        { name: '24h Severe Slope Divergence', featureValue: 'Accelerated Drift', shapValue: +0.12 },
+        { name: 'Pre-Burn-In Initial Offset', featureValue: '2.10 mA (Marginal)', shapValue: +0.06 },
+      ],
+      summaryText: 'Concurrent positive SHAP attributions across all three parametric channels indicate catastrophic degradation toward early qualification failure.',
+    },
   },
   {
     id: 'C-0004',
@@ -149,6 +191,20 @@ export const mockComponents = [
     evidence: 'Normal Baseline',
     decision: 'PASS',
     status: 'PASS',
+    modelExplanation: {
+      framework: 'SHAP (TreeExplainer)',
+      targetPrediction: 'Predicted 168h Limit Risk',
+      predictedRiskPercent: 8,
+      baseValue: 0.15,
+      features: [
+        { name: 'Pre-Burn-In Baseline Iddq', featureValue: '2.02 mA (Ideal)', shapValue: -0.18 },
+        { name: 'Leakage Stability Gradient', featureValue: '+0.05 µA/100h', shapValue: -0.15 },
+        { name: 'Propagation Delay Stability', featureValue: '8.14 ns (Ideal)', shapValue: -0.12 },
+        { name: 'Iddq Flat Trajectory', featureValue: '2.12 mA proj.', shapValue: -0.10 },
+        { name: '24h Quick Drift Check', featureValue: '0.38 µA', shapValue: +0.01 },
+      ],
+      summaryText: 'Uniformly negative SHAP values reflect exceptionally high parametric stability across all checkpoints.',
+    },
   },
   {
     id: 'C-0005',
@@ -171,6 +227,20 @@ export const mockComponents = [
     evidence: 'Iddq Limit Violation',
     decision: 'HOLD',
     status: 'HOLD',
+    modelExplanation: {
+      framework: 'SHAP (TreeExplainer)',
+      targetPrediction: 'Predicted 168h Limit Risk',
+      predictedRiskPercent: 68,
+      baseValue: 0.15,
+      features: [
+        { name: 'Iddq 96h Limit Breach Trajectory', featureValue: '4.25 mA (>4.00 mA limit)', shapValue: +0.41 },
+        { name: '24h-96h Iddq Accelerated Slope', featureValue: '+0.75 mA/72h', shapValue: +0.25 },
+        { name: 'Leakage Current Stability', featureValue: '1.20 µA (Within Limit)', shapValue: -0.09 },
+        { name: 'Propagation Delay Stability', featureValue: '9.90 ns (Within Limit)', shapValue: -0.06 },
+        { name: 'Pre-Burn-In Baseline Iddq', featureValue: '2.10 mA (Nominal)', shapValue: +0.02 },
+      ],
+      summaryText: 'SHAP feature attribution isolates Iddq thermal degradation as the dominant positive risk contributor, while other parameters provide mitigating negative contributions.',
+    },
   },
   {
     id: 'C-0006',
@@ -193,6 +263,20 @@ export const mockComponents = [
     evidence: 'Normal Baseline',
     decision: 'PASS',
     status: 'PASS',
+    modelExplanation: {
+      framework: 'SHAP (TreeExplainer)',
+      targetPrediction: 'Predicted 168h Limit Risk',
+      predictedRiskPercent: 14,
+      baseValue: 0.15,
+      features: [
+        { name: 'Pre-Burn-In Baseline Iddq', featureValue: '2.05 mA (Nominal)', shapValue: -0.13 },
+        { name: 'Leakage Current Stability', featureValue: '0.44 µA proj.', shapValue: -0.11 },
+        { name: 'Propagation Delay Stability', featureValue: '8.20 ns', shapValue: -0.09 },
+        { name: 'Iddq Drift Index', featureValue: '+0.04 mA/72h', shapValue: -0.07 },
+        { name: '24h Trace Consistency', featureValue: '0.39 µA', shapValue: +0.02 },
+      ],
+      summaryText: 'Negative SHAP contributions across all primary parameters validate high reliability and minimal predicted degradation.',
+    },
   },
   {
     id: 'C-0007',
@@ -215,6 +299,20 @@ export const mockComponents = [
     evidence: 'Dual Limit Violation',
     decision: 'REJECT',
     status: 'REJECT',
+    modelExplanation: {
+      framework: 'SHAP (TreeExplainer)',
+      targetPrediction: 'Predicted 168h Limit Risk',
+      predictedRiskPercent: 93,
+      baseValue: 0.15,
+      features: [
+        { name: 'Iddq Severe Limit Breach', featureValue: '4.75 mA (>4.00 mA limit)', shapValue: +0.42 },
+        { name: 'Leakage Current Acceleration', featureValue: '2.00 µA (>1.50 µA limit)', shapValue: +0.35 },
+        { name: '24h-96h Dual Degradation', featureValue: 'Dual Steep Gradient', shapValue: +0.16 },
+        { name: 'Propagation Delay (Within Spec)', featureValue: '10.40 ns (<11.00 ns)', shapValue: -0.08 },
+        { name: 'Pre-Burn-In Baseline', featureValue: '2.20 mA', shapValue: +0.04 },
+      ],
+      summaryText: 'Severe positive SHAP risk contributions from concurrent Iddq and leakage current violations drive the high failure prediction.',
+    },
   },
   {
     id: 'C-0008',
@@ -237,6 +335,20 @@ export const mockComponents = [
     evidence: 'Normal Baseline',
     decision: 'PASS',
     status: 'PASS',
+    modelExplanation: {
+      framework: 'SHAP (TreeExplainer)',
+      targetPrediction: 'Predicted 168h Limit Risk',
+      predictedRiskPercent: 10,
+      baseValue: 0.15,
+      features: [
+        { name: 'Pre-Burn-In Baseline Iddq', featureValue: '2.01 mA', shapValue: -0.16 },
+        { name: 'Leakage Stability Index', featureValue: '0.42 µA proj.', shapValue: -0.14 },
+        { name: 'Propagation Delay Nominal', featureValue: '8.17 ns', shapValue: -0.11 },
+        { name: 'Iddq Flat Trajectory', featureValue: '+0.05 mA/72h', shapValue: -0.09 },
+        { name: '24h Stability Trace', featureValue: '0.37 µA', shapValue: +0.01 },
+      ],
+      summaryText: 'Negative SHAP attributions confirm ideal adherence to nominal manufacturing baseline.',
+    },
   },
   {
     id: 'C-0009',
@@ -259,6 +371,20 @@ export const mockComponents = [
     evidence: 'Leakage Limit Violation',
     decision: 'HOLD',
     status: 'HOLD',
+    modelExplanation: {
+      framework: 'SHAP (TreeExplainer)',
+      targetPrediction: 'Predicted 168h Limit Risk',
+      predictedRiskPercent: 62,
+      baseValue: 0.15,
+      features: [
+        { name: 'Leakage Current Over-Limit Spike', featureValue: '1.65 µA (>1.50 µA limit)', shapValue: +0.43 },
+        { name: '24h-96h Leakage Gradient', featureValue: '+0.37 µA/72h', shapValue: +0.21 },
+        { name: 'Iddq (Within Spec Limit)', featureValue: '3.35 mA proj. (<4.00 mA)', shapValue: -0.09 },
+        { name: 'Propagation Delay (Nominal)', featureValue: '9.80 ns (<11.00 ns)', shapValue: -0.07 },
+        { name: 'Pre-Burn-In Baseline', featureValue: '0.41 µA', shapValue: +0.01 },
+      ],
+      summaryText: 'SHAP analysis attributes predicted risk predominantly to anomalous oxide leakage breakdown, while Iddq and propagation delay remain within safe margins.',
+    },
   },
   {
     id: 'C-0010',
@@ -281,6 +407,20 @@ export const mockComponents = [
     evidence: 'Normal Baseline',
     decision: 'PASS',
     status: 'PASS',
+    modelExplanation: {
+      framework: 'SHAP (TreeExplainer)',
+      targetPrediction: 'Predicted 168h Limit Risk',
+      predictedRiskPercent: 15,
+      baseValue: 0.15,
+      features: [
+        { name: 'Pre-Burn-In Baseline Iddq', featureValue: '2.04 mA', shapValue: -0.12 },
+        { name: 'Leakage Current Stability', featureValue: '0.43 µA proj.', shapValue: -0.10 },
+        { name: 'Propagation Delay Stability', featureValue: '8.19 ns', shapValue: -0.08 },
+        { name: 'Iddq Drift Index', featureValue: '+0.04 mA/72h', shapValue: -0.06 },
+        { name: '24h Check Trace', featureValue: '0.40 µA', shapValue: +0.03 },
+      ],
+      summaryText: 'Component exhibits stable baseline convergence across all features, yielding net negative SHAP risk impact.',
+    },
   },
   {
     id: 'C-0011',
@@ -303,6 +443,20 @@ export const mockComponents = [
     evidence: 'Propagation Delay Limit Violation',
     decision: 'HOLD',
     status: 'HOLD',
+    modelExplanation: {
+      framework: 'SHAP (TreeExplainer)',
+      targetPrediction: 'Predicted 168h Limit Risk',
+      predictedRiskPercent: 72,
+      baseValue: 0.15,
+      features: [
+        { name: 'Propagation Delay Limit Breach', featureValue: '11.60 ns (>11.00 ns limit)', shapValue: +0.45 },
+        { name: 'Gate Aging Thermal Drift (t_pd)', featureValue: '+0.95 ns/72h (Accelerated)', shapValue: +0.22 },
+        { name: 'Iddq (Within Spec Limit)', featureValue: '3.60 mA proj. (<4.00 mA)', shapValue: -0.07 },
+        { name: 'Leakage Current (Within Spec)', featureValue: '1.30 µA (<1.50 µA)', shapValue: -0.05 },
+        { name: 'Pre-Burn-In Baseline', featureValue: '8.35 ns', shapValue: +0.02 },
+      ],
+      summaryText: 'Critical path gate delay degradation is the primary feature contributor driving elevated model failure risk.',
+    },
   },
   {
     id: 'C-0012',
@@ -325,6 +479,20 @@ export const mockComponents = [
     evidence: 'Catastrophic Degradation',
     decision: 'REJECT',
     status: 'REJECT',
+    modelExplanation: {
+      framework: 'SHAP (TreeExplainer)',
+      targetPrediction: 'Predicted 168h Limit Risk',
+      predictedRiskPercent: 99,
+      baseValue: 0.15,
+      features: [
+        { name: 'Iddq Catastrophic Spike', featureValue: '4.90 mA (Severe Outlier)', shapValue: +0.46 },
+        { name: 'Leakage Current Breakdown', featureValue: '2.10 µA (Severe Outlier)', shapValue: +0.38 },
+        { name: 'Propagation Delay Severe Breach', featureValue: '12.90 ns (Severe Outlier)', shapValue: +0.22 },
+        { name: '24h Severe Slope Divergence', featureValue: 'Critical Divergence', shapValue: +0.14 },
+        { name: 'Pre-Burn-In Initial Offset', featureValue: '2.25 mA (Elevated)', shapValue: +0.07 },
+      ],
+      summaryText: 'Extreme concurrent multi-parameter degradation creates maximum positive SHAP attributions, indicating near-certain component failure.',
+    },
   },
 ];
 
@@ -337,7 +505,7 @@ export const mockSummaryStats = {
   lotsProcessed: 24,
 };
 
-// 5. Burn-In Timeline Pipeline Stages
+// 5. Burn-In Timeline Pipeline Stages (Physical ESS Workflow)
 export const mockPipelineStages = [
   {
     id: 'stage-0h',
@@ -345,7 +513,7 @@ export const mockPipelineStages = [
     name: 'Pre-Burn-In Baseline',
     status: 'complete',
     badge: 'Complete',
-    description: 'Initial room & high-temp parametric baseline screening completed.',
+    description: 'Initial room & high-temp parametric baseline physical screening completed.',
     completedAt: '2026-09-12 10:30',
     sampleYield: '100%',
   },
@@ -355,7 +523,7 @@ export const mockPipelineStages = [
     name: 'Early Infant Mortality Gate',
     status: 'complete',
     badge: 'Complete',
-    description: 'Early thermal stress checkpoint & quick-drift screening verified.',
+    description: 'Early thermal stress checkpoint & quick-drift physical screening verified.',
     completedAt: '2026-09-13 10:30',
     sampleYield: '98.4%',
   },
@@ -365,7 +533,7 @@ export const mockPipelineStages = [
     name: 'Mid-Life Dynamic ESS',
     status: 'current',
     badge: 'Current',
-    description: 'Active dynamic trajectory estimation & population dispersion analysis.',
+    description: 'Active dynamic trajectory estimation; early 168h AI risk forecast generated.',
     completedAt: null,
     sampleYield: '96.2%',
   },
@@ -375,21 +543,21 @@ export const mockPipelineStages = [
     name: 'Mission Qualification Gate',
     status: 'pending',
     badge: 'Pending',
-    description: 'Final MIL-STD-883 class-S compliance & lot certificate generation.',
+    description: 'Final MIL-STD-883 class-S physical qualification test (Physical measurement pending; early AI forecast available).',
     completedAt: null,
-    sampleYield: 'Pending',
+    sampleYield: 'Pending (Physical)',
   },
 ];
 
-// 6. Evidence Pathways
+// 6. Evidence Pathways (Multi-Modal Diagnostic & Early Forecasting Engines)
 export const mockEvidencePathways = [
   {
     id: 'population-abnormality',
     title: 'Population Abnormality',
-    question: 'Is the component statistically unusual compared with similar components in this lot?',
+    question: 'Is the component statistically unusual compared with peer units in this lot at the current stage?',
     flaggedCount: 18,
     severity: 'moderate',
-    diagnostic: 'High multivariate Mahalanobis distance from Gaussian lot cluster.',
+    diagnostic: 'High multivariate Mahalanobis distance from Gaussian lot cluster evaluated on observed data.',
     primaryMetric: '18 components flagged',
     statusTag: 'POPULATION DRIFT',
   },
@@ -399,19 +567,19 @@ export const mockEvidencePathways = [
     question: 'Is the component degrading differently from the expected/healthy degradation trajectory?',
     flaggedCount: 43,
     severity: 'high',
-    diagnostic: 'Non-linear rate of change in Iddq & leakage current exceeding nominal decay gradient.',
+    diagnostic: 'Non-linear rate of change in Iddq & leakage current across observed 0h→24h→96h checkpoints exceeding nominal decay gradient.',
     primaryMetric: '43 components flagged',
     statusTag: 'TRAJECTORY DIVERGENCE',
   },
   {
     id: 'future-risk-prediction',
     title: 'Future-Risk Prediction',
-    question: 'Is the component likely to violate an engineering limit during 168h or mission lifetime?',
+    question: 'Based on available data (0h–96h), is the component predicted to violate an engineering limit at 168h?',
     flaggedCount: 27,
     severity: 'critical',
-    diagnostic: 'Bayesian drift model predicts >95% probability of parametric limit breach before 168h.',
-    primaryMetric: '27 at elevated risk',
-    statusTag: 'ELEVATED RISK',
+    diagnostic: 'Early Bayesian drift model projects 168h trajectory from current checkpoints before the physical 168h gate.',
+    primaryMetric: '27 early-forecast risk',
+    statusTag: 'EARLY FORECAST (168h)',
   },
 ];
 

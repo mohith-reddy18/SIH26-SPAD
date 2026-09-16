@@ -6,10 +6,10 @@ export default function FailureAnalysis() {
       <header className="spad-page-header">
         <div className="spad-page-title-row">
           <h1 className="spad-page-title">Failure Analysis</h1>
-          <span className="spad-page-tag">DIAGNOSTICS & ROOT CAUSE</span>
+          <span className="spad-page-tag">DIAGNOSTICS &amp; ROOT CAUSE ANALYSIS</span>
         </div>
         <p className="spad-page-description">
-          Root cause diagnostics, latent defect isolation, and parametric degradation pattern analysis for rejected units.
+          Root cause diagnostics, latent defect isolation, and post-stress comparison of predicted degradation patterns against physical 168h findings.
         </p>
       </header>
 

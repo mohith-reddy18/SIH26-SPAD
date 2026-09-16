@@ -335,9 +335,12 @@ export default function ParameterTrends({
             </g>
           ))}
 
-          {/* Vertical Checkpoint Lines */}
+          {/* Vertical Checkpoint Lines & Stage Markers */}
           {checkpoints.map((cp, i) => {
             const x = getX(i);
+            const isForecast = cp === '168h';
+            const isCurrent = cp === '96h';
+
             return (
               <g key={cp}>
                 <line
@@ -345,18 +348,31 @@ export default function ParameterTrends({
                   y1={padding.top}
                   x2={x}
                   y2={padding.top + chartH}
-                  stroke="rgba(255, 255, 255, 0.06)"
+                  stroke={isForecast ? 'rgba(56, 189, 248, 0.18)' : 'rgba(255, 255, 255, 0.06)'}
+                  strokeDasharray={isForecast ? '3 3' : 'none'}
                 />
                 <text
                   x={x}
-                  y={padding.top + chartH + 20}
+                  y={padding.top + chartH + 16}
                   textAnchor="middle"
-                  fill="#94a3b8"
+                  fill={isForecast ? '#38bdf8' : (isCurrent ? '#f8fafc' : '#94a3b8')}
                   fontSize="11"
-                  fontWeight="600"
+                  fontWeight={isForecast || isCurrent ? '700' : '600'}
                   fontFamily="var(--font-mono)"
                 >
                   {cp}
+                </text>
+                <text
+                  x={x}
+                  y={padding.top + chartH + 28}
+                  textAnchor="middle"
+                  fill={isForecast ? 'rgba(56, 189, 248, 0.75)' : '#64748b'}
+                  fontSize="8"
+                  fontWeight="600"
+                  fontFamily="var(--font-mono)"
+                  letterSpacing="0.04em"
+                >
+                  {isForecast ? '[FORECAST]' : (isCurrent ? '[CURRENT]' : '[OBSERVED]')}
                 </text>
               </g>
             );
@@ -428,6 +444,7 @@ export default function ParameterTrends({
                 {series.data.map((val, idx) => {
                   const cx = getX(idx);
                   const cy = getY(val);
+                  const isForecast = checkpoints[idx] === '168h';
                   const pointKey = `${series.id}-${idx}`;
                   const isHovered = hoveredPoint && hoveredPoint.key === pointKey;
 
@@ -437,9 +454,9 @@ export default function ParameterTrends({
                         cx={cx}
                         cy={cy}
                         r={isHovered ? 6 : (series.isComponent ? 4 : 3)}
-                        fill={series.color}
-                        stroke="#070b14"
-                        strokeWidth="1.5"
+                        fill={isForecast && series.isComponent ? '#0b1324' : series.color}
+                        stroke={series.color}
+                        strokeWidth={isForecast && series.isComponent ? 2.5 : 1.5}
                         style={{ cursor: 'pointer', transition: 'all 0.15s ease' }}
                         onMouseEnter={() =>
                           setHoveredPoint({
@@ -447,6 +464,7 @@ export default function ParameterTrends({
                             componentId: series.componentId,
                             val: typeof val === 'number' ? val.toFixed(2) : val,
                             checkpoint: checkpoints[idx],
+                            isForecast,
                             unit: activeSpec.unit,
                             paramName: activeSpec.shortName || activeSpec.name,
                             status: series.status,
@@ -466,29 +484,32 @@ export default function ParameterTrends({
           {/* Tooltip Overlay */}
           {hoveredPoint && (
             <g
-              transform={`translate(${Math.min(hoveredPoint.cx + 12, width - 180)}, ${Math.max(
-                hoveredPoint.cy - 52,
+              transform={`translate(${Math.min(hoveredPoint.cx + 12, width - 200)}, ${Math.max(
+                hoveredPoint.cy - 56,
                 10
               )})`}
               style={{ pointerEvents: 'none' }}
             >
               <rect
-                width="170"
-                height="50"
+                width="190"
+                height="54"
                 rx="4"
                 fill="#0b1324"
-                stroke="rgba(56, 189, 248, 0.5)"
+                stroke={hoveredPoint.isForecast ? 'rgba(56, 189, 248, 0.7)' : 'rgba(56, 189, 248, 0.35)'}
                 strokeWidth="1"
                 filter="drop-shadow(0 4px 12px rgba(0,0,0,0.7))"
               />
-              <text x="10" y="16" fill="#38bdf8" fontSize="10.5" fontWeight="700" fontFamily="var(--font-mono)">
-                {hoveredPoint.componentId === 'Healthy Reference' ? 'Baseline Reference' : `Component: ${hoveredPoint.componentId}`}
+              <text x="10" y="15" fill="#38bdf8" fontSize="10.5" fontWeight="700" fontFamily="var(--font-mono)">
+                {hoveredPoint.componentId === 'Healthy Reference'
+                  ? 'Baseline Reference'
+                  : `Component: ${hoveredPoint.componentId} ${hoveredPoint.isForecast ? '(168h Forecast)' : ''}`}
               </text>
-              <text x="10" y="30" fill="#f8fafc" fontSize="10" fontWeight="600" fontFamily="var(--font-mono)">
-                Time: {hoveredPoint.checkpoint} | {hoveredPoint.paramName}: {hoveredPoint.val} {hoveredPoint.unit}
+              <text x="10" y="29" fill="#f8fafc" fontSize="10" fontWeight="600" fontFamily="var(--font-mono)">
+                {hoveredPoint.checkpoint} {hoveredPoint.isForecast ? '[AI Prediction]' : '[Observed]'} | {hoveredPoint.paramName}: {hoveredPoint.val} {hoveredPoint.unit}
               </text>
-              <text x="10" y="43" fill="#94a3b8" fontSize="9" fontFamily="var(--font-mono)">
-                Status: <tspan fill={getStatusColor(hoveredPoint.status)} fontWeight="700">{hoveredPoint.status}</tspan>
+              <text x="10" y="44" fill="#94a3b8" fontSize="9" fontFamily="var(--font-mono)">
+                {hoveredPoint.isForecast ? 'Predicted Limit Status: ' : 'Status: '}
+                <tspan fill={getStatusColor(hoveredPoint.status)} fontWeight="700">{hoveredPoint.status}</tspan>
               </text>
             </g>
           )}
@@ -506,7 +527,11 @@ export default function ParameterTrends({
                 borderStyle: series.dashed ? 'dashed' : 'solid',
               }}
             />
-            <span className="spad-legend-label">{series.label}</span>
+            <span className="spad-legend-label">
+              {series.isComponent
+                ? `${series.label} (0h–96h Observed + 168h Forecast)`
+                : series.label}
+            </span>
           </div>
         ))}
         {typeof activeSpec.specLimitMax === 'number' && (

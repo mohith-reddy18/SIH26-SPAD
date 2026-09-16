@@ -79,11 +79,11 @@ export default function ComponentTable({ records, onSelectComponent }) {
             <tr>
               <th>COMPONENT ID</th>
               <th>LOT ID</th>
-              <th>STAGE</th>
+              <th>PHYSICAL STAGE</th>
               <th>STANDBY (Iddq)</th>
               <th>LEAKAGE (I_leak)</th>
               <th>PROP DELAY (t_pd)</th>
-              <th>AI RISK</th>
+              <th>AI RISK (168h FORECAST)</th>
               <th>EVIDENCE DIAGNOSTIC</th>
               <th>STATUS</th>
             </tr>

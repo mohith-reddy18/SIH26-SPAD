@@ -10,7 +10,7 @@ export default function ScreeningPipeline({
       {/* 1. Card Header */}
       <div className="spad-card-header">
         <div className="spad-card-title-group">
-          <span className="spad-card-section-label">BURN-IN ESS WORKFLOW</span>
+          <span className="spad-card-section-label">PHYSICAL ESS WORKFLOW</span>
           <h2 className="spad-card-title">Screening Pipeline</h2>
         </div>
         <div className="spad-progress-pill">
@@ -97,7 +97,7 @@ export default function ScreeningPipeline({
             <span className="spad-lot-stat-v status-anom">{context.anomaliesDetected || '122'} units</span>
           </div>
           <div className="spad-lot-stat-item spad-lot-stat-span">
-            <span className="spad-lot-stat-k">Next Milestone Gate:</span>
+            <span className="spad-lot-stat-k">Next Physical Gate:</span>
             <span className="spad-lot-stat-v highlight">{context.nextGate || '168h Qualification Gate'}</span>
           </div>
         </div>

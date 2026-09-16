@@ -74,12 +74,12 @@ export default function ComponentSearch({ onNavigateToComponent }) {
               <tr>
                 <th>COMPONENT ID</th>
                 <th>LOT ID</th>
-                <th>STAGE</th>
+                <th>PHYSICAL STAGE</th>
                 <th>STANDBY (Iddq)</th>
                 <th>LEAKAGE (I_leak)</th>
                 <th>PROP DELAY (t_pd)</th>
                 <th>LIMIT STATUS</th>
-                <th>AI RISK</th>
+                <th>AI RISK (168h FORECAST)</th>
                 <th>DECISION</th>
               </tr>
             </thead>
