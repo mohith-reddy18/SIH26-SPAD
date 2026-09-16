@@ -84,7 +84,7 @@ export default function ParameterTrends({
     activeSeries = [
       {
         id: selectedComponent.id,
-        label: `${selectedComponent.id} — ${selectedStatus}`,
+        label: `${selectedComponent.id} (Decision: ${selectedStatus})`,
         componentId: selectedComponent.id,
         data: compData,
         color: getStatusColor(selectedStatus),
@@ -128,7 +128,7 @@ export default function ParameterTrends({
       const cStatus = calculateComponentStatus(comp.measurements, parameterSpecs);
       return {
         id: comp.id,
-        label: `${comp.id} — ${cStatus}`,
+        label: `${comp.id} (Decision: ${cStatus})`,
         componentId: comp.id,
         data: cData,
         color: getStatusColor(cStatus),
@@ -267,15 +267,10 @@ export default function ParameterTrends({
               <span
                 className={`spad-summary-pill-status status-${selectedStatus.toLowerCase()}`}
               >
-                Status: {selectedStatus}
+                Screening Decision: {selectedStatus}
               </span>
               <span className="spad-summary-pill-risk">
-                Risk:{' '}
-                {typeof selectedComponent.riskScore === 'number'
-                  ? selectedComponent.riskScore.toFixed(2)
-                  : typeof selectedComponent.aiRisk === 'number'
-                  ? (selectedComponent.aiRisk / 100).toFixed(2)
-                  : '0.00'}
+                AI Assessment: {selectedComponent.aiAssessment || (selectedComponent.aiRisk > 75 ? 'Predicted Limit Breach' : selectedComponent.aiRisk > 40 ? 'Elevated Future Risk' : 'Within Expected Range')}
               </span>
             </div>
           </div>
@@ -508,8 +503,12 @@ export default function ParameterTrends({
                 {hoveredPoint.checkpoint} {hoveredPoint.isForecast ? '[AI Prediction]' : '[Observed]'} | {hoveredPoint.paramName}: {hoveredPoint.val} {hoveredPoint.unit}
               </text>
               <text x="10" y="44" fill="#94a3b8" fontSize="9" fontFamily="var(--font-mono)">
-                {hoveredPoint.isForecast ? 'Predicted Limit Status: ' : 'Status: '}
-                <tspan fill={getStatusColor(hoveredPoint.status)} fontWeight="700">{hoveredPoint.status}</tspan>
+                {hoveredPoint.isForecast ? 'AI 168h Assessment: ' : 'Screening Decision: '}
+                <tspan fill={hoveredPoint.isForecast ? '#38bdf8' : getStatusColor(hoveredPoint.status)} fontWeight="700">
+                  {hoveredPoint.isForecast
+                    ? (hoveredPoint.status === 'REJECT' ? 'Predicted Limit Breach' : hoveredPoint.status === 'HOLD' ? 'Elevated Future Risk' : 'Within Expected Range')
+                    : hoveredPoint.status}
+                </tspan>
               </text>
             </g>
           )}

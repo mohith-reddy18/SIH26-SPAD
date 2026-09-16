@@ -96,9 +96,9 @@ export default function ComponentSearch({ onNavigateToComponent, initialComponen
                 <th>STANDBY (Iddq)</th>
                 <th>LEAKAGE (I_leak)</th>
                 <th>PROP DELAY (t_pd)</th>
-                <th>LIMIT STATUS</th>
+                <th>ENGINEERING LIMIT STATUS</th>
                 <th>AI RISK (168h FORECAST)</th>
-                <th>DECISION</th>
+                <th>SCREENING DECISION</th>
               </tr>
             </thead>
             <tbody>

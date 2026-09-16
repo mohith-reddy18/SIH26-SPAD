@@ -84,8 +84,8 @@ export default function ComponentTable({ records, onSelectComponent }) {
               <th>LEAKAGE (I_leak)</th>
               <th>PROP DELAY (t_pd)</th>
               <th>AI RISK (168h FORECAST)</th>
-              <th>EVIDENCE DIAGNOSTIC</th>
-              <th>STATUS</th>
+              <th>AI EVIDENCE</th>
+              <th>SCREENING DECISION</th>
             </tr>
           </thead>
           <tbody>

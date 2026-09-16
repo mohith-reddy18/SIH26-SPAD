@@ -1992,6 +1992,94 @@
   border: 1px solid rgba(239, 68, 68, 0.4);
 }
 
+/* AI Analytical Evidence Section */
+.spad-ai-evidence-section {
+  border-color: rgba(56, 189, 248, 0.2);
+  background: rgba(11, 18, 32, 0.65);
+}
+
+.spad-ai-disclaimer-badge {
+  font-size: 9.5px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.08);
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px solid rgba(56, 189, 248, 0.2);
+}
+
+.spad-ai-evidence-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+@media (max-width: 768px) {
+  .spad-ai-evidence-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.spad-ai-evidence-card {
+  background: rgba(7, 11, 20, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.spad-ai-evidence-title-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.spad-ai-evidence-k {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--spad-text-muted);
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.spad-ai-status-tag {
+  font-size: 10.5px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  padding: 2px 7px;
+  border-radius: 4px;
+  width: fit-content;
+}
+
+.spad-ai-status-tag.tag-nominal {
+  background: rgba(16, 185, 129, 0.12);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.spad-ai-status-tag.tag-warning {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+.spad-ai-status-tag.tag-critical {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+}
+
+.spad-ai-evidence-desc {
+  font-size: 11px;
+  color: var(--spad-text-secondary);
+  line-height: 1.35;
+  margin: 0;
+}
+
 /* SHAP Explainability Elements */
 .spad-shap-framework-badge {
   font-size: 10px;

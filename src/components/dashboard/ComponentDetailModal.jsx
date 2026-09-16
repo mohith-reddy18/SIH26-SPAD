@@ -127,14 +127,14 @@ export default function ComponentDetailModal({
     ? explanation.predictedRiskPercent
     : component.aiRisk || 15;
 
-  let riskCategory = 'LOW RISK';
+  let riskCategory = 'WITHIN EXPECTED RANGE';
   let riskColor = '#10b981';
   if (predictedRisk > 40) {
-    riskCategory = 'MODERATE RISK';
+    riskCategory = 'ELEVATED FUTURE RISK';
     riskColor = '#f59e0b';
   }
   if (predictedRisk > 75) {
-    riskCategory = 'HIGH RISK';
+    riskCategory = 'PREDICTED LIMIT BREACH';
     riskColor = '#ef4444';
   }
 
@@ -223,19 +223,19 @@ export default function ComponentDetailModal({
             </div>
             <div className="spad-modal-meta-item">
               <span className="spad-meta-k">168h Physical Gate:</span>
-              <span className="spad-meta-v text-slate">PENDING (Physical ESS)</span>
+              <span className="spad-meta-v text-slate">PENDING (Physical Validation)</span>
             </div>
           </div>
 
           {/* ============================================================ */}
-          {/* SECTION 1: DETERMINISTIC ENGINEERING DECISION & EVIDENCE     */}
+          {/* SECTION 1: DETERMINISTIC ENGINEERING SCREENING DECISION       */}
           {/* ============================================================ */}
           <section className="spad-modal-section spad-decision-section" aria-labelledby="heading-eng-decision">
             <div className="spad-section-header">
               <div className="spad-section-title-wrap">
-                <span className="spad-section-pill eng-pill">MIL-STD DETERMINISTIC RULE</span>
+                <span className="spad-section-pill eng-pill">MIL-STD SPECIFICATION RULE</span>
                 <h3 id="heading-eng-decision" className="spad-section-title">
-                  Screening Decision &amp; Engineering Evidence
+                  Engineering Screening Decision &amp; Specification Limits
                 </h3>
               </div>
               <div
@@ -256,7 +256,7 @@ export default function ComponentDetailModal({
               </div>
               <p className="spad-decision-rule-sub">
                 Evaluated deterministically across all {engineeringResult.totalParametersCount} parameters against engineering maximum specifications.
-                Rule: 0 limit breaches → PASS, 1 breach → HOLD, 2+ breaches → REJECT.
+                Rule: 0 limit breaches &rarr; PASS, 1 breach &rarr; HOLD, 2+ breaches &rarr; REJECT.
               </p>
             </div>
 
@@ -306,7 +306,74 @@ export default function ComponentDetailModal({
           </section>
 
           {/* ============================================================ */}
-          {/* SECTION 2: AI EXPLAINABILITY — SHAP (MACHINE LEARNING MODEL) */}
+          {/* SECTION 2: AI EVIDENCE & MULTI-MODAL DIAGNOSTICS             */}
+          {/* ============================================================ */}
+          <section className="spad-modal-section spad-ai-evidence-section" aria-labelledby="heading-ai-evidence">
+            <div className="spad-section-header">
+              <div className="spad-section-title-wrap">
+                <span className="spad-section-pill ai-pill">AI MULTI-AXIS DIAGNOSTICS</span>
+                <h3 id="heading-ai-evidence" className="spad-section-title">
+                  AI Evidence &amp; Analytical Anomaly Signals
+                </h3>
+              </div>
+              <div className="spad-ai-disclaimer-badge">
+                AI ASSISTIVE EVIDENCE &bull; NON-DISPOSITIONAL
+              </div>
+            </div>
+
+            <p className="spad-shap-intro-desc">
+              Multi-modal AI models detect statistical distribution anomalies, drift trajectories, and future parametric risk to assist screening engineers.
+            </p>
+
+            <div className="spad-ai-evidence-grid">
+              <div className="spad-ai-evidence-card">
+                <div className="spad-ai-evidence-title-row">
+                  <span className="spad-ai-evidence-k">Population Abnormality</span>
+                  <span className={`spad-ai-status-tag ${component.populationAbnormality ? 'tag-warning' : 'tag-nominal'}`}>
+                    {component.populationAbnormality ? 'Flagged for Review' : 'Within Expected Range'}
+                  </span>
+                </div>
+                <p className="spad-ai-evidence-desc">
+                  {component.populationAbnormality
+                    ? 'Multivariate Mahalanobis distance exceeds Gaussian lot baseline cluster.'
+                    : 'Parametric distribution aligns tightly with nominal peer cohort cluster.'}
+                </p>
+              </div>
+
+              <div className="spad-ai-evidence-card">
+                <div className="spad-ai-evidence-title-row">
+                  <span className="spad-ai-evidence-k">Trajectory Abnormality</span>
+                  <span className={`spad-ai-status-tag ${component.trajectoryAbnormality ? 'tag-warning' : 'tag-nominal'}`}>
+                    {component.trajectoryAbnormality ? 'Abnormal Degradation Detected' : 'Within Expected Trajectory'}
+                  </span>
+                </div>
+                <p className="spad-ai-evidence-desc">
+                  {component.trajectoryAbnormality
+                    ? 'Non-linear rate of change observed across early burn-in intervals.'
+                    : 'Steady degradation gradient conforming to standard physics-of-failure curve.'}
+                </p>
+              </div>
+
+              <div className="spad-ai-evidence-card">
+                <div className="spad-ai-evidence-title-row">
+                  <span className="spad-ai-evidence-k">Future-Risk Prediction</span>
+                  <span className={`spad-ai-status-tag ${predictedRisk > 75 ? 'tag-critical' : predictedRisk > 40 ? 'tag-warning' : 'tag-nominal'}`}>
+                    {predictedRisk > 75 ? 'Predicted Limit Breach' : predictedRisk > 40 ? 'Elevated Future Risk' : 'Within Expected Range'}
+                  </span>
+                </div>
+                <p className="spad-ai-evidence-desc">
+                  {predictedRisk > 75
+                    ? `High probability (${predictedRisk}%) of exceeding engineering limit at 168h.`
+                    : predictedRisk > 40
+                    ? `Moderate probability (${predictedRisk}%) of parameter drift toward specification boundary.`
+                    : `Nominal 168h projection (${predictedRisk}%) well within safety margin.`}
+                </p>
+              </div>
+            </div>
+          </section>
+
+          {/* ============================================================ */}
+          {/* SECTION 3: AI EXPLAINABILITY — SHAP (MACHINE LEARNING MODEL) */}
           {/* ============================================================ */}
           <section className="spad-modal-section spad-shap-section" aria-labelledby="heading-ai-shap">
             <div className="spad-section-header">
