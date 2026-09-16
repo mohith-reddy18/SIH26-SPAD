@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
+import { mockComponents } from '../data/mockData';
 
 function SearchIcon() {
   return (
@@ -9,9 +10,19 @@ function SearchIcon() {
   );
 }
 
-export default function ComponentSearch() {
+export default function ComponentSearch({ onNavigateToComponent }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeParamFilter, setActiveParamFilter] = useState('ALL');
+
+  const filteredComponents = useMemo(() => {
+    return mockComponents.filter((comp) => {
+      const matchesSearch = comp.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                            comp.lotId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                            comp.evidence.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesFilter = activeParamFilter === 'ALL' || comp.status === activeParamFilter;
+      return matchesSearch && matchesFilter;
+    });
+  }, [searchTerm, activeParamFilter]);
 
   return (
     <div className="spad-page-container" role="main" aria-label="Component Search">
@@ -55,11 +66,70 @@ export default function ComponentSearch() {
         </div>
       </div>
 
-      <div className="spad-page-placeholder" style={{ marginTop: '20px' }}>
-        <div className="spad-placeholder-badge">MODULE: COMPONENT SEARCH (02)</div>
-        <p className="spad-placeholder-text">
-          Interactive parametric query filters (Iddq, Leakage Current, Propagation Delay) and historical degradation traces will be mounted here.
-        </p>
+      {/* Component Results Table */}
+      <div className="spad-card" style={{ padding: '20px', marginTop: '16px' }}>
+        <div className="spad-table-container">
+          <table className="spad-data-table" aria-label="Component Search Results">
+            <thead>
+              <tr>
+                <th>COMPONENT ID</th>
+                <th>LOT ID</th>
+                <th>STAGE</th>
+                <th>STANDBY (Iddq)</th>
+                <th>LEAKAGE (I_leak)</th>
+                <th>PROP DELAY (t_pd)</th>
+                <th>LIMIT STATUS</th>
+                <th>AI RISK</th>
+                <th>DECISION</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredComponents.length === 0 ? (
+                <tr>
+                  <td colSpan="9" className="spad-table-empty">
+                    No components matching "{searchTerm}".
+                  </td>
+                </tr>
+              ) : (
+                filteredComponents.map((item) => {
+                  let statusBadgeClass = 'badge-status-pass';
+                  if (item.status === 'HOLD') statusBadgeClass = 'badge-status-hold';
+                  if (item.status === 'REJECT') statusBadgeClass = 'badge-status-reject';
+
+                  let riskClass = 'risk-low';
+                  if (item.aiRisk > 40) riskClass = 'risk-med';
+                  if (item.aiRisk > 75) riskClass = 'risk-high';
+
+                  return (
+                    <tr 
+                      key={item.id} 
+                      className="spad-table-row"
+                      onClick={() => onNavigateToComponent && onNavigateToComponent(item.id)}
+                    >
+                      <td className="spad-td-mono font-bold text-cyan">{item.id}</td>
+                      <td className="spad-td-mono text-muted">{item.lotId}</td>
+                      <td className="spad-td-mono text-slate">{item.stage}</td>
+                      <td className="spad-td-mono">{item.standbyCurrent}</td>
+                      <td className="spad-td-mono">{item.leakageCurrent}</td>
+                      <td className="spad-td-mono">{item.propagationDelay}</td>
+                      <td>
+                        <span className="spad-evidence-pill">{item.engineeringLimitStatus}</span>
+                      </td>
+                      <td>
+                        <span className={`spad-risk-val ${riskClass}`}>{item.aiRisk}%</span>
+                      </td>
+                      <td>
+                        <span className={`spad-status-pill ${statusBadgeClass}`}>
+                          {item.decision}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
