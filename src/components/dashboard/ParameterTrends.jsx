@@ -37,10 +37,19 @@ export default function ParameterTrends({
     components[0] ||
     { id: 'C-0001', lotId: currentLotId, decision: 'PASS', riskScore: 0.12, measurements: { iddq: [2.1, 2.12, 2.14, 2.16] } };
 
-  // Representative components for Lot Overview (PASS, HOLD, REJECT)
-  const repPass = lotComponents.find((c) => (c.decision || c.status) === 'PASS') || components[0];
-  const repHold = lotComponents.find((c) => (c.decision || c.status) === 'HOLD') || components[1];
-  const repReject = lotComponents.find((c) => (c.decision || c.status) === 'REJECT') || components[2];
+  // Representative components for Lot Overview (PASS: C-0001, HOLD: C-0002, REJECT: C-0003)
+  const repPass =
+    lotComponents.find((c) => c.id === 'C-0001') ||
+    lotComponents.find((c) => (c.decision || c.status) === 'PASS') ||
+    components[0];
+  const repHold =
+    lotComponents.find((c) => c.id === 'C-0002') ||
+    lotComponents.find((c) => (c.decision || c.status) === 'HOLD') ||
+    components[1];
+  const repReject =
+    lotComponents.find((c) => c.id === 'C-0003') ||
+    lotComponents.find((c) => (c.decision || c.status) === 'REJECT') ||
+    components[2];
   const representativeList = [repPass, repHold, repReject].filter(Boolean);
 
   // 4. Build Trajectory Series according to View Mode
