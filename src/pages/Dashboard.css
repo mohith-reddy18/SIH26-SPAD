@@ -194,6 +194,58 @@
   letter-spacing: -0.02em;
 }
 
+/* Stat Card Percentage Progress Bar */
+.spad-stat-progress-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin: 2px 0;
+}
+
+.spad-stat-pct-label {
+  font-size: 11px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  color: var(--spad-text-secondary);
+  min-width: 38px;
+}
+
+.spad-stat-progress-track {
+  flex: 1;
+  height: 4px;
+  background: rgba(15, 23, 42, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.spad-stat-progress-fill {
+  height: 100%;
+  border-radius: 9999px;
+  transition: width 0.3s ease;
+}
+
+.spad-stat-progress-fill.bar-green {
+  background-color: #10b981;
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.4);
+}
+
+.spad-stat-progress-fill.bar-amber {
+  background-color: #f59e0b;
+  box-shadow: 0 0 6px rgba(245, 158, 11, 0.4);
+}
+
+.spad-stat-progress-fill.bar-red {
+  background-color: #ef4444;
+  box-shadow: 0 0 6px rgba(239, 68, 68, 0.4);
+}
+
+.spad-stat-progress-placeholder {
+  height: 16px;
+  margin: 2px 0;
+}
+
 .spad-stat-footer {
   display: flex;
   align-items: center;

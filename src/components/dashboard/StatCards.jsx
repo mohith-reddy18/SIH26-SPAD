@@ -53,6 +53,11 @@ function LayersIcon() {
 export default function StatCards({ summaryStats }) {
   const { totalComponents, passed, hold, rejected, lotsProcessed } = summaryStats;
 
+  // Calculate exact percentage progress values from component metrics
+  const passedPct = ((passed / totalComponents) * 100).toFixed(1);
+  const holdPct = ((hold / totalComponents) * 100).toFixed(1);
+  const rejectedPct = ((rejected / totalComponents) * 100).toFixed(1);
+
   const cards = [
     {
       id: 'total',
@@ -61,34 +66,40 @@ export default function StatCards({ summaryStats }) {
       subtext: 'All units under active/past screening',
       icon: CpuIcon,
       accentClass: 'stat-accent-cyan',
-      percent: '100%',
+      hasProgress: false,
     },
     {
       id: 'passed',
       label: 'PASSED',
       value: passed.toLocaleString(),
-      subtext: `${((passed / totalComponents) * 100).toFixed(1)}% yield qualified`,
+      subtext: `${passedPct}% yield qualified`,
       icon: CheckCircleIcon,
       accentClass: 'stat-accent-green',
-      percent: `${((passed / totalComponents) * 100).toFixed(1)}%`,
+      hasProgress: true,
+      percentage: passedPct,
+      barClass: 'bar-green',
     },
     {
       id: 'hold',
       label: 'HOLD',
       value: hold.toLocaleString(),
-      subtext: `${((hold / totalComponents) * 100).toFixed(1)}% flagged for review`,
+      subtext: `${holdPct}% flagged for review`,
       icon: PauseCircleIcon,
       accentClass: 'stat-accent-amber',
-      percent: `${((hold / totalComponents) * 100).toFixed(1)}%`,
+      hasProgress: true,
+      percentage: holdPct,
+      barClass: 'bar-amber',
     },
     {
       id: 'rejected',
       label: 'REJECTED',
       value: rejected.toLocaleString(),
-      subtext: `${((rejected / totalComponents) * 100).toFixed(1)}% limit / drift defect`,
+      subtext: `${rejectedPct}% limit / drift defect`,
       icon: XCircleIcon,
       accentClass: 'stat-accent-red',
-      percent: `${((rejected / totalComponents) * 100).toFixed(1)}%`,
+      hasProgress: true,
+      percentage: rejectedPct,
+      barClass: 'bar-red',
     },
     {
       id: 'lots',
@@ -97,7 +108,7 @@ export default function StatCards({ summaryStats }) {
       subtext: 'Verified burn-in lot runs',
       icon: LayersIcon,
       accentClass: 'stat-accent-blue',
-      percent: 'LOT-2026',
+      hasProgress: false,
     },
   ];
 
@@ -113,7 +124,28 @@ export default function StatCards({ summaryStats }) {
                 <IconComponent />
               </div>
             </div>
+
             <div className="spad-stat-value">{card.value}</div>
+
+            {/* Percentage Indicator & Progress Bar for PASSED, HOLD, and REJECTED */}
+            {card.hasProgress ? (
+              <div className="spad-stat-progress-wrap">
+                <span className="spad-stat-pct-label">{card.percentage}%</span>
+                <div className="spad-stat-progress-track">
+                  <div
+                    className={`spad-stat-progress-fill ${card.barClass}`}
+                    style={{ width: `${card.percentage}%` }}
+                    role="progressbar"
+                    aria-valuenow={card.percentage}
+                    aria-valuemin="0"
+                    aria-valuemax="100"
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="spad-stat-progress-placeholder" aria-hidden="true" />
+            )}
+
             <div className="spad-stat-footer">
               <span className="spad-stat-subtext">{card.subtext}</span>
             </div>
