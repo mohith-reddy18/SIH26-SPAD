@@ -1,17 +1,6 @@
 /**
  * SPAD: Space-Grade Anomaly Detection
  * Centralized Single Source of Truth for Mock Screening Data
- * 
- * ARCHITECTURAL GUIDELINE:
- * - All frontend components import mock data from this file.
- * - Structure matches future Express/MongoDB API responses:
- *   - GET /api/dashboard/summary
- *   - GET /api/dashboard/pipeline
- *   - GET /api/dashboard/evidence
- *   - GET /api/dashboard/trends
- *   - GET /api/components
- *   - GET /api/alerts
- *   - GET /api/system/status
  */
 
 // 1. Active Screening Lot Context
@@ -26,7 +15,44 @@ export const mockScreeningContext = {
   operator: 'ENG-MIL-SPEC-883',
 };
 
-// 2. High-Reliability Component Records (Centralized dataset)
+// 2. Parameter Specifications & Nominal Engineering References
+export const mockParameterSpecs = {
+  'standby-current': {
+    id: 'standby-current',
+    key: 'iddq',
+    name: 'Standby Current (Iddq)',
+    shortName: 'Iddq',
+    unit: 'mA',
+    specLimitMax: 4.00,
+    healthyRef: [2.10, 2.15, 2.18, 2.22],
+    checkpoints: ['0h', '24h', '96h', '168h'],
+    description: 'Quiescent drain current in CMOS logic under high-temperature burn-in stress.',
+  },
+  'leakage-current': {
+    id: 'leakage-current',
+    key: 'leakage',
+    name: 'Leakage Current (I_leak)',
+    shortName: 'I_leak',
+    unit: 'µA',
+    specLimitMax: 1.50,
+    healthyRef: [0.38, 0.40, 0.43, 0.46],
+    checkpoints: ['0h', '24h', '96h', '168h'],
+    description: 'Subthreshold and gate oxide parasitic leakage across thermal burn-in stress.',
+  },
+  'propagation-delay': {
+    id: 'propagation-delay',
+    key: 'propDelay',
+    name: 'Propagation Delay (t_pd)',
+    shortName: 't_pd',
+    unit: 'ns',
+    specLimitMax: 11.00,
+    healthyRef: [8.10, 8.16, 8.23, 8.29],
+    checkpoints: ['0h', '24h', '96h', '168h'],
+    description: 'Critical path switching speed degradation indicating potential gate aging.',
+  },
+};
+
+// 3. High-Reliability Component Records
 export const mockComponents = [
   {
     id: 'C-0001',
@@ -36,9 +62,9 @@ export const mockComponents = [
     leakageCurrent: '0.42 µA',
     propagationDelay: '8.21 ns',
     measurements: {
-      iddq: { '0h': 2.10, '24h': 2.12, '96h': 2.14, '168h': null },
-      leakage: { '0h': 0.38, '24h': 0.40, '96h': 0.42, '168h': null },
-      propDelay: { '0h': 8.10, '24h': 8.15, '96h': 8.21, '168h': null },
+      iddq: [2.10, 2.12, 2.14, 2.16],
+      leakage: [0.38, 0.40, 0.42, 0.44],
+      propDelay: [8.10, 8.15, 8.21, 8.26],
     },
     engineeringLimitStatus: 'WITHIN LIMIT',
     aiRisk: 12,
@@ -58,9 +84,9 @@ export const mockComponents = [
     leakageCurrent: '0.91 µA',
     propagationDelay: '9.04 ns',
     measurements: {
-      iddq: { '0h': 2.20, '24h': 2.45, '96h': 2.87, '168h': null },
-      leakage: { '0h': 0.40, '24h': 0.62, '96h': 0.91, '168h': null },
-      propDelay: { '0h': 8.25, '24h': 8.65, '96h': 9.04, '168h': null },
+      iddq: [2.20, 2.45, 2.87, 3.25],
+      leakage: [0.40, 0.62, 0.91, 1.15],
+      propDelay: [8.25, 8.65, 9.04, 9.48],
     },
     engineeringLimitStatus: 'NEAR LIMIT',
     aiRisk: 74,
@@ -80,9 +106,9 @@ export const mockComponents = [
     leakageCurrent: '1.83 µA',
     propagationDelay: '11.82 ns',
     measurements: {
-      iddq: { '0h': 2.35, '24h': 2.90, '96h': 4.12, '168h': null },
-      leakage: { '0h': 0.45, '24h': 0.98, '96h': 1.83, '168h': null },
-      propDelay: { '0h': 8.40, '24h': 9.60, '96h': 11.82, '168h': null },
+      iddq: [2.35, 2.90, 4.12, 4.85],
+      leakage: [0.45, 0.98, 1.83, 2.40],
+      propDelay: [8.40, 9.60, 11.82, 13.10],
     },
     engineeringLimitStatus: 'LIMIT VIOLATION',
     aiRisk: 97,
@@ -102,9 +128,9 @@ export const mockComponents = [
     leakageCurrent: '0.39 µA',
     propagationDelay: '8.14 ns',
     measurements: {
-      iddq: { '0h': 2.05, '24h': 2.06, '96h': 2.08, '168h': null },
-      leakage: { '0h': 0.36, '24h': 0.37, '96h': 0.39, '168h': null },
-      propDelay: { '0h': 8.08, '24h': 8.11, '96h': 8.14, '168h': null },
+      iddq: [2.05, 2.06, 2.08, 2.10],
+      leakage: [0.36, 0.37, 0.39, 0.41],
+      propDelay: [8.08, 8.11, 8.14, 8.18],
     },
     engineeringLimitStatus: 'WITHIN LIMIT',
     aiRisk: 8,
@@ -124,9 +150,9 @@ export const mockComponents = [
     leakageCurrent: '0.88 µA',
     propagationDelay: '9.18 ns',
     measurements: {
-      iddq: { '0h': 2.45, '24h': 2.70, '96h': 2.95, '168h': null },
-      leakage: { '0h': 0.52, '24h': 0.70, '96h': 0.88, '168h': null },
-      propDelay: { '0h': 8.45, '24h': 8.85, '96h': 9.18, '168h': null },
+      iddq: [2.45, 2.70, 2.95, 3.30],
+      leakage: [0.52, 0.70, 0.88, 1.05],
+      propDelay: [8.45, 8.85, 9.18, 9.55],
     },
     engineeringLimitStatus: 'WITHIN LIMIT',
     aiRisk: 68,
@@ -146,9 +172,9 @@ export const mockComponents = [
     leakageCurrent: '0.44 µA',
     propagationDelay: '8.28 ns',
     measurements: {
-      iddq: { '0h': 2.12, '24h': 2.15, '96h': 2.19, '168h': null },
-      leakage: { '0h': 0.39, '24h': 0.41, '96h': 0.44, '168h': null },
-      propDelay: { '0h': 8.12, '24h': 8.20, '96h': 8.28, '168h': null },
+      iddq: [2.12, 2.15, 2.19, 2.22],
+      leakage: [0.39, 0.41, 0.44, 0.47],
+      propDelay: [8.12, 8.20, 8.28, 8.34],
     },
     engineeringLimitStatus: 'WITHIN LIMIT',
     aiRisk: 14,
@@ -168,9 +194,9 @@ export const mockComponents = [
     leakageCurrent: '1.62 µA',
     propagationDelay: '10.95 ns',
     measurements: {
-      iddq: { '0h': 2.50, '24h': 3.10, '96h': 3.89, '168h': null },
-      leakage: { '0h': 0.60, '24h': 1.10, '96h': 1.62, '168h': null },
-      propDelay: { '0h': 8.80, '24h': 9.85, '96h': 10.95, '168h': null },
+      iddq: [2.50, 3.10, 3.89, 4.45],
+      leakage: [0.60, 1.10, 1.62, 2.10],
+      propDelay: [8.80, 9.85, 10.95, 12.20],
     },
     engineeringLimitStatus: 'LIMIT VIOLATION',
     aiRisk: 93,
@@ -190,9 +216,9 @@ export const mockComponents = [
     leakageCurrent: '0.41 µA',
     propagationDelay: '8.19 ns',
     measurements: {
-      iddq: { '0h': 2.08, '24h': 2.09, '96h': 2.11, '168h': null },
-      leakage: { '0h': 0.38, '24h': 0.40, '96h': 0.41, '168h': null },
-      propDelay: { '0h': 8.11, '24h': 8.15, '96h': 8.19, '168h': null },
+      iddq: [2.08, 2.09, 2.11, 2.14],
+      leakage: [0.38, 0.40, 0.41, 0.43],
+      propDelay: [8.11, 8.15, 8.19, 8.23],
     },
     engineeringLimitStatus: 'WITHIN LIMIT',
     aiRisk: 10,
@@ -212,9 +238,9 @@ export const mockComponents = [
     leakageCurrent: '0.84 µA',
     propagationDelay: '8.92 ns',
     measurements: {
-      iddq: { '0h': 2.18, '24h': 2.42, '96h': 2.76, '168h': null },
-      leakage: { '0h': 0.42, '24h': 0.60, '96h': 0.84, '168h': null },
-      propDelay: { '0h': 8.20, '24h': 8.55, '96h': 8.92, '168h': null },
+      iddq: [2.18, 2.42, 2.76, 3.10],
+      leakage: [0.42, 0.60, 0.84, 1.08],
+      propDelay: [8.20, 8.55, 8.92, 9.35],
     },
     engineeringLimitStatus: 'WITHIN LIMIT',
     aiRisk: 62,
@@ -234,9 +260,9 @@ export const mockComponents = [
     leakageCurrent: '0.45 µA',
     propagationDelay: '8.25 ns',
     measurements: {
-      iddq: { '0h': 2.11, '24h': 2.13, '96h': 2.16, '168h': null },
-      leakage: { '0h': 0.40, '24h': 0.42, '96h': 0.45, '168h': null },
-      propDelay: { '0h': 8.14, '24h': 8.20, '96h': 8.25, '168h': null },
+      iddq: [2.11, 2.13, 2.16, 2.19],
+      leakage: [0.40, 0.42, 0.45, 0.48],
+      propDelay: [8.14, 8.20, 8.25, 8.30],
     },
     engineeringLimitStatus: 'WITHIN LIMIT',
     aiRisk: 15,
@@ -256,9 +282,9 @@ export const mockComponents = [
     leakageCurrent: '0.38 µA',
     propagationDelay: '8.09 ns',
     measurements: {
-      iddq: { '0h': 2.02, '24h': 2.03, '96h': 2.05, '168h': null },
-      leakage: { '0h': 0.35, '24h': 0.36, '96h': 0.38, '168h': null },
-      propDelay: { '0h': 8.04, '24h': 8.07, '96h': 8.09, '168h': null },
+      iddq: [2.02, 2.03, 2.05, 2.08],
+      leakage: [0.35, 0.36, 0.38, 0.40],
+      propDelay: [8.04, 8.07, 8.09, 8.12],
     },
     engineeringLimitStatus: 'WITHIN LIMIT',
     aiRisk: 6,
@@ -278,9 +304,9 @@ export const mockComponents = [
     leakageCurrent: '1.95 µA',
     propagationDelay: '12.10 ns',
     measurements: {
-      iddq: { '0h': 2.60, '24h': 3.35, '96h': 4.35, '168h': null },
-      leakage: { '0h': 0.70, '24h': 1.25, '96h': 1.95, '168h': null },
-      propDelay: { '0h': 9.10, '24h': 10.40, '96h': 12.10, '168h': null },
+      iddq: [2.60, 3.35, 4.35, 5.10],
+      leakage: [0.70, 1.25, 1.95, 2.65],
+      propDelay: [9.10, 10.40, 12.10, 13.50],
     },
     engineeringLimitStatus: 'LIMIT VIOLATION',
     aiRisk: 99,
@@ -294,8 +320,7 @@ export const mockComponents = [
   },
 ];
 
-// 3. Screening Summary Stats
-// Note: totalComponents = passed (1126) + hold (82) + rejected (40) = 1248
+// 4. Screening Summary Stats
 export const mockSummaryStats = {
   totalComponents: 1248,
   passed: 1126,
@@ -304,7 +329,7 @@ export const mockSummaryStats = {
   lotsProcessed: 24,
 };
 
-// 4. Burn-In Timeline Pipeline Stages
+// 5. Burn-In Timeline Pipeline Stages
 export const mockPipelineStages = [
   {
     id: 'stage-0h',
@@ -348,7 +373,7 @@ export const mockPipelineStages = [
   },
 ];
 
-// 5. Evidence Pathways
+// 6. Evidence Pathways
 export const mockEvidencePathways = [
   {
     id: 'population-abnormality',
@@ -381,115 +406,6 @@ export const mockEvidencePathways = [
     statusTag: 'ELEVATED RISK',
   },
 ];
-
-// 6. Parameter Trend Datasets
-export const mockParameterTrends = {
-  'standby-current': {
-    id: 'standby-current',
-    name: 'Standby Current (Iddq)',
-    unit: 'mA',
-    specLimitMax: 4.00,
-    nominalBand: { min: 1.8, max: 2.6 },
-    checkpoints: ['0h', '24h', '96h', '168h'],
-    series: [
-      {
-        name: 'Nominal Population Average',
-        type: 'nominal',
-        color: '#38bdf8',
-        data: [2.10, 2.15, 2.18, 2.22],
-      },
-      {
-        name: 'Upper Nominal 3σ Bound',
-        type: 'nominal-upper',
-        color: '#64748b',
-        data: [2.50, 2.58, 2.64, 2.70],
-      },
-      {
-        name: 'Flagged Anomaly (C-0003 - Diverging)',
-        type: 'anomaly',
-        color: '#ef4444',
-        data: [2.35, 2.90, 4.12, 4.85],
-      },
-      {
-        name: 'Held Component (C-0002 - Drift)',
-        type: 'warning',
-        color: '#f59e0b',
-        data: [2.20, 2.45, 2.87, 3.25],
-      },
-    ],
-    description: 'Measures quiescent drain current in microcircuit CMOS logic states under high temperature.',
-  },
-  'leakage-current': {
-    id: 'leakage-current',
-    name: 'Leakage Current (I_leak)',
-    unit: 'µA',
-    specLimitMax: 1.50,
-    nominalBand: { min: 0.2, max: 0.8 },
-    checkpoints: ['0h', '24h', '96h', '168h'],
-    series: [
-      {
-        name: 'Nominal Population Average',
-        type: 'nominal',
-        color: '#38bdf8',
-        data: [0.38, 0.40, 0.43, 0.46],
-      },
-      {
-        name: 'Upper Nominal 3σ Bound',
-        type: 'nominal-upper',
-        color: '#64748b',
-        data: [0.65, 0.70, 0.76, 0.82],
-      },
-      {
-        name: 'Flagged Anomaly (C-0003 - Degradation)',
-        type: 'anomaly',
-        color: '#ef4444',
-        data: [0.45, 0.98, 1.83, 2.40],
-      },
-      {
-        name: 'Held Component (C-0002 - Moderate Rise)',
-        type: 'warning',
-        color: '#f59e0b',
-        data: [0.40, 0.62, 0.91, 1.15],
-      },
-    ],
-    description: 'Measures subthreshold and gate oxide parasitic leakage across thermal burn-in stress.',
-  },
-  'propagation-delay': {
-    id: 'propagation-delay',
-    name: 'Propagation Delay (t_pd)',
-    unit: 'ns',
-    specLimitMax: 11.00,
-    nominalBand: { min: 7.5, max: 9.5 },
-    checkpoints: ['0h', '24h', '96h', '168h'],
-    series: [
-      {
-        name: 'Nominal Population Average',
-        type: 'nominal',
-        color: '#38bdf8',
-        data: [8.10, 8.16, 8.23, 8.29],
-      },
-      {
-        name: 'Upper Nominal 3σ Bound',
-        type: 'nominal-upper',
-        color: '#64748b',
-        data: [8.90, 9.02, 9.15, 9.28],
-      },
-      {
-        name: 'Flagged Anomaly (C-0003 - Gate Aging)',
-        type: 'anomaly',
-        color: '#ef4444',
-        data: [8.40, 9.60, 11.82, 13.10],
-      },
-      {
-        name: 'Held Component (C-0002 - Timing Jitter)',
-        type: 'warning',
-        color: '#f59e0b',
-        data: [8.25, 8.65, 9.04, 9.48],
-      },
-    ],
-    description: 'Measures critical path switching speed degradation indicating potential hot-carrier injection or BTI.',
-  },
-};
 
 // 7. System Subsystem Statuses
 export const mockSystemSubsystems = [
@@ -579,13 +495,13 @@ export const mockRecentAlerts = [
   },
 ];
 
-// 9. Composite Dashboard Data Object (Convenience wrapper)
+// 9. Composite Dashboard Data Object
 export const mockDashboardData = {
   screeningContext: mockScreeningContext,
   summaryStats: mockSummaryStats,
   pipelineStages: mockPipelineStages,
   evidencePathways: mockEvidencePathways,
-  parameterTrends: mockParameterTrends,
+  parameterSpecs: mockParameterSpecs,
   componentRecords: mockComponents,
   systemSubsystems: mockSystemSubsystems,
   recentAlerts: mockRecentAlerts,

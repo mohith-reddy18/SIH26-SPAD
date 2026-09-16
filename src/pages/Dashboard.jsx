@@ -15,7 +15,7 @@ export default function Dashboard({ onNavigateToComponent }) {
     summaryStats,
     pipelineStages,
     evidencePathways,
-    parameterTrends,
+    parameterSpecs,
     componentRecords,
     systemSubsystems,
     recentAlerts,
@@ -68,7 +68,11 @@ export default function Dashboard({ onNavigateToComponent }) {
 
       {/* 4. Parameter Trends (Interactive Burn-in Parameter Trajectory) */}
       <section aria-label="Parametric Trends and Degradation">
-        <ParameterTrends trendData={parameterTrends} />
+        <ParameterTrends
+          parameterSpecs={parameterSpecs}
+          components={componentRecords}
+          context={screeningContext}
+        />
       </section>
 
       {/* 5. Detailed Component View (Full-Width Table) */}
