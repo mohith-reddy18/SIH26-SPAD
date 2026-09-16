@@ -33,7 +33,8 @@ export default function ComponentSearch({ onNavigateToComponent, initialComponen
       const matchesSearch = comp.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
                             comp.lotId.toLowerCase().includes(searchTerm.toLowerCase()) ||
                             comp.evidence.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesFilter = activeParamFilter === 'ALL' || comp.status === activeParamFilter;
+      const normalizedStatus = comp.status === 'PASS' ? 'NORMAL' : comp.status === 'HOLD' ? 'SUSPECT' : comp.status === 'REJECT' ? 'CRITICAL' : comp.status;
+      const matchesFilter = activeParamFilter === 'ALL' || normalizedStatus === activeParamFilter || comp.status === activeParamFilter;
       return matchesSearch && matchesFilter;
     });
   }, [searchTerm, activeParamFilter]);
@@ -70,11 +71,11 @@ export default function ComponentSearch({ onNavigateToComponent, initialComponen
           </div>
 
           <div className="spad-filter-tabs" style={{ flexWrap: 'wrap' }}>
-            {['ALL', 'PASS', 'HOLD', 'REJECT'].map((status) => (
+            {['ALL', 'NORMAL', 'SUSPECT', 'CRITICAL'].map((status) => (
               <button
                 key={status}
                 type="button"
-                className={`spad-filter-tab-btn ${activeParamFilter === status ? 'active' : ''}`}
+                className={`spad-filter-tab-btn ${activeParamFilter === status ? 'active' : ''} status-${status.toLowerCase()}`}
                 onClick={() => setActiveParamFilter(status)}
               >
                 {status}
@@ -98,7 +99,7 @@ export default function ComponentSearch({ onNavigateToComponent, initialComponen
                 <th>PROP DELAY (t_pd)</th>
                 <th>ENGINEERING LIMIT STATUS</th>
                 <th>AI RISK (168h FORECAST)</th>
-                <th>SCREENING DECISION</th>
+                <th>STATUS</th>
               </tr>
             </thead>
             <tbody>
@@ -110,9 +111,10 @@ export default function ComponentSearch({ onNavigateToComponent, initialComponen
                 </tr>
               ) : (
                 filteredComponents.map((item) => {
-                  let statusBadgeClass = 'badge-status-pass';
-                  if (item.status === 'HOLD') statusBadgeClass = 'badge-status-hold';
-                  if (item.status === 'REJECT') statusBadgeClass = 'badge-status-reject';
+                  const normalizedStatus = item.status === 'PASS' ? 'NORMAL' : item.status === 'HOLD' ? 'SUSPECT' : item.status === 'REJECT' ? 'CRITICAL' : item.status;
+                  let statusBadgeClass = 'badge-status-normal';
+                  if (normalizedStatus === 'SUSPECT') statusBadgeClass = 'badge-status-suspect';
+                  if (normalizedStatus === 'CRITICAL') statusBadgeClass = 'badge-status-critical';
 
                   let riskClass = 'risk-low';
                   if (item.aiRisk > 40) riskClass = 'risk-med';
@@ -138,7 +140,7 @@ export default function ComponentSearch({ onNavigateToComponent, initialComponen
                       </td>
                       <td>
                         <span className={`spad-status-pill ${statusBadgeClass}`}>
-                          {item.decision}
+                          {normalizedStatus}
                         </span>
                       </td>
                     </tr>

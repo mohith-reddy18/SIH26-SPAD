@@ -961,18 +961,21 @@
   border-radius: 4px;
 }
 
+.spad-summary-pill-status.status-normal,
 .spad-summary-pill-status.status-pass {
   color: #34d399;
   background: rgba(16, 185, 129, 0.12);
   border: 1px solid rgba(16, 185, 129, 0.3);
 }
 
+.spad-summary-pill-status.status-suspect,
 .spad-summary-pill-status.status-hold {
   color: #fbbf24;
   background: rgba(245, 158, 11, 0.12);
   border: 1px solid rgba(245, 158, 11, 0.3);
 }
 
+.spad-summary-pill-status.status-critical,
 .spad-summary-pill-status.status-reject {
   color: #f87171;
   background: rgba(239, 68, 68, 0.15);
@@ -1106,16 +1109,19 @@
   color: #ffffff;
 }
 
+.spad-filter-tab-btn.active.status-normal,
 .spad-filter-tab-btn.active.status-pass {
   background: rgba(16, 185, 129, 0.2);
   color: #34d399;
 }
 
+.spad-filter-tab-btn.active.status-suspect,
 .spad-filter-tab-btn.active.status-hold {
   background: rgba(245, 158, 11, 0.2);
   color: #fbbf24;
 }
 
+.spad-filter-tab-btn.active.status-critical,
 .spad-filter-tab-btn.active.status-reject {
   background: rgba(239, 68, 68, 0.2);
   color: #f87171;
@@ -1278,18 +1284,21 @@
   min-width: 46px;
 }
 
+.badge-status-normal,
 .badge-status-pass {
   background: rgba(16, 185, 129, 0.15);
   color: #34d399;
   border: 1px solid rgba(16, 185, 129, 0.3);
 }
 
+.badge-status-suspect,
 .badge-status-hold {
   background: rgba(245, 158, 11, 0.15);
   color: #fbbf24;
   border: 1px solid rgba(245, 158, 11, 0.3);
 }
 
+.badge-status-critical,
 .badge-status-reject {
   background: rgba(239, 68, 68, 0.15);
   color: #f87171;

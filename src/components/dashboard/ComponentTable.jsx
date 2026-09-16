@@ -18,7 +18,8 @@ export default function ComponentTable({ records, onSelectComponent }) {
       const matchesSearch = rec.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
                             rec.lotId.toLowerCase().includes(searchTerm.toLowerCase()) ||
                             rec.evidence.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesStatus = statusFilter === 'ALL' || rec.status === statusFilter;
+      const recStatus = rec.status === 'PASS' ? 'NORMAL' : rec.status === 'HOLD' ? 'SUSPECT' : rec.status === 'REJECT' ? 'CRITICAL' : rec.status;
+      const matchesStatus = statusFilter === 'ALL' || recStatus === statusFilter;
       return matchesSearch && matchesStatus;
     });
   }, [records, searchTerm, statusFilter]);
@@ -26,9 +27,9 @@ export default function ComponentTable({ records, onSelectComponent }) {
   const counts = useMemo(() => {
     return {
       ALL: records.length,
-      PASS: records.filter((r) => r.status === 'PASS').length,
-      HOLD: records.filter((r) => r.status === 'HOLD').length,
-      REJECT: records.filter((r) => r.status === 'REJECT').length,
+      NORMAL: records.filter((r) => r.status === 'NORMAL' || r.status === 'PASS').length,
+      SUSPECT: records.filter((r) => r.status === 'SUSPECT' || r.status === 'HOLD').length,
+      CRITICAL: records.filter((r) => r.status === 'CRITICAL' || r.status === 'REJECT').length,
     };
   }, [records]);
 
@@ -44,7 +45,7 @@ export default function ComponentTable({ records, onSelectComponent }) {
         <div className="spad-table-controls">
           {/* Status Tabs */}
           <div className="spad-filter-tabs" role="group" aria-label="Filter components by status">
-            {['ALL', 'PASS', 'HOLD', 'REJECT'].map((status) => (
+            {['ALL', 'NORMAL', 'SUSPECT', 'CRITICAL'].map((status) => (
               <button
                 key={status}
                 type="button"
@@ -52,7 +53,7 @@ export default function ComponentTable({ records, onSelectComponent }) {
                 onClick={() => setStatusFilter(status)}
               >
                 <span>{status}</span>
-                <span className="spad-filter-count">{counts[status]}</span>
+                <span className="spad-filter-count">{counts[status] || 0}</span>
               </button>
             ))}
           </div>
@@ -85,7 +86,7 @@ export default function ComponentTable({ records, onSelectComponent }) {
               <th>PROP DELAY (t_pd)</th>
               <th>AI RISK (168h FORECAST)</th>
               <th>AI EVIDENCE</th>
-              <th>SCREENING DECISION</th>
+              <th>STATUS</th>
             </tr>
           </thead>
           <tbody>
@@ -97,13 +98,14 @@ export default function ComponentTable({ records, onSelectComponent }) {
               </tr>
             ) : (
               filteredRecords.map((item) => {
-                const isPass = item.status === 'PASS';
-                const isHold = item.status === 'HOLD';
-                const isReject = item.status === 'REJECT';
+                const normalizedStatus = item.status === 'PASS' ? 'NORMAL' : item.status === 'HOLD' ? 'SUSPECT' : item.status === 'REJECT' ? 'CRITICAL' : item.status;
+                const isNormal = normalizedStatus === 'NORMAL';
+                const isSuspect = normalizedStatus === 'SUSPECT';
+                const isCritical = normalizedStatus === 'CRITICAL';
 
-                let statusBadgeClass = 'badge-status-pass';
-                if (isHold) statusBadgeClass = 'badge-status-hold';
-                if (isReject) statusBadgeClass = 'badge-status-reject';
+                let statusBadgeClass = 'badge-status-normal';
+                if (isSuspect) statusBadgeClass = 'badge-status-suspect';
+                if (isCritical) statusBadgeClass = 'badge-status-critical';
 
                 let riskClass = 'risk-low';
                 if (item.aiRisk > 40) riskClass = 'risk-med';
@@ -137,7 +139,7 @@ export default function ComponentTable({ records, onSelectComponent }) {
                     </td>
                     <td>
                       <span className={`spad-status-pill ${statusBadgeClass}`}>
-                        {item.status}
+                        {normalizedStatus}
                       </span>
                     </td>
                   </tr>

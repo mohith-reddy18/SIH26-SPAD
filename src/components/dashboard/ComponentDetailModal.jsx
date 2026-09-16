@@ -3,13 +3,13 @@ import { mockParameterSpecs, mockComponents } from '../../data/mockData';
 
 // Helper for status colors
 function getStatusBadgeStyle(status) {
-  if (status === 'PASS') {
+  if (status === 'NORMAL' || status === 'PASS') {
     return { bg: 'rgba(16, 185, 129, 0.15)', border: 'rgba(16, 185, 129, 0.4)', text: '#34d399' };
   }
-  if (status === 'HOLD') {
+  if (status === 'SUSPECT' || status === 'HOLD') {
     return { bg: 'rgba(245, 158, 11, 0.15)', border: 'rgba(245, 158, 11, 0.4)', text: '#fbbf24' };
   }
-  if (status === 'REJECT') {
+  if (status === 'CRITICAL' || status === 'REJECT') {
     return { bg: 'rgba(239, 68, 68, 0.15)', border: 'rgba(239, 68, 68, 0.4)', text: '#f87171' };
   }
   return { bg: 'rgba(56, 189, 248, 0.15)', border: 'rgba(56, 189, 248, 0.4)', text: '#38bdf8' };
@@ -17,13 +17,13 @@ function getStatusBadgeStyle(status) {
 
 // Deterministic Engineering Screening Decision Evaluation
 // Rule:
-// 0 distinct violating parameters -> PASS
-// 1 distinct violating parameter -> HOLD
-// 2 or more distinct violating parameters -> REJECT
+// 0 distinct violating parameters -> NORMAL
+// 1 distinct violating parameter -> SUSPECT
+// 2 or more distinct violating parameters -> CRITICAL
 export function evaluateComponentEngineeringDecision(measurements, parameterSpecs) {
   if (!measurements || !parameterSpecs) {
     return {
-      decision: 'PASS',
+      decision: 'NORMAL',
       violatingParametersCount: 0,
       totalParametersCount: 3,
       reasonText: '0 of 3 parameters exceed the engineering limit.',
@@ -64,15 +64,15 @@ export function evaluateComponentEngineeringDecision(measurements, parameterSpec
     });
   });
 
-  let decision = 'PASS';
+  let decision = 'NORMAL';
   let reasonText = '0 of 3 parameters exceed the engineering limit.';
 
   if (violatingCount === 1) {
-    decision = 'HOLD';
+    decision = 'SUSPECT';
     const violatedParam = paramResults.find((p) => p.isViolated);
     reasonText = `1 of ${paramResults.length} parameters (${violatedParam ? violatedParam.shortName : 'parameter'}) exceeds the engineering limit.`;
   } else if (violatingCount >= 2) {
-    decision = 'REJECT';
+    decision = 'CRITICAL';
     reasonText = `${violatingCount} of ${paramResults.length} parameters exceed their engineering limits.`;
   }
 
@@ -127,14 +127,14 @@ export default function ComponentDetailModal({
     ? explanation.predictedRiskPercent
     : component.aiRisk || 15;
 
-  let riskCategory = 'WITHIN EXPECTED RANGE';
+  let riskCategory = 'NORMAL';
   let riskColor = '#10b981';
   if (predictedRisk > 40) {
-    riskCategory = 'ELEVATED FUTURE RISK';
+    riskCategory = 'SUSPECT';
     riskColor = '#f59e0b';
   }
   if (predictedRisk > 75) {
-    riskCategory = 'PREDICTED LIMIT BREACH';
+    riskCategory = 'CRITICAL';
     riskColor = '#ef4444';
   }
 
@@ -246,7 +246,7 @@ export default function ComponentDetailModal({
                   color: decisionBadgeStyle.text,
                 }}
               >
-                DECISION: {engineeringResult.decision}
+                STATUS: {engineeringResult.decision}
               </div>
             </div>
 
@@ -256,7 +256,7 @@ export default function ComponentDetailModal({
               </div>
               <p className="spad-decision-rule-sub">
                 Evaluated deterministically across all {engineeringResult.totalParametersCount} parameters against engineering maximum specifications.
-                Rule: 0 limit breaches &rarr; PASS, 1 breach &rarr; HOLD, 2+ breaches &rarr; REJECT.
+                Rule: 0 limit breaches &rarr; NORMAL, 1 breach &rarr; SUSPECT, 2+ breaches &rarr; CRITICAL.
               </p>
             </div>
 
@@ -330,7 +330,7 @@ export default function ComponentDetailModal({
                 <div className="spad-ai-evidence-title-row">
                   <span className="spad-ai-evidence-k">Population Abnormality</span>
                   <span className={`spad-ai-status-tag ${component.populationAbnormality ? 'tag-warning' : 'tag-nominal'}`}>
-                    {component.populationAbnormality ? 'Flagged for Review' : 'Within Expected Range'}
+                    {component.populationAbnormality ? 'SUSPECT' : 'NORMAL'}
                   </span>
                 </div>
                 <p className="spad-ai-evidence-desc">
@@ -344,7 +344,7 @@ export default function ComponentDetailModal({
                 <div className="spad-ai-evidence-title-row">
                   <span className="spad-ai-evidence-k">Trajectory Abnormality</span>
                   <span className={`spad-ai-status-tag ${component.trajectoryAbnormality ? 'tag-warning' : 'tag-nominal'}`}>
-                    {component.trajectoryAbnormality ? 'Abnormal Degradation Detected' : 'Within Expected Trajectory'}
+                    {component.trajectoryAbnormality ? 'SUSPECT' : 'NORMAL'}
                   </span>
                 </div>
                 <p className="spad-ai-evidence-desc">
@@ -358,7 +358,7 @@ export default function ComponentDetailModal({
                 <div className="spad-ai-evidence-title-row">
                   <span className="spad-ai-evidence-k">Future-Risk Prediction</span>
                   <span className={`spad-ai-status-tag ${predictedRisk > 75 ? 'tag-critical' : predictedRisk > 40 ? 'tag-warning' : 'tag-nominal'}`}>
-                    {predictedRisk > 75 ? 'Predicted Limit Breach' : predictedRisk > 40 ? 'Elevated Future Risk' : 'Within Expected Range'}
+                    {predictedRisk > 75 ? 'CRITICAL' : predictedRisk > 40 ? 'SUSPECT' : 'NORMAL'}
                   </span>
                 </div>
                 <p className="spad-ai-evidence-desc">
@@ -495,7 +495,7 @@ export default function ComponentDetailModal({
 
             {/* Clarification Note */}
             <div className="spad-shap-disclaimer-note">
-              <span className="font-bold text-cyan">Technical Boundary:</span> SHAP values explain the Bayesian ML model's multivariate early-risk prediction output. The deterministic screening decision (PASS / HOLD / REJECT) is separately governed by MIL-STD engineering specification limits.
+              <span className="font-bold text-cyan">Technical Boundary:</span> SHAP values explain the Bayesian ML model's multivariate early-risk prediction output. The deterministic screening decision (NORMAL / SUSPECT / CRITICAL) is separately governed by MIL-STD engineering specification limits.
             </div>
           </section>
         </div>

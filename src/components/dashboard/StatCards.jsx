@@ -51,12 +51,16 @@ function LayersIcon() {
 }
 
 export default function StatCards({ summaryStats }) {
-  const { totalComponents, passed, hold, rejected, lotsProcessed } = summaryStats;
+  const { totalComponents, normal, suspect, critical, passed, hold, rejected, lotsProcessed } = summaryStats;
+
+  const normalCount = normal !== undefined ? normal : (passed || 0);
+  const suspectCount = suspect !== undefined ? suspect : (hold || 0);
+  const criticalCount = critical !== undefined ? critical : (rejected || 0);
 
   // Calculate exact percentage progress values from component metrics
-  const passedPct = ((passed / totalComponents) * 100).toFixed(1);
-  const holdPct = ((hold / totalComponents) * 100).toFixed(1);
-  const rejectedPct = ((rejected / totalComponents) * 100).toFixed(1);
+  const normalPct = ((normalCount / totalComponents) * 100).toFixed(1);
+  const suspectPct = ((suspectCount / totalComponents) * 100).toFixed(1);
+  const criticalPct = ((criticalCount / totalComponents) * 100).toFixed(1);
 
   const cards = [
     {
@@ -69,36 +73,36 @@ export default function StatCards({ summaryStats }) {
       hasProgress: false,
     },
     {
-      id: 'passed',
-      label: 'PASSED',
-      value: passed.toLocaleString(),
-      subtext: `${passedPct}% yield qualified`,
+      id: 'normal',
+      label: 'NORMAL',
+      value: normalCount.toLocaleString(),
+      subtext: `${normalPct}% yield qualified`,
       icon: CheckCircleIcon,
       accentClass: 'stat-accent-green',
       hasProgress: true,
-      percentage: passedPct,
+      percentage: normalPct,
       barClass: 'bar-green',
     },
     {
-      id: 'hold',
-      label: 'HOLD',
-      value: hold.toLocaleString(),
-      subtext: `${holdPct}% flagged for review`,
+      id: 'suspect',
+      label: 'SUSPECT',
+      value: suspectCount.toLocaleString(),
+      subtext: `${suspectPct}% units suspect`,
       icon: PauseCircleIcon,
       accentClass: 'stat-accent-amber',
       hasProgress: true,
-      percentage: holdPct,
+      percentage: suspectPct,
       barClass: 'bar-amber',
     },
     {
-      id: 'rejected',
-      label: 'REJECTED',
-      value: rejected.toLocaleString(),
-      subtext: `${rejectedPct}% limit / drift defect`,
+      id: 'critical',
+      label: 'CRITICAL',
+      value: criticalCount.toLocaleString(),
+      subtext: `${criticalPct}% limit defect`,
       icon: XCircleIcon,
       accentClass: 'stat-accent-red',
       hasProgress: true,
-      percentage: rejectedPct,
+      percentage: criticalPct,
       barClass: 'bar-red',
     },
     {

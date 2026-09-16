@@ -3,19 +3,19 @@ import { mockParameterSpecs, mockComponents, mockScreeningContext } from '../../
 
 // Helper for semantic status colors
 function getStatusColor(status) {
-  if (status === 'PASS') return '#10b981';
-  if (status === 'HOLD') return '#f59e0b';
-  if (status === 'REJECT') return '#ef4444';
+  if (status === 'NORMAL' || status === 'PASS') return '#10b981';
+  if (status === 'SUSPECT' || status === 'HOLD') return '#f59e0b';
+  if (status === 'CRITICAL' || status === 'REJECT') return '#ef4444';
   return '#38bdf8';
 }
 
 // Calculate component status dynamically across all parameters against engineering maximum limits
 // Decision Rule:
-// 0 distinct parameter breaches -> PASS
-// 1 distinct parameter breach -> HOLD
-// 2 or more distinct parameter breaches -> REJECT
+// 0 distinct parameter breaches -> NORMAL
+// 1 distinct parameter breach -> SUSPECT
+// 2 or more distinct parameter breaches -> CRITICAL
 function calculateComponentStatus(measurements, parameterSpecs) {
-  if (!measurements || !parameterSpecs) return 'PASS';
+  if (!measurements || !parameterSpecs) return 'NORMAL';
 
   let violatingCount = 0;
 
@@ -29,9 +29,9 @@ function calculateComponentStatus(measurements, parameterSpecs) {
     }
   });
 
-  if (violatingCount === 0) return 'PASS';
-  if (violatingCount === 1) return 'HOLD';
-  return 'REJECT';
+  if (violatingCount === 0) return 'NORMAL';
+  if (violatingCount === 1) return 'SUSPECT';
+  return 'CRITICAL';
 }
 
 export default function ParameterTrends({
@@ -84,7 +84,7 @@ export default function ParameterTrends({
     activeSeries = [
       {
         id: selectedComponent.id,
-        label: `${selectedComponent.id} (Decision: ${selectedStatus})`,
+        label: `${selectedComponent.id} — ${selectedStatus}`,
         componentId: selectedComponent.id,
         data: compData,
         color: getStatusColor(selectedStatus),
@@ -128,7 +128,7 @@ export default function ParameterTrends({
       const cStatus = calculateComponentStatus(comp.measurements, parameterSpecs);
       return {
         id: comp.id,
-        label: `${comp.id} (Decision: ${cStatus})`,
+        label: `${comp.id} — ${cStatus}`,
         componentId: comp.id,
         data: cData,
         color: getStatusColor(cStatus),
@@ -267,10 +267,10 @@ export default function ParameterTrends({
               <span
                 className={`spad-summary-pill-status status-${selectedStatus.toLowerCase()}`}
               >
-                Screening Decision: {selectedStatus}
+                Status: {selectedStatus}
               </span>
               <span className="spad-summary-pill-risk">
-                AI Assessment: {selectedComponent.aiAssessment || (selectedComponent.aiRisk > 75 ? 'Predicted Limit Breach' : selectedComponent.aiRisk > 40 ? 'Elevated Future Risk' : 'Within Expected Range')}
+                AI Status: {selectedComponent.aiAssessment || (selectedComponent.aiRisk > 75 ? 'CRITICAL' : selectedComponent.aiRisk > 40 ? 'SUSPECT' : 'NORMAL')}
               </span>
             </div>
           </div>
@@ -498,11 +498,9 @@ export default function ParameterTrends({
                 {hoveredPoint.checkpoint} {hoveredPoint.isForecast ? '[AI Prediction]' : '[Observed]'} | {hoveredPoint.paramName}: {hoveredPoint.val} {hoveredPoint.unit}
               </text>
               <text x="10" y="44" fill="#94a3b8" fontSize="9" fontFamily="var(--font-mono)">
-                {hoveredPoint.isForecast ? 'AI 168h Assessment: ' : 'Screening Decision: '}
+                {hoveredPoint.isForecast ? 'AI 168h Status: ' : 'Status: '}
                 <tspan fill={hoveredPoint.isForecast ? '#38bdf8' : getStatusColor(hoveredPoint.status)} fontWeight="700">
-                  {hoveredPoint.isForecast
-                    ? (hoveredPoint.status === 'REJECT' ? 'Predicted Limit Breach' : hoveredPoint.status === 'HOLD' ? 'Elevated Future Risk' : 'Within Expected Range')
-                    : hoveredPoint.status}
+                  {hoveredPoint.status}
                 </tspan>
               </text>
             </g>
