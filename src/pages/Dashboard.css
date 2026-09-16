@@ -446,7 +446,8 @@
   box-shadow: 0 0 6px rgba(16, 185, 129, 0.3);
 }
 
-.stage-current .spad-node-marker {
+.stage-current .spad-node-marker,
+.stage-available .spad-node-marker {
   background: rgba(56, 189, 248, 0.2);
   border: 2px solid #38bdf8;
   color: #38bdf8;
@@ -500,7 +501,8 @@
   color: #34d399;
 }
 
-.spad-node-badge.stage-current {
+.spad-node-badge.stage-current,
+.spad-node-badge.stage-available {
   background: rgba(56, 189, 248, 0.18);
   color: #38bdf8;
 }
