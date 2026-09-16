@@ -9,6 +9,43 @@ function getStatusColor(status) {
   return '#38bdf8';
 }
 
+// Prototype analytical logic: evaluate component trajectory against engineering limit and healthy reference
+function evaluateTrajectoryStatus(measurements, spec, fallbackStatus = 'PASS') {
+  if (!measurements || !spec) return fallbackStatus;
+  const data = Array.isArray(measurements) ? measurements : measurements[spec.key];
+  if (!data || data.length === 0) return fallbackStatus;
+
+  // 1. Hard Engineering Limit Check
+  const hasLimitBreach = data.some(
+    (val) => typeof spec.specLimitMax === 'number' && val > spec.specLimitMax
+  );
+  if (hasLimitBreach) {
+    return 'REJECT';
+  }
+
+  // 2. Trajectory Divergence vs Healthy Reference Curve
+  const healthyRef = spec.healthyRef || [];
+  const threshold =
+    typeof spec.divergenceThreshold === 'number'
+      ? spec.divergenceThreshold
+      : (spec.specLimitMax ? (spec.specLimitMax - (healthyRef[0] || 0)) * 0.35 : 0.5);
+
+  let maxDeviation = 0;
+  data.forEach((val, idx) => {
+    const refVal = healthyRef[idx] !== undefined ? healthyRef[idx] : (healthyRef[0] || 0);
+    const diff = Math.abs(val - refVal);
+    if (diff > maxDeviation) {
+      maxDeviation = diff;
+    }
+  });
+
+  if (maxDeviation > threshold) {
+    return 'HOLD';
+  }
+
+  return 'PASS';
+}
+
 export default function ParameterTrends({
   parameterSpecs = mockParameterSpecs,
   components = mockComponents,
@@ -41,7 +78,12 @@ export default function ParameterTrends({
     components[0] ||
     {};
 
-  const selectedStatus = selectedComponent.status || selectedComponent.decision || 'PASS';
+  // Dynamic evaluation of component trajectory status based on the selected parameter
+  const selectedStatus = evaluateTrajectoryStatus(
+    selectedComponent.measurements,
+    activeSpec,
+    selectedComponent.status || selectedComponent.decision || 'PASS'
+  );
 
   // 4. Build Trajectory Series dynamically from component measurements & specs
   let activeSeries = [];
@@ -66,24 +108,24 @@ export default function ParameterTrends({
       },
       {
         id: 'healthy-ref',
-        label: 'Healthy / Nominal Reference',
+        label: 'Healthy Reference',
         componentId: 'Healthy Reference',
         data: activeSpec.healthyRef || [0, 0, 0, 0],
         color: '#64748b',
-        strokeWidth: 1.6,
+        strokeWidth: 1.8,
         dashed: true,
         status: 'NOMINAL',
         isComponent: false,
       },
     ];
   } else {
-    // Lot Overview Mode: representative components across distinct statuses from lot
+    // Lot Overview Mode: representative components evaluated dynamically across lot
     const candidateList = lotComponents.length > 0 ? lotComponents : components;
     const repList = [];
     const seenStatuses = new Set();
 
     for (const c of candidateList) {
-      const st = c.status || c.decision || 'PASS';
+      const st = evaluateTrajectoryStatus(c.measurements, activeSpec, c.status || c.decision || 'PASS');
       if (!seenStatuses.has(st) && repList.length < 3) {
         seenStatuses.add(st);
         repList.push(c);
@@ -96,7 +138,7 @@ export default function ParameterTrends({
 
     activeSeries = repList.map((comp) => {
       const cData = comp.measurements?.[activeSpec.key] || activeSpec.healthyRef || [0, 0, 0, 0];
-      const cStatus = comp.status || comp.decision || 'PASS';
+      const cStatus = evaluateTrajectoryStatus(comp.measurements, activeSpec, comp.status || comp.decision || 'PASS');
       return {
         id: comp.id,
         label: `${comp.id} — ${cStatus}`,
@@ -112,11 +154,11 @@ export default function ParameterTrends({
 
     activeSeries.push({
       id: 'healthy-ref',
-      label: 'Healthy / Nominal Reference',
+      label: 'Healthy Reference',
       componentId: 'Healthy Reference',
       data: activeSpec.healthyRef || [0, 0, 0, 0],
       color: '#64748b',
-      strokeWidth: 1.4,
+      strokeWidth: 1.6,
       dashed: true,
       status: 'NOMINAL',
       isComponent: false,
@@ -221,7 +263,7 @@ export default function ParameterTrends({
                 onChange={(e) => setSelectedComponentId(e.target.value)}
               >
                 {components.map((c) => {
-                  const cStatus = c.status || c.decision || 'PASS';
+                  const cStatus = evaluateTrajectoryStatus(c.measurements, activeSpec, c.status || c.decision || 'PASS');
                   return (
                     <option key={c.id} value={c.id}>
                       {c.id} ({cStatus})
@@ -254,7 +296,7 @@ export default function ParameterTrends({
           <div className="spad-trends-lot-summary">
             <span className="spad-summary-pill-lot">Active Lot: {currentLotId}</span>
             <span className="spad-trends-desc">
-              Representative Cohort Comparison ({activeSeries.map(s => s.id).filter(id => id !== 'healthy-ref').join(' / ')})
+              Representative Cohort Comparison vs. Healthy Baseline Reference
             </span>
           </div>
         )}
@@ -453,7 +495,7 @@ export default function ParameterTrends({
                 filter="drop-shadow(0 4px 12px rgba(0,0,0,0.7))"
               />
               <text x="10" y="16" fill="#38bdf8" fontSize="10.5" fontWeight="700" fontFamily="var(--font-mono)">
-                Component: {hoveredPoint.componentId}
+                {hoveredPoint.componentId === 'Healthy Reference' ? 'Baseline Reference' : `Component: ${hoveredPoint.componentId}`}
               </text>
               <text x="10" y="30" fill="#f8fafc" fontSize="10" fontWeight="600" fontFamily="var(--font-mono)">
                 Time: {hoveredPoint.checkpoint} | {hoveredPoint.paramName}: {hoveredPoint.val} {hoveredPoint.unit}
@@ -466,7 +508,7 @@ export default function ParameterTrends({
         </svg>
       </div>
 
-      {/* 4. Chart Legend completely derived from active data series and spec */}
+      {/* 4. Chart Legend distinguishing Component, Healthy Reference, and Engineering Limit */}
       <div className="spad-chart-legend">
         {activeSeries.map((series) => (
           <div key={series.id} className="spad-legend-item">
