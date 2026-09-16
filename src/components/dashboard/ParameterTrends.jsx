@@ -9,41 +9,29 @@ function getStatusColor(status) {
   return '#38bdf8';
 }
 
-// Prototype analytical logic: evaluate component trajectory against engineering limit and healthy reference
-function evaluateTrajectoryStatus(measurements, spec, fallbackStatus = 'PASS') {
-  if (!measurements || !spec) return fallbackStatus;
-  const data = Array.isArray(measurements) ? measurements : measurements[spec.key];
-  if (!data || data.length === 0) return fallbackStatus;
+// Calculate component status dynamically across all parameters against engineering maximum limits
+// Decision Rule:
+// 0 distinct parameter breaches -> PASS
+// 1 distinct parameter breach -> HOLD
+// 2 or more distinct parameter breaches -> REJECT
+function calculateComponentStatus(measurements, parameterSpecs) {
+  if (!measurements || !parameterSpecs) return 'PASS';
 
-  // 1. Hard Engineering Limit Check
-  const hasLimitBreach = data.some(
-    (val) => typeof spec.specLimitMax === 'number' && val > spec.specLimitMax
-  );
-  if (hasLimitBreach) {
-    return 'REJECT';
-  }
+  let violatingCount = 0;
 
-  // 2. Trajectory Divergence vs Healthy Reference Curve
-  const healthyRef = spec.healthyRef || [];
-  const threshold =
-    typeof spec.divergenceThreshold === 'number'
-      ? spec.divergenceThreshold
-      : (spec.specLimitMax ? (spec.specLimitMax - (healthyRef[0] || 0)) * 0.35 : 0.5);
-
-  let maxDeviation = 0;
-  data.forEach((val, idx) => {
-    const refVal = healthyRef[idx] !== undefined ? healthyRef[idx] : (healthyRef[0] || 0);
-    const diff = Math.abs(val - refVal);
-    if (diff > maxDeviation) {
-      maxDeviation = diff;
+  Object.values(parameterSpecs).forEach((spec) => {
+    const data = Array.isArray(measurements) ? measurements : measurements[spec.key];
+    if (Array.isArray(data) && typeof spec.specLimitMax === 'number') {
+      const hasBreach = data.some((val) => typeof val === 'number' && val > spec.specLimitMax);
+      if (hasBreach) {
+        violatingCount += 1;
+      }
     }
   });
 
-  if (maxDeviation > threshold) {
-    return 'HOLD';
-  }
-
-  return 'PASS';
+  if (violatingCount === 0) return 'PASS';
+  if (violatingCount === 1) return 'HOLD';
+  return 'REJECT';
 }
 
 export default function ParameterTrends({
@@ -78,11 +66,10 @@ export default function ParameterTrends({
     components[0] ||
     {};
 
-  // Dynamic evaluation of component trajectory status based on the selected parameter
-  const selectedStatus = evaluateTrajectoryStatus(
+  // Dynamic evaluation of component status based on ALL 3 parameters vs engineering limits
+  const selectedStatus = calculateComponentStatus(
     selectedComponent.measurements,
-    activeSpec,
-    selectedComponent.status || selectedComponent.decision || 'PASS'
+    parameterSpecs
   );
 
   // 4. Build Trajectory Series dynamically from component measurements & specs
@@ -125,7 +112,7 @@ export default function ParameterTrends({
     const seenStatuses = new Set();
 
     for (const c of candidateList) {
-      const st = evaluateTrajectoryStatus(c.measurements, activeSpec, c.status || c.decision || 'PASS');
+      const st = calculateComponentStatus(c.measurements, parameterSpecs);
       if (!seenStatuses.has(st) && repList.length < 3) {
         seenStatuses.add(st);
         repList.push(c);
@@ -138,7 +125,7 @@ export default function ParameterTrends({
 
     activeSeries = repList.map((comp) => {
       const cData = comp.measurements?.[activeSpec.key] || activeSpec.healthyRef || [0, 0, 0, 0];
-      const cStatus = evaluateTrajectoryStatus(comp.measurements, activeSpec, comp.status || comp.decision || 'PASS');
+      const cStatus = calculateComponentStatus(comp.measurements, parameterSpecs);
       return {
         id: comp.id,
         label: `${comp.id} — ${cStatus}`,
@@ -263,7 +250,7 @@ export default function ParameterTrends({
                 onChange={(e) => setSelectedComponentId(e.target.value)}
               >
                 {components.map((c) => {
-                  const cStatus = evaluateTrajectoryStatus(c.measurements, activeSpec, c.status || c.decision || 'PASS');
+                  const cStatus = calculateComponentStatus(c.measurements, parameterSpecs);
                   return (
                     <option key={c.id} value={c.id}>
                       {c.id} ({cStatus})
