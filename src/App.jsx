@@ -44,6 +44,10 @@ export default function App() {
     }
   };
 
+  const handleNavigateToComponent = (componentId) => {
+    handleNavigate('/components');
+  };
+
   const CurrentPageComponent = PAGE_ROUTES[currentPath] || Dashboard;
 
   return (
@@ -53,7 +57,7 @@ export default function App() {
 
       {/* 2. Main Content Area */}
       <main className="app-main-content">
-        <CurrentPageComponent />
+        <CurrentPageComponent onNavigateToComponent={handleNavigateToComponent} />
       </main>
     </div>
   );
