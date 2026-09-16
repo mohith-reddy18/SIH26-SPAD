@@ -342,11 +342,16 @@
   align-items: stretch;
 }
 
+/* Specific 45% / 55% proportional width for Screening Pipeline & Evidence Pathways */
+.spad-pipeline-evidence-grid {
+  grid-template-columns: 45fr 55fr;
+}
+
 /* Screening Pipeline Panel */
 .spad-pipeline-card {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   height: 100%;
   box-sizing: border-box;
 }
@@ -381,7 +386,7 @@
   border-radius: 9999px;
   overflow: hidden;
   position: relative;
-  margin: 2px 0 4px 0;
+  margin: 1px 0 2px 0;
 }
 
 .spad-pipeline-fill {
@@ -397,8 +402,8 @@
   grid-template-columns: repeat(4, 1fr);
   gap: 8px;
   position: relative;
-  margin: auto 0;
-  padding: 6px 0;
+  margin: 2px 0 0 0;
+  padding: 2px 0;
 }
 
 .spad-timeline-node {
@@ -408,6 +413,16 @@
   text-align: center;
   gap: 4px;
   position: relative;
+  background: rgba(15, 23, 42, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 6px;
+  padding: 8px 4px 6px 4px;
+  transition: all 0.15s ease;
+}
+
+.spad-timeline-node:hover {
+  border-color: rgba(56, 189, 248, 0.18);
+  background: rgba(15, 23, 42, 0.6);
 }
 
 .spad-node-marker {
@@ -1440,7 +1455,8 @@
     gap: 16px;
   }
 
-  .spad-two-col-grid {
+  .spad-two-col-grid,
+  .spad-pipeline-evidence-grid {
     grid-template-columns: 1fr;
     align-items: start;
   }

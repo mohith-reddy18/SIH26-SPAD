@@ -61,7 +61,7 @@ export default function Dashboard({ onNavigateToComponent }) {
       </section>
 
       {/* 3. Screening Pipeline + Evidence Pathways (Two-Column Section) */}
-      <section className="spad-two-col-grid" aria-label="Pipeline and AI Reasoning">
+      <section className="spad-two-col-grid spad-pipeline-evidence-grid" aria-label="Pipeline and AI Reasoning">
         <ScreeningPipeline stages={pipelineStages} context={screeningContext} />
         <EvidencePathways pathways={evidencePathways} />
       </section>
