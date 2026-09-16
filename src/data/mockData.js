@@ -13,6 +13,11 @@ export const mockScreeningContext = {
   temperature: '125°C',
   chamberId: 'CHAMBER-B4-RAD',
   operator: 'ENG-MIL-SPEC-883',
+  totalUnits: 1248,
+  screenedUnits: 1248,
+  currentYield: '96.2%',
+  anomaliesDetected: 122,
+  nextGate: '168h Qualification Gate',
 };
 
 // 2. Parameter Specifications & Nominal Engineering References
