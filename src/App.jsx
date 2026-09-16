@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Sidebar from './components/Sidebar';
+import MobileNavbar from './components/MobileNavbar';
 import Dashboard from './pages/Dashboard';
 import ComponentSearch from './pages/ComponentSearch';
 import ScreeningPipeline from './pages/ScreeningPipeline';
@@ -25,6 +26,7 @@ export default function App() {
   const [currentPath, setCurrentPath] = useState(() => {
     return window.location.pathname in PAGE_ROUTES ? window.location.pathname : '/';
   });
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Handle browser back/forward history events
   useEffect(() => {
@@ -42,6 +44,7 @@ export default function App() {
       window.history.pushState({}, '', path);
       setCurrentPath(path);
     }
+    setIsMobileMenuOpen(false);
   };
 
   const handleNavigateToComponent = (componentId) => {
@@ -52,13 +55,26 @@ export default function App() {
 
   return (
     <div className="app-container">
-      {/* 1. Fixed Left Vertical Navigation Bar */}
-      <Sidebar activePath={currentPath} onNavigate={handleNavigate} />
+      {/* 1. Left Vertical Navigation Bar (Fixed on Desktop, Slide-out Drawer on Mobile) */}
+      <Sidebar 
+        activePath={currentPath} 
+        onNavigate={handleNavigate} 
+        isOpen={isMobileMenuOpen}
+        onClose={() => setIsMobileMenuOpen(false)}
+      />
 
       {/* 2. Main Content Area */}
-      <main className="app-main-content">
-        <CurrentPageComponent onNavigateToComponent={handleNavigateToComponent} />
-      </main>
+      <div className="app-main-layout">
+        {/* Mobile Header Topbar (Visible on < 1024px) */}
+        <MobileNavbar 
+          onToggleMenu={() => setIsMobileMenuOpen((prev) => !prev)}
+          currentLot="LOT-2026-001"
+        />
+
+        <main className="app-main-content">
+          <CurrentPageComponent onNavigateToComponent={handleNavigateToComponent} />
+        </main>
+      </div>
     </div>
   );
 }

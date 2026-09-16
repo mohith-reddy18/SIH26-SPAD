@@ -36,12 +36,14 @@ html, body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
 }
 
 #root {
   min-height: 100vh;
   width: 100%;
   display: flex;
+  overflow-x: hidden;
 }
 
 /* App Main Container Layout */
@@ -50,13 +52,25 @@ html, body {
   width: 100%;
   min-height: 100vh;
   position: relative;
+  overflow-x: hidden;
 }
 
-/* Main Content Area: Placed immediately to the right of fixed sidebar */
-.app-main-content {
+/* Main Layout Wrapper */
+.app-main-layout {
   margin-left: 248px;
-  flex: 1;
+  width: calc(100% - 248px);
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  transition: margin-left 0.28s ease, width 0.28s ease;
+  overflow-x: hidden;
+}
+
+/* Main Content Area */
+.app-main-content {
+  flex: 1;
+  width: 100%;
   background-color: var(--spad-bg-canvas);
   display: flex;
   flex-direction: column;
@@ -64,32 +78,38 @@ html, body {
   position: relative;
 }
 
-/* Page Container Layout */
+/* Generic Page Container Layout */
 .spad-page-container {
   flex: 1;
-  padding: 36px 36px;
+  padding: 32px 36px;
   display: flex;
   flex-direction: column;
-  max-width: 1280px;
+  max-width: 1400px;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0 auto;
 }
 
 /* Page Header */
 .spad-page-header {
   border-bottom: 1px solid var(--spad-border-subtle);
-  padding-bottom: 20px;
-  margin-bottom: 28px;
+  padding-bottom: 18px;
+  margin-bottom: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .spad-page-title-row {
   display: flex;
   align-items: center;
-  gap: 14px;
-  margin-bottom: 8px;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .spad-page-title {
   font-size: 24px;
-  font-weight: 700;
+  font-weight: 800;
   color: var(--spad-text-primary);
   margin: 0;
   letter-spacing: -0.01em;
@@ -120,7 +140,7 @@ html, body {
   margin-top: 8px;
   border: 1px dashed var(--spad-border-dashed);
   border-radius: 8px;
-  padding: 48px 32px;
+  padding: 42px 24px;
   text-align: center;
   background: rgba(11, 18, 32, 0.4);
   display: flex;
@@ -128,6 +148,8 @@ html, body {
   align-items: center;
   justify-content: center;
   gap: 12px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .spad-placeholder-badge {
@@ -150,18 +172,30 @@ html, body {
   line-height: 1.5;
 }
 
-@media (max-width: 768px) {
-  .app-main-content {
-    margin-left: 68px;
+/* --------------------------------------------------------------------------
+   Responsive Layout Breakpoints
+   -------------------------------------------------------------------------- */
+@media (max-width: 1023px) {
+  .app-main-layout {
+    margin-left: 0;
+    width: 100%;
   }
-  
+
   .spad-page-container {
-    padding: 24px 18px;
+    padding: 24px 20px;
   }
-  
-  .spad-page-title-row {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 6px;
+}
+
+@media (max-width: 640px) {
+  .spad-page-container {
+    padding: 16px 14px;
+  }
+
+  .spad-page-title {
+    font-size: 20px;
+  }
+
+  .spad-page-description {
+    font-size: 12.5px;
   }
 }

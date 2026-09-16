@@ -89,6 +89,15 @@ function SettingsIcon({ className }) {
   );
 }
 
+function CloseIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <line x1="18" y1="6" x2="6" y2="18" />
+      <line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
+  );
+}
+
 /**
  * Aerospace & Microelectronics Emblem (SPAD Mission Mark)
  */
@@ -195,73 +204,99 @@ export const NAV_ITEMS = [
 
 /**
  * Sidebar Component for SPAD: Space-Grade Anomaly Detection
+ * Supports both fixed desktop mode and sliding mobile drawer mode.
  * 
  * @param {Object} props
  * @param {string} [props.activePath='/'] - Current active route path
  * @param {Function} [props.onNavigate] - Navigation handler callback
+ * @param {boolean} [props.isOpen=false] - Mobile drawer open state
+ * @param {Function} [props.onClose] - Mobile drawer close callback
  */
-export default function Sidebar({ activePath = '/', onNavigate }) {
+export default function Sidebar({ activePath = '/', onNavigate, isOpen = false, onClose }) {
   const handleItemClick = (item, e) => {
     e.preventDefault();
     if (onNavigate) {
       onNavigate(item.path);
     }
+    if (onClose) {
+      onClose();
+    }
   };
 
   return (
-    <aside className="spad-sidebar" aria-label="Primary Navigation">
-      {/* 1. Header / Aerospace Branding */}
-      <div className="spad-sidebar-header">
-        <div className="spad-brand-row">
-          <SpadLogo />
-          <div className="spad-title-block">
-            <span className="spad-brand-title">SPAD</span>
-            <span className="spad-brand-badge">AEROSPACE GRADE</span>
+    <>
+      {/* Mobile Backdrop Overlay */}
+      <div 
+        className={`spad-sidebar-overlay ${isOpen ? 'active' : ''}`}
+        onClick={onClose}
+        aria-hidden="true"
+      />
+
+      <aside className={`spad-sidebar ${isOpen ? 'drawer-open' : ''}`} aria-label="Primary Navigation">
+        {/* 1. Header / Aerospace Branding */}
+        <div className="spad-sidebar-header">
+          <div className="spad-brand-row">
+            <SpadLogo />
+            <div className="spad-title-block">
+              <span className="spad-brand-title">SPAD</span>
+              <span className="spad-brand-badge">AEROSPACE GRADE</span>
+            </div>
           </div>
+
+          {/* Close button for mobile drawer */}
+          <button 
+            type="button" 
+            className="spad-sidebar-close-btn" 
+            onClick={onClose}
+            aria-label="Close Navigation Menu"
+          >
+            <CloseIcon />
+          </button>
         </div>
+
         <div className="spad-brand-subtitle">
           Space-Grade Anomaly Detection
         </div>
-      </div>
 
-      {/* 2. Navigation Items List */}
-      <nav className="spad-nav-container">
-        <div className="spad-nav-section-label">SCREENING & CONTROL</div>
-        <ul className="spad-nav-list" role="list">
-          {NAV_ITEMS.map((item) => {
-            const isActive = activePath === item.path;
-            const Icon = item.icon;
+        {/* 2. Navigation Items List */}
+        <nav className="spad-nav-container">
+          <div className="spad-nav-section-label">SCREENING & CONTROL</div>
+          <ul className="spad-nav-list" role="list">
+            {NAV_ITEMS.map((item) => {
+              const isActive = activePath === item.path;
+              const Icon = item.icon;
 
-            return (
-              <li key={item.id} className="spad-nav-item">
-                <a
-                  href={item.path}
-                  onClick={(e) => handleItemClick(item, e)}
-                  className={`spad-nav-link ${isActive ? 'active' : ''}`}
-                  aria-current={isActive ? 'page' : undefined}
-                >
-                  <span className="spad-nav-icon-wrapper">
-                    <Icon className="spad-nav-icon" />
-                  </span>
-                  <span className="spad-nav-label">{item.label}</span>
-                  {isActive && <span className="spad-active-indicator" aria-hidden="true" />}
-                </a>
-              </li>
-            );
-          })}
-        </ul>
-      </nav>
+              return (
+                <li key={item.id} className="spad-nav-item">
+                  <a
+                    href={item.path}
+                    onClick={(e) => handleItemClick(item, e)}
+                    className={`spad-nav-link ${isActive ? 'active' : ''}`}
+                    aria-current={isActive ? 'page' : undefined}
+                  >
+                    <span className="spad-nav-icon-wrapper">
+                      <Icon className="spad-nav-icon" />
+                    </span>
+                    <span className="spad-nav-label">{item.label}</span>
+                    {isActive && <span className="spad-active-indicator" aria-hidden="true" />}
+                  </a>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
 
-      {/* 3. Bottom Version & System Indicator */}
-      <div className="spad-sidebar-footer">
-        <div className="spad-system-status">
-          <span className="spad-status-dot" aria-hidden="true"></span>
-          <div className="spad-status-text">
-            <span className="spad-status-header">SPAD v1.0</span>
-            <span className="spad-status-sub">Screening System</span>
+        {/* 3. Bottom Version & System Indicator */}
+        <div className="spad-sidebar-footer">
+          <div className="spad-system-status">
+            <span className="spad-status-dot" aria-hidden="true"></span>
+            <div className="spad-status-text">
+              <span className="spad-status-header">SPAD v1.0</span>
+              <span className="spad-status-sub">Screening System</span>
+            </div>
           </div>
         </div>
-      </div>
-    </aside>
+      </aside>
+    </>
   );
 }
