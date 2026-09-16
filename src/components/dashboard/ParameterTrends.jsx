@@ -17,7 +17,7 @@ export default function ParameterTrends({
   // 1. Interactive States driven entirely by passed/centralized data
   const [viewMode, setViewMode] = useState('component'); // 'component' | 'lot'
   const [selectedComponentId, setSelectedComponentId] = useState(
-    () => (components && components.length > 0 ? components[0].id : 'C-0001')
+    () => components?.[0]?.id || ''
   );
 
   const parameterKeys = Object.keys(parameterSpecs);
