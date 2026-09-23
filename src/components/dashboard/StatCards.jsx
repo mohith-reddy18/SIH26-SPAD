@@ -58,9 +58,9 @@ export default function StatCards({ summaryStats }) {
   const criticalCount = critical !== undefined ? critical : (rejected || 0);
 
   // Calculate exact percentage progress values from component metrics
-  const normalPct = ((normalCount / totalComponents) * 100).toFixed(1);
-  const suspectPct = ((suspectCount / totalComponents) * 100).toFixed(1);
-  const criticalPct = ((criticalCount / totalComponents) * 100).toFixed(1);
+  const normalPct = totalComponents > 0 ? ((normalCount / totalComponents) * 100).toFixed(1) : '0.0';
+  const suspectPct = totalComponents > 0 ? ((suspectCount / totalComponents) * 100).toFixed(1) : '0.0';
+  const criticalPct = totalComponents > 0 ? ((criticalCount / totalComponents) * 100).toFixed(1) : '0.0';
 
   const cards = [
     {

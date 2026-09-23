@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { mockParameterSpecs, mockComponents, mockScreeningContext } from '../../data/mockData';
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://sih26-spad.onrender.com';
 
 // Helper for semantic status colors
 function getStatusColor(status) {
@@ -9,44 +11,17 @@ function getStatusColor(status) {
   return '#38bdf8';
 }
 
-// Calculate component status dynamically across all parameters against engineering maximum limits
-// Decision Rule:
-// 0 distinct parameter breaches -> NORMAL
-// 1 distinct parameter breach -> SUSPECT
-// 2 or more distinct parameter breaches -> CRITICAL
-function calculateComponentStatus(measurements, parameterSpecs) {
-  if (!measurements || !parameterSpecs) return 'NORMAL';
-
-  const specs = Array.isArray(parameterSpecs)
-    ? parameterSpecs
-    : Object.values(parameterSpecs);
-
-  let violatingCount = 0;
-
-  specs.forEach((spec) => {
-    const key = spec.key || spec.id;
-    const data = Array.isArray(measurements)
-      ? measurements
-      : (measurements[key] || (spec.key && measurements[spec.key]) || (spec.id && measurements[spec.id]));
-    if (Array.isArray(data) && typeof spec.specLimitMax === 'number') {
-      const hasBreach = data.some((val) => typeof val === 'number' && val > spec.specLimitMax);
-      if (hasBreach) {
-        violatingCount += 1;
-      }
-    }
-  });
-
-  if (violatingCount === 0) return 'NORMAL';
-  if (violatingCount === 1) return 'SUSPECT';
-  return 'CRITICAL';
-}
-
 // Helper to extract 0h, 24h observed checkpoints and 168h AI forecast
-function extractTrajectory(data) {
-  if (!Array.isArray(data)) return [0, 0, 0];
+function extractTrajectory(data, predictionVal) {
+  if (!Array.isArray(data) || data.length === 0) return [0, 0, 0];
   if (data.length === 4) {
-    // 0h observed (idx 0), 24h observed (idx 1), 168h AI forecast (idx 3)
-    return [data[0], data[1], data[3]];
+    // 0h observed (idx 0), 24h observed (idx 1), 168h AI forecast (predictionVal ?? idx 3)
+    const forecastVal = typeof predictionVal === 'number' ? predictionVal : data[3];
+    return [data[0], data[1], forecastVal];
+  }
+  if (data.length === 3) {
+    const forecastVal = typeof predictionVal === 'number' ? predictionVal : data[2];
+    return [data[0], data[1], forecastVal];
   }
   return data;
 }
@@ -56,68 +31,178 @@ export default function ParameterTrends({
   components = mockComponents,
   context = mockScreeningContext,
 }) {
-  // 1. Dynamic list of available parameters from centralized data / props
-  const availableParams = Array.isArray(parameterSpecs)
-    ? parameterSpecs
-    : Object.entries(parameterSpecs || {}).map(([key, spec]) => ({
-        id: spec.id || key,
-        ...spec,
-      }));
-
-  // 2. Interactive States driven entirely by passed/centralized data
+  // 1. Interactive State Management
   const [viewMode, setViewMode] = useState('component'); // 'component' | 'lot'
   const [selectedComponentId, setSelectedComponentId] = useState(
-    () => components?.[0]?.id || ''
+    () => components?.[0]?.id || 'C-0001'
   );
-
-  const [selectedParamKey, setSelectedParamKey] = useState(
-    () => availableParams[0]?.id || availableParams[0]?.key || 'standby-current'
-  );
+  const [selectedParamKey, setSelectedParamKey] = useState('iddq');
   const [hoveredPoint, setHoveredPoint] = useState(null);
   const [hoveredCompId, setHoveredCompId] = useState(null);
 
-  // 3. Dynamic Parameter Specification lookup from available parameters
-  const activeSpec =
-    availableParams.find(
-      (p) => (p.id && p.id === selectedParamKey) || (p.key && p.key === selectedParamKey)
-    ) ||
-    availableParams[0] ||
-    mockParameterSpecs['standby-current'];
+  // 2. Fetch selected component from backend API with fallback
+  const [liveComponentData, setLiveComponentData] = useState(null);
+  const [isLoadingComp, setIsLoadingComp] = useState(false);
+  const [compFetchError, setCompFetchError] = useState(null);
 
-  // 4. Dynamic Component lookup from centralized data
-  const currentLotId = context?.lotId || (components[0] && components[0].lotId) || 'LOT-2026-001';
+  useEffect(() => {
+    let isMounted = true;
+    const targetId = selectedComponentId || components[0]?.id;
+    if (!targetId) return;
+
+    async function fetchComponentScreening() {
+      setIsLoadingComp(true);
+      setCompFetchError(null);
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/screening/${encodeURIComponent(targetId)}`);
+        if (response.ok) {
+          const result = await response.json();
+          if (result.success && result.data && isMounted) {
+            setLiveComponentData(result.data);
+            return;
+          }
+        }
+        if (isMounted) {
+          setLiveComponentData(null);
+        }
+      } catch (err) {
+        if (isMounted) {
+          setCompFetchError(err.message);
+          setLiveComponentData(null);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingComp(false);
+        }
+      }
+    }
+
+    fetchComponentScreening();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedComponentId, components]);
+
+  // Active Component resolution: Live API record primary, prop fallback secondary
+  const activeComponent = useMemo(() => {
+    const fallback = components.find((c) => c.id === selectedComponentId) || components[0] || {};
+    if (liveComponentData) {
+      return {
+        ...fallback,
+        ...liveComponentData,
+        id: liveComponentData.componentId || liveComponentData.id || fallback.id || selectedComponentId,
+        lotId: liveComponentData.lotId || fallback.lotId || 'LOT-2026-001',
+        stage: liveComponentData.stage || fallback.stage || '96h',
+        measurements: liveComponentData.measurements || fallback.measurements || {},
+        predictions: liveComponentData.predictions || fallback.predictions || {},
+        engineeringLimits: liveComponentData.engineeringLimits || fallback.engineeringLimits || {},
+        status: liveComponentData.status || fallback.status || 'NORMAL',
+        _source: 'backend-api',
+      };
+    }
+    return fallback;
+  }, [liveComponentData, selectedComponentId, components]);
+
+  // 3. Dynamic available parameters constructed from measurements & engineering limits
+  const availableParams = useMemo(() => {
+    const measurementKeys = Object.keys(activeComponent.measurements || {});
+    if (measurementKeys.length > 0) {
+      return measurementKeys.map((key) => {
+        const matched = Array.isArray(parameterSpecs)
+          ? parameterSpecs.find((s) => s.key === key || s.id === key)
+          : parameterSpecs[key] || Object.values(parameterSpecs).find((s) => s.key === key || s.id === key);
+
+        const limit =
+          typeof activeComponent.engineeringLimits?.[key] === 'number'
+            ? activeComponent.engineeringLimits[key]
+            : matched?.specLimitMax;
+
+        return {
+          id: matched?.id || key,
+          key: key,
+          name: matched?.name || (key === 'iddq' ? 'Standby Current (Iddq)' : key === 'leakage' ? 'Leakage Current (I_leak)' : key === 'propDelay' ? 'Propagation Delay (t_pd)' : key),
+          shortName: matched?.shortName || (key === 'iddq' ? 'Iddq' : key === 'leakage' ? 'I_leak' : key === 'propDelay' ? 't_pd' : key),
+          unit: matched?.unit || (key === 'iddq' ? 'mA' : key === 'leakage' ? 'µA' : key === 'propDelay' ? 'ns' : ''),
+          specLimitMax: limit,
+          healthyRef: matched?.healthyRef || mockParameterSpecs[key]?.healthyRef || [0, 0, 0, 0],
+        };
+      });
+    }
+
+    // Fallback parameter list
+    return Array.isArray(parameterSpecs)
+      ? parameterSpecs
+      : Object.entries(parameterSpecs || {}).map(([key, spec]) => ({
+          id: spec.id || key,
+          ...spec,
+        }));
+  }, [activeComponent.measurements, activeComponent.engineeringLimits, parameterSpecs]);
+
+  // 4. Active parameter specification lookup
+  const activeSpec = useMemo(() => {
+    return (
+      availableParams.find(
+        (p) => (p.id && p.id === selectedParamKey) || (p.key && p.key === selectedParamKey)
+      ) ||
+      availableParams[0] || {
+        id: 'iddq',
+        key: 'iddq',
+        name: 'Standby Current (Iddq)',
+        shortName: 'Iddq',
+        unit: 'mA',
+        specLimitMax: 4.00,
+        healthyRef: [2.00, 2.05, 2.10, 2.15],
+      }
+    );
+  }, [availableParams, selectedParamKey]);
+
+  // 5. Dynamic Limit and Prediction retrieval for the active parameter
+  const dynamicLimit = useMemo(() => {
+    if (typeof activeComponent.engineeringLimits?.[activeSpec.key] === 'number') {
+      return activeComponent.engineeringLimits[activeSpec.key];
+    }
+    if (typeof activeComponent.engineeringLimits?.[activeSpec.id] === 'number') {
+      return activeComponent.engineeringLimits[activeSpec.id];
+    }
+    return activeSpec.specLimitMax;
+  }, [activeComponent.engineeringLimits, activeSpec]);
+
+  const dynamicPrediction = useMemo(() => {
+    const key1 = `${activeSpec.key}_168h`;
+    const key2 = `${activeSpec.id}_168h`;
+    if (typeof activeComponent.predictions?.[key1] === 'number') {
+      return activeComponent.predictions[key1];
+    }
+    if (typeof activeComponent.predictions?.[key2] === 'number') {
+      return activeComponent.predictions[key2];
+    }
+    return undefined;
+  }, [activeComponent.predictions, activeSpec]);
+
+  // 6. Selected Component Status
+  const selectedStatus = activeComponent.status || 'NORMAL';
+  const currentLotId = context?.lotId || activeComponent.lotId || 'LOT-2026-001';
   const lotComponents = components.filter((c) => c.lotId === currentLotId);
 
-  const selectedComponent =
-    components.find((c) => c.id === selectedComponentId) ||
-    components[0] ||
-    {};
-
-  // Dynamic evaluation of component status based on all available parameters vs engineering limits
-  const selectedStatus = calculateComponentStatus(
-    selectedComponent.measurements,
-    parameterSpecs
-  );
-
-  // 5. Build Trajectory Series dynamically from component measurements & specs
-  let activeSeries = [];
+  // 7. Trajectory Series Construction
   const healthyTrajectory = extractTrajectory(activeSpec.healthyRef || [0, 0, 0, 0]);
 
+  let activeSeries = [];
   if (viewMode === 'component') {
     const rawCompData =
-      (selectedComponent.measurements &&
-        (selectedComponent.measurements[activeSpec.key] ||
-          selectedComponent.measurements[activeSpec.id])) ||
+      activeComponent.measurements?.[activeSpec.key] ||
+      activeComponent.measurements?.[activeSpec.id] ||
       activeSpec.healthyRef ||
       [0, 0, 0, 0];
 
-    const compData = extractTrajectory(rawCompData);
+    const compData = extractTrajectory(rawCompData, dynamicPrediction);
 
     activeSeries = [
       {
-        id: selectedComponent.id,
-        label: `${selectedComponent.id} — ${selectedStatus}`,
-        componentId: selectedComponent.id,
+        id: activeComponent.id,
+        label: `${activeComponent.id} — ${selectedStatus}`,
+        componentId: activeComponent.id,
         data: compData,
         color: getStatusColor(selectedStatus),
         strokeWidth: 2.8,
@@ -144,14 +229,18 @@ export default function ParameterTrends({
     const targetLotComponents = lotComponents.length > 0 ? lotComponents : components;
 
     activeSeries = targetLotComponents.map((comp) => {
+      const isSelected = comp.id === activeComponent.id;
+      const measurementsObj = isSelected ? activeComponent.measurements : comp.measurements;
+      const predictionsObj = isSelected ? activeComponent.predictions : comp.predictions;
       const rawCompData =
-        (comp.measurements &&
-          (comp.measurements[activeSpec.key] ||
-            comp.measurements[activeSpec.id])) ||
+        measurementsObj?.[activeSpec.key] ||
+        measurementsObj?.[activeSpec.id] ||
         activeSpec.healthyRef ||
         [0, 0, 0, 0];
-      const compData = extractTrajectory(rawCompData);
-      const cStatus = calculateComponentStatus(comp.measurements, parameterSpecs);
+
+      const pred = predictionsObj?.[`${activeSpec.key}_168h`] ?? predictionsObj?.[`${activeSpec.id}_168h`];
+      const compData = extractTrajectory(rawCompData, pred);
+      const cStatus = isSelected ? selectedStatus : (comp.status || 'NORMAL');
       const isHovered = hoveredCompId === comp.id;
 
       return {
@@ -160,8 +249,8 @@ export default function ParameterTrends({
         componentId: comp.id,
         data: compData,
         color: getStatusColor(cStatus),
-        strokeWidth: isHovered ? 3.0 : 1.6,
-        opacity: hoveredCompId ? (isHovered ? 1.0 : 0.22) : 0.65,
+        strokeWidth: isHovered ? 3.0 : isSelected ? 2.6 : 1.6,
+        opacity: hoveredCompId ? (isHovered ? 1.0 : 0.22) : isSelected ? 1.0 : 0.65,
         dashed: false,
         status: cStatus,
         isComponent: true,
@@ -182,20 +271,20 @@ export default function ParameterTrends({
     });
   }
 
-  // 6. SVG Chart Dimensions & Scaling (0h Observed, 24h Observed, 168h Forecast)
+  // 8. SVG Chart Dimensions & Scaling
   const width = 860;
   const height = 300;
   const padding = { top: 30, right: 140, bottom: 45, left: 65 };
   const chartW = width - padding.left - padding.right;
   const chartH = height - padding.top - padding.bottom;
 
-  // Dynamic Y-axis Min and Max derived from active dataset and spec limit
+  // Dynamic Y-axis Min and Max derived from active dataset and engineering limit
   const allValues = [];
   activeSeries.forEach((s) => {
     if (Array.isArray(s.data)) allValues.push(...s.data);
   });
-  if (typeof activeSpec.specLimitMax === 'number') {
-    allValues.push(activeSpec.specLimitMax);
+  if (typeof dynamicLimit === 'number') {
+    allValues.push(dynamicLimit);
   }
 
   const dataMin = allValues.length > 0 ? Math.min(...allValues) : 0;
@@ -208,7 +297,7 @@ export default function ParameterTrends({
   const getY = (val) => padding.top + chartH - ((val - minVal) / (maxVal - minVal || 1)) * chartH;
 
   // Spec Limit Line Y coordinate
-  const specLimitY = typeof activeSpec.specLimitMax === 'number' ? getY(activeSpec.specLimitMax) : -100;
+  const specLimitY = typeof dynamicLimit === 'number' ? getY(dynamicLimit) : -100;
 
   // Y-axis Ticks (5 evenly distributed steps)
   const yTicks = [0, 1, 2, 3, 4].map((step) => {
@@ -261,17 +350,14 @@ export default function ParameterTrends({
               <select
                 id="component-select"
                 className="spad-comp-select-input"
-                value={selectedComponent.id || ''}
+                value={activeComponent.id || ''}
                 onChange={(e) => setSelectedComponentId(e.target.value)}
               >
-                {components.map((c) => {
-                  const cStatus = calculateComponentStatus(c.measurements, parameterSpecs);
-                  return (
-                    <option key={c.id} value={c.id}>
-                      {c.id} ({cStatus})
-                    </option>
-                  );
-                })}
+                {components.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.id} ({c.status || 'NORMAL'})
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -282,11 +368,11 @@ export default function ParameterTrends({
               <select
                 id="param-select"
                 className="spad-comp-select-input"
-                value={selectedParamKey}
+                value={activeSpec.key || activeSpec.id}
                 onChange={(e) => setSelectedParamKey(e.target.value)}
               >
                 {availableParams.map((param) => {
-                  const pKey = param.id || param.key;
+                  const pKey = param.key || param.id;
                   return (
                     <option key={pKey} value={pKey}>
                       {param.name}
@@ -296,17 +382,17 @@ export default function ParameterTrends({
               </select>
             </div>
 
-            {/* Compact Component Summary derived from selectedComponent data */}
+            {/* Compact Component Summary derived from activeComponent data */}
             <div className="spad-comp-compact-summary">
-              <span className="spad-summary-pill-id">{selectedComponent.id}</span>
-              <span className="spad-summary-pill-lot">Lot: {selectedComponent.lotId}</span>
+              <span className="spad-summary-pill-id">{activeComponent.id}</span>
+              <span className="spad-summary-pill-lot">Lot: {activeComponent.lotId}</span>
               <span
                 className={`spad-summary-pill-status status-${selectedStatus.toLowerCase()}`}
               >
                 Status: {selectedStatus}
               </span>
               <span className="spad-summary-pill-risk">
-                AI Status: {selectedComponent.aiAssessment || (selectedComponent.aiRisk > 75 ? 'CRITICAL' : selectedComponent.aiRisk > 40 ? 'SUSPECT' : 'NORMAL')}
+                AI Status: {activeComponent.aiAssessment || (activeComponent.aiRisk > 75 ? 'CRITICAL' : activeComponent.aiRisk > 40 ? 'SUSPECT' : 'NORMAL')}
               </span>
             </div>
           </div>
@@ -319,11 +405,11 @@ export default function ParameterTrends({
               <select
                 id="param-select-lot"
                 className="spad-comp-select-input"
-                value={selectedParamKey}
+                value={activeSpec.key || activeSpec.id}
                 onChange={(e) => setSelectedParamKey(e.target.value)}
               >
                 {availableParams.map((param) => {
-                  const pKey = param.id || param.key;
+                  const pKey = param.key || param.id;
                   return (
                     <option key={pKey} value={pKey}>
                       {param.name}
@@ -346,7 +432,7 @@ export default function ParameterTrends({
         <span className="spad-spec-badge">
           MAX SPEC LIMIT:{' '}
           <strong>
-            {activeSpec.specLimitMax !== undefined ? activeSpec.specLimitMax.toFixed(2) : '—'}{' '}
+            {typeof dynamicLimit === 'number' ? dynamicLimit.toFixed(2) : '—'}{' '}
             {activeSpec.unit}
           </strong>
         </span>
@@ -440,7 +526,7 @@ export default function ParameterTrends({
             {activeSpec.name} [{activeSpec.unit}]
           </text>
 
-          {/* Engineering Limit Line & Label (Flat, Crisp, No Glow) */}
+          {/* Engineering Limit Line & Label */}
           {specLimitY >= padding.top && specLimitY <= padding.top + chartH && (
             <g>
               <line
@@ -470,7 +556,7 @@ export default function ParameterTrends({
                 fontWeight="700"
                 fontFamily="var(--font-mono)"
               >
-                LIMIT: {activeSpec.specLimitMax?.toFixed(2)} {activeSpec.unit}
+                LIMIT: {typeof dynamicLimit === 'number' ? dynamicLimit.toFixed(2) : '—'} {activeSpec.unit}
               </text>
             </g>
           )}
@@ -590,7 +676,7 @@ export default function ParameterTrends({
         </svg>
       </div>
 
-      {/* 4. Chart Legend distinguishing Component trajectories, Healthy Reference, and Engineering Limit */}
+      {/* 4. Chart Legend */}
       <div className="spad-chart-legend" aria-label="Chart Series Legend">
         {viewMode === 'lot' ? (
           <>
@@ -642,7 +728,7 @@ export default function ParameterTrends({
               />
               <span className="spad-legend-label">Healthy Reference</span>
             </div>
-            {typeof activeSpec.specLimitMax === 'number' && (
+            {typeof dynamicLimit === 'number' && (
               <div className="spad-legend-item">
                 <span
                   className="spad-legend-dot"
@@ -654,7 +740,7 @@ export default function ParameterTrends({
                   }}
                 />
                 <span className="spad-legend-label">
-                  Engineering Limit ({activeSpec.specLimitMax.toFixed(2)} {activeSpec.unit})
+                  Engineering Limit ({dynamicLimit.toFixed(2)} {activeSpec.unit})
                 </span>
               </div>
             )}
@@ -684,7 +770,7 @@ export default function ParameterTrends({
                 <span className="spad-legend-label">{series.label}</span>
               </div>
             ))}
-            {typeof activeSpec.specLimitMax === 'number' && (
+            {typeof dynamicLimit === 'number' && (
               <div className="spad-legend-item">
                 <span
                   className="spad-legend-dot"
@@ -696,7 +782,7 @@ export default function ParameterTrends({
                   }}
                 />
                 <span className="spad-legend-label">
-                  Engineering Limit ({activeSpec.specLimitMax.toFixed(2)} {activeSpec.unit})
+                  Engineering Limit ({dynamicLimit.toFixed(2)} {activeSpec.unit})
                 </span>
               </div>
             )}
