@@ -11,7 +11,7 @@ function SearchIcon() {
   );
 }
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://sih26-spad.onrender.com';
 
 export default function ComponentSearch({ onNavigateToComponent, initialComponentId }) {
   const [searchTerm, setSearchTerm] = useState('');
