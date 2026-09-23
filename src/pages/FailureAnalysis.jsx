@@ -1,23 +1,319 @@
-import React from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { mockComponents, mockParameterSpecs } from '../data/mockData';
+import './Dashboard.css';
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://sih26-spad.onrender.com';
+
+function getStatusColor(status) {
+  if (status === 'NORMAL' || status === 'PASS') return '#10b981';
+  if (status === 'SUSPECT' || status === 'HOLD') return '#f59e0b';
+  if (status === 'CRITICAL' || status === 'REJECT') return '#ef4444';
+  return '#38bdf8';
+}
 
 export default function FailureAnalysis() {
+  const [screeningRecords, setScreeningRecords] = useState([]);
+  const [selectedComponentId, setSelectedComponentId] = useState('C-0001');
+  const [dataSource, setDataSource] = useState('fallback'); // 'api' | 'fallback'
+  const [isLoading, setIsLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(null);
+
+  // 1. Fetch screening records from backend API
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadFailureAnalysisData() {
+      setIsLoading(true);
+      setFetchError(null);
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/screening`);
+        if (response.ok) {
+          const result = await response.json();
+          if (result.success && Array.isArray(result.data) && result.data.length > 0) {
+            if (isMounted) {
+              setScreeningRecords(result.data);
+              setDataSource('api');
+              const initialId = result.data[0].componentId || result.data[0].id || 'C-0001';
+              setSelectedComponentId((prev) => prev || initialId);
+            }
+            return;
+          }
+        }
+        if (isMounted) {
+          console.warn('[SPAD] API returned empty/invalid records; using mock fallback.');
+          setDataSource('fallback');
+        }
+      } catch (err) {
+        if (isMounted) {
+          console.warn('[SPAD] Failed to fetch screening records from backend:', err.message);
+          setFetchError(err.message);
+          setDataSource('fallback');
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    loadFailureAnalysisData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // 2. Active component resolution
+  const activeComponent = useMemo(() => {
+    if (dataSource === 'api' && screeningRecords.length > 0) {
+      const match = screeningRecords.find(
+        (r) => (r.componentId || r.id) === selectedComponentId
+      );
+      if (match) return match;
+    }
+    return mockComponents.find((c) => c.id === selectedComponentId) || mockComponents[0];
+  }, [screeningRecords, selectedComponentId, dataSource]);
+
+  const componentId = activeComponent.componentId || activeComponent.id || 'C-0001';
+  const lotId = activeComponent.lotId || 'LOT-2026-001';
+  const stage = activeComponent.stage || '96h';
+  const status = activeComponent.status || 'NORMAL';
+  const aiAssessment = activeComponent.aiAssessment || status;
+  const aiRisk = typeof activeComponent.aiRisk === 'number' ? activeComponent.aiRisk : 12;
+  const riskScore = typeof activeComponent.riskScore === 'number' ? activeComponent.riskScore : 0.12;
+
+  const measurements = activeComponent.measurements || {};
+  const predictions = activeComponent.predictions || {};
+  const engineeringLimits = activeComponent.engineeringLimits || {};
+  const anomalies = activeComponent.anomalies || {
+    populationAbnormality: false,
+    trajectoryAbnormality: false,
+    futureRiskPrediction: 'Low (<5%)',
+  };
+  const modelExplanation = activeComponent.modelExplanation || {
+    framework: 'SHAP (TreeExplainer)',
+    targetPrediction: 'Predicted 168h Limit Risk',
+    baseValue: 0.15,
+    features: [],
+    summaryText: 'Nominal telemetry tracking.',
+  };
+
+  const isAnomalous = status === 'SUSPECT' || status === 'CRITICAL' || status === 'HOLD' || status === 'REJECT';
+
   return (
     <div className="spad-page-container">
+      {/* 1. Page Header */}
       <header className="spad-page-header">
         <div className="spad-page-title-row">
-          <h1 className="spad-page-title">Failure Analysis</h1>
+          <h1 className="spad-page-title">Failure Analysis &amp; Diagnostics</h1>
           <span className="spad-page-tag">DIAGNOSTICS &amp; ROOT CAUSE ANALYSIS</span>
         </div>
         <p className="spad-page-description">
-          Root cause diagnostics, latent defect isolation, and post-stress comparison of predicted degradation patterns against physical 168h findings.
+          Parametric anomaly diagnostics, early telemetry drift isolation, and post-stress comparison of predicted degradation signatures against physical inspection logs.
         </p>
       </header>
 
-      <div className="spad-page-placeholder">
-        <div className="spad-placeholder-badge">MODULE: FAILURE ANALYSIS (07)</div>
-        <p className="spad-placeholder-text">
-          Failure signature breakdowns, out-of-spec anomaly explanations, and physical inspection logs will be mounted here.
-        </p>
+      {/* 2. Component Selector Bar */}
+      <div className="spad-card" style={{ padding: '16px 20px', marginBottom: '20px' }}>
+        <div className="spad-trends-component-controls" style={{ flexWrap: 'wrap', gap: '16px' }}>
+          <div className="spad-comp-selector-group">
+            <label htmlFor="fa-comp-select" className="spad-comp-select-label">
+              Component:
+            </label>
+            <select
+              id="fa-comp-select"
+              className="spad-comp-select-input"
+              value={componentId}
+              onChange={(e) => setSelectedComponentId(e.target.value)}
+            >
+              {(dataSource === 'api' && screeningRecords.length > 0 ? screeningRecords : mockComponents).map(
+                (c) => {
+                  const id = c.componentId || c.id;
+                  const cStat = c.status || 'NORMAL';
+                  return (
+                    <option key={id} value={id}>
+                      {id} ({cStat})
+                    </option>
+                  );
+                }
+              )}
+            </select>
+          </div>
+
+          <div className="spad-comp-compact-summary">
+            <span className="spad-summary-pill-id">{componentId}</span>
+            <span className="spad-summary-pill-lot">Lot: {lotId}</span>
+            <span className="spad-summary-pill-lot">Stage: {stage}</span>
+            <span
+              className={`spad-summary-pill-status status-${status.toLowerCase()}`}
+            >
+              Status: {status}
+            </span>
+            <span className="spad-summary-pill-risk">
+              AI Risk: {aiRisk}%
+            </span>
+            <span className="spad-spec-badge" style={{ marginLeft: 'auto' }}>
+              SOURCE: <strong>{dataSource === 'api' ? 'MONGODB ATLAS' : 'LOCAL FALLBACK'}</strong>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* 3. Three-Tier Diagnostic Evidence Grid */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        {/* Tier 1: Screening Telemetry & Engineering Limits */}
+        <div className="spad-card" style={{ padding: '20px' }}>
+          <div className="spad-card-header">
+            <div className="spad-card-title-group">
+              <span className="spad-card-section-label">TIER 1: PHYSICAL SCREENING TELEMETRY</span>
+              <h2 className="spad-card-title">Parametric Measurement Integrity</h2>
+            </div>
+            <span
+              className="spad-status-pill"
+              style={{
+                backgroundColor: getStatusColor(status) + '20',
+                color: getStatusColor(status),
+                borderColor: getStatusColor(status) + '60',
+              }}
+            >
+              {status === 'NORMAL' ? 'WITHIN SPECIFICATION LIMITS' : 'SPECIFICATION ANOMALY'}
+            </span>
+          </div>
+
+          <p className="spad-card-desc">
+            Observed parametric checkpoints and maximum allowable specification limits from the screening database.
+          </p>
+
+          <div className="spad-table-container" style={{ marginTop: '12px' }}>
+            <table className="spad-data-table" aria-label="Parametric Telemetry Integrity">
+              <thead>
+                <tr>
+                  <th>PARAMETER</th>
+                  <th>OBSERVED VALUES (0h &rarr; 96h)</th>
+                  <th>168h FORECAST PREDICTION</th>
+                  <th>ENGINEERING LIMIT</th>
+                  <th>SAFETY MARGIN</th>
+                  <th>STATUS</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Object.keys(measurements).map((key) => {
+                  const matched = mockParameterSpecs[key] || {};
+                  const name = matched.name || (key === 'iddq' ? 'Standby Current (Iddq)' : key === 'leakage' ? 'Leakage Current (I_leak)' : key === 'propDelay' ? 'Propagation Delay (t_pd)' : key);
+                  const unit = matched.unit || (key === 'iddq' ? 'mA' : key === 'leakage' ? 'µA' : key === 'propDelay' ? 'ns' : '');
+                  const series = measurements[key] || [];
+                  const obsFormatted = series.map((v) => `${v} ${unit}`).join(' → ');
+                  const predVal = predictions[`${key}_168h`] ?? series[series.length - 1];
+                  const limitVal = engineeringLimits[key] ?? matched.specLimitMax;
+                  const margin = typeof limitVal === 'number' && typeof predVal === 'number' ? (limitVal - predVal).toFixed(2) : '—';
+                  const isBreached = typeof limitVal === 'number' && typeof predVal === 'number' && predVal > limitVal;
+
+                  return (
+                    <tr key={key} className="spad-table-row">
+                      <td className="spad-td-mono font-bold text-cyan">{name}</td>
+                      <td className="spad-td-mono">{obsFormatted}</td>
+                      <td className="spad-td-mono font-bold" style={{ color: '#38bdf8' }}>{predVal} {unit}</td>
+                      <td className="spad-td-mono" style={{ color: '#f87171', fontWeight: '700' }}>{limitVal} {unit}</td>
+                      <td className="spad-td-mono" style={{ color: isBreached ? '#ef4444' : '#10b981' }}>{margin !== '—' ? `+${margin} ${unit}` : '—'}</td>
+                      <td>
+                        <span className={`spad-status-pill ${isBreached ? 'badge-status-critical' : 'badge-status-normal'}`}>
+                          {isBreached ? 'EXCEEDS LIMIT' : 'WITHIN LIMIT'}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Tier 2: AI Anomaly Reasoning & SHAP Explainability */}
+        <div className="spad-two-col-grid">
+          <div className="spad-card" style={{ padding: '20px' }}>
+            <div className="spad-card-header">
+              <div className="spad-card-title-group">
+                <span className="spad-card-section-label">TIER 2: AI ANOMALY REASONING</span>
+                <h3 className="spad-card-title">Pre-Failure Telemetry Signatures</h3>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(56, 189, 248, 0.04)', borderRadius: '4px' }}>
+                <span style={{ fontSize: '13px', color: '#94a3b8' }}>Population Abnormality:</span>
+                <span className="font-mono" style={{ color: anomalies.populationAbnormality ? '#f59e0b' : '#10b981', fontWeight: '700' }}>
+                  {anomalies.populationAbnormality ? 'FLAGGED (Outlier)' : 'NOMINAL (Normal Distribution)'}
+                </span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(56, 189, 248, 0.04)', borderRadius: '4px' }}>
+                <span style={{ fontSize: '13px', color: '#94a3b8' }}>Trajectory Abnormality:</span>
+                <span className="font-mono" style={{ color: anomalies.trajectoryAbnormality ? '#f59e0b' : '#10b981', fontWeight: '700' }}>
+                  {anomalies.trajectoryAbnormality ? 'FLAGGED (Non-Linear Drift)' : 'NOMINAL (Stable)'}
+                </span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(56, 189, 248, 0.04)', borderRadius: '4px' }}>
+                <span style={{ fontSize: '13px', color: '#94a3b8' }}>AI Risk Forecast:</span>
+                <span className="font-mono" style={{ color: '#38bdf8', fontWeight: '700' }}>
+                  {typeof anomalies.futureRiskPrediction === 'string' ? anomalies.futureRiskPrediction : `${aiRisk}% Risk Index`}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="spad-card" style={{ padding: '20px' }}>
+            <div className="spad-card-header">
+              <div className="spad-card-title-group">
+                <span className="spad-card-section-label">MATHEMATICAL EXPLAINABILITY</span>
+                <h3 className="spad-card-title">SHAP Feature Attribution</h3>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px' }}>
+              {(modelExplanation.features || []).slice(0, 4).map((f, i) => (
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 10px', background: 'rgba(255, 255, 255, 0.02)', borderRadius: '4px', fontSize: '12px' }}>
+                  <span style={{ color: '#f8fafc' }}>{f.name}</span>
+                  <span className="font-mono" style={{ color: f.shapValue >= 0 ? '#f87171' : '#34d399', fontWeight: '700' }}>
+                    {f.shapValue >= 0 ? `+${f.shapValue.toFixed(2)}` : f.shapValue.toFixed(2)}
+                  </span>
+                </div>
+              ))}
+              <div className="spad-shap-disclaimer-note" style={{ marginTop: '8px', fontSize: '11px' }}>
+                <span className="font-bold text-cyan">Diagnostic Distinction:</span> SHAP values quantify mathematical feature weighting for predictive early screening. They do not constitute physical failure analysis or root-cause destructive findings.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Tier 3: Physical Failure Analysis (FA) & Lab Dossier */}
+        <div className="spad-card" style={{ padding: '20px' }}>
+          <div className="spad-card-header">
+            <div className="spad-card-title-group">
+              <span className="spad-card-section-label">TIER 3: PHYSICAL FAILURE ANALYSIS (FA) LAB LOGS</span>
+              <h3 className="spad-card-title">Destructive &amp; Non-Destructive Lab Outcomes</h3>
+            </div>
+          </div>
+
+          {!isAnomalous ? (
+            <div style={{ padding: '16px 20px', background: 'rgba(16, 185, 129, 0.05)', border: '1px solid rgba(16, 185, 129, 0.2)', borderRadius: '4px' }}>
+              <div style={{ color: '#34d399', fontWeight: '700', fontSize: '14px' }}>
+                ✓ Non-Destructive Screening Status: NOMINAL QUALIFICATION
+              </div>
+              <p style={{ fontSize: '13px', color: '#94a3b8', margin: '6px 0 0 0', lineHeight: '1.5' }}>
+                Component <strong>{componentId}</strong> has completed screening checkpoints with all parameters comfortably within MIL-STD engineering specification limits. No physical failure mechanisms, decapsulation, or SEM/TEM destructive failure analyses are indicated.
+              </p>
+            </div>
+          ) : (
+            <div style={{ padding: '16px 20px', background: 'rgba(245, 158, 11, 0.05)', border: '1px solid rgba(245, 158, 11, 0.2)', borderRadius: '4px' }}>
+              <div style={{ color: '#fbbf24', fontWeight: '700', fontSize: '14px' }}>
+                ⚠ Anomaly Quarantine: Physical Post-Mortem Lab Action Required
+              </div>
+              <p style={{ fontSize: '13px', color: '#94a3b8', margin: '6px 0 0 0', lineHeight: '1.5' }}>
+                Component <strong>{componentId}</strong> exhibited abnormal degradation telemetry. Confirmed physical root-cause investigations (Scanning Electron Microscopy, Acoustic Microscopy, or Decapsulation) are pending laboratory physical testing logs.
+              </p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
