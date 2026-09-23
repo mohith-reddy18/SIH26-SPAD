@@ -11,20 +11,82 @@ function SearchIcon() {
   );
 }
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+
 export default function ComponentSearch({ onNavigateToComponent, initialComponentId }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeParamFilter, setActiveParamFilter] = useState('ALL');
-  const [selectedModalComponent, setSelectedModalComponent] = useState(() => {
-    if (initialComponentId) {
-      return mockComponents.find((c) => c.id === initialComponentId) || null;
+  const [selectedModalComponent, setSelectedModalComponent] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isLoadingDetail, setIsLoadingDetail] = useState(false);
+  const [fetchError, setFetchError] = useState(null);
+
+  // Fetch component detail from backend API with fallback
+  const fetchComponentDetail = async (compItem) => {
+    if (!compItem) return;
+    const targetId = typeof compItem === 'string' ? compItem : compItem.id || compItem.componentId;
+    if (!targetId) return;
+
+    // Fallback data from mockComponents if database does not contain this component yet
+    const fallback =
+      typeof compItem === 'object' && compItem.measurements
+        ? compItem
+        : mockComponents.find((c) => c.id === targetId) || { id: targetId, lotId: 'LOT-2026-001' };
+
+    setSelectedModalComponent(fallback);
+    setIsModalOpen(true);
+    setIsLoadingDetail(true);
+    setFetchError(null);
+
+    try {
+      const endpoint = `${API_BASE_URL}/api/screening/${encodeURIComponent(targetId)}`;
+      const response = await fetch(endpoint);
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success && result.data) {
+          const record = result.data;
+          // Merge backend screening record with UI structure
+          const merged = {
+            ...fallback,
+            ...record,
+            id: record.componentId || record.id || targetId,
+            lotId: record.lotId || fallback.lotId,
+            stage: record.stage || fallback.stage,
+            measurements: record.measurements || fallback.measurements || {},
+            parameters: record.parameters || fallback.parameters || {},
+            predictions: record.predictions || fallback.predictions || {},
+            engineeringLimits: record.engineeringLimits || fallback.engineeringLimits,
+            engineeringLimitStatus: record.engineeringLimitStatus || fallback.engineeringLimitStatus,
+            aiAssessment: record.aiAssessment || fallback.aiAssessment,
+            aiRisk: typeof record.aiRisk === 'number' ? record.aiRisk : fallback.aiRisk,
+            riskScore: typeof record.riskScore === 'number' ? record.riskScore : fallback.riskScore,
+            anomalies: record.anomalies || fallback.anomalies,
+            evidence: record.evidence || fallback.evidence,
+            decision: record.decision || fallback.decision,
+            status: record.status || fallback.status,
+            modelExplanation: record.modelExplanation || fallback.modelExplanation,
+            _source: 'backend-api',
+          };
+          setSelectedModalComponent(merged);
+        }
+      } else if (response.status === 404) {
+        // Record not in MongoDB yet - keep fallback mock data without throwing error
+        console.info(`[SPAD] Backend record for "${targetId}" not found in database; using local screening baseline.`);
+      } else {
+        setFetchError(`Backend returned status ${response.status}`);
+      }
+    } catch (err) {
+      console.warn(`[SPAD] Backend API request failed for "${targetId}":`, err.message);
+      setFetchError(err.message);
+    } finally {
+      setIsLoadingDetail(false);
     }
-    return null;
-  });
+  };
 
   React.useEffect(() => {
     if (initialComponentId) {
-      const found = mockComponents.find((c) => c.id === initialComponentId);
-      if (found) setSelectedModalComponent(found);
+      fetchComponentDetail(initialComponentId);
     }
   }, [initialComponentId]);
 
@@ -40,7 +102,7 @@ export default function ComponentSearch({ onNavigateToComponent, initialComponen
   }, [searchTerm, activeParamFilter]);
 
   const handleRowClick = (item) => {
-    setSelectedModalComponent(item);
+    fetchComponentDetail(item);
   };
 
   return (
@@ -155,10 +217,13 @@ export default function ComponentSearch({ onNavigateToComponent, initialComponen
       {/* Detailed Component Analysis & SHAP Explainability Dialog */}
       <ComponentDetailModal
         component={selectedModalComponent}
-        isOpen={Boolean(selectedModalComponent)}
-        onClose={() => setSelectedModalComponent(null)}
+        isOpen={Boolean(selectedModalComponent && isModalOpen)}
+        onClose={() => {
+          setSelectedModalComponent(null);
+          setIsModalOpen(false);
+        }}
         components={mockComponents}
-        onSelectComponent={(comp) => setSelectedModalComponent(comp)}
+        onSelectComponent={(comp) => fetchComponentDetail(comp)}
         parameterSpecs={mockParameterSpecs}
       />
     </div>
