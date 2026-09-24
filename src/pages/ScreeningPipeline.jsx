@@ -27,7 +27,7 @@ export default function ScreeningPipeline() {
             if (isMounted) {
               setScreeningRecords(result.data);
               setDataSource('api');
-              const firstLot = result.data[0].lotId || 'LOT-2026-001';
+              const firstLot = result.data[0].lotId || 'NASA-MOSFET-199C';
               setSelectedLotId((prev) => prev || firstLot);
             }
             return;
@@ -61,7 +61,7 @@ export default function ScreeningPipeline() {
     const map = {};
     if (dataSource === 'api' && screeningRecords.length > 0) {
       screeningRecords.forEach((rec) => {
-        const lot = rec.lotId || 'LOT-2026-001';
+        const lot = rec.lotId || 'NASA-MOSFET-199C';
         if (!map[lot]) {
           map[lot] = [];
         }
@@ -97,10 +97,10 @@ export default function ScreeningPipeline() {
         screenedUnits: totalUnits,
         currentYield: currentYieldPct,
         anomaliesDetected: anomaliesCount,
-        nextGate: '168h Physical Validation Gate',
-        temperature: '125°C',
-        chamberId: 'CHAMBER-B4-RAD',
-        operator: 'ENG-MIL-SPEC-883',
+        nextGate: '100% Validation Gate',
+        temperature: '199–200°C',
+        chamberId: 'NASA-MOSFET-CHAMBER',
+        operator: 'NASA-THERMAL-OVERSTRESS-V1',
       };
     }
 

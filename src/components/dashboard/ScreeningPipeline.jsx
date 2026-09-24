@@ -21,7 +21,7 @@ export default function ScreeningPipeline({
 
       {/* 2. Description */}
       <p className="spad-card-desc">
-        Early predictive screening progression for active lot <strong>{context.lotId}</strong> (0h &amp; 24h measurements complete &rarr; AI 168h forecast available &rarr; 168h physical validation pending).
+        Early predictive screening progression for active lot <strong>{context.lotId}</strong> (0% &amp; 33.33% observations complete &rarr; AI 100% forecast available &rarr; 100% validation gate evaluated).
       </p>
 
       {/* 3. Progress Bar Gauge */}
@@ -86,10 +86,10 @@ export default function ScreeningPipeline({
           </div>
           <div className="spad-lot-stat-item">
             <span className="spad-lot-stat-k">Input Units Tested</span>
-            <span className="spad-lot-stat-v">{context.screenedUnits !== undefined && context.screenedUnits !== null ? context.screenedUnits.toLocaleString() : '—'} <span className="spad-lot-stat-sub">(0h+24h)</span></span>
+            <span className="spad-lot-stat-v">{context.screenedUnits !== undefined && context.screenedUnits !== null ? context.screenedUnits.toLocaleString() : '—'} <span className="spad-lot-stat-sub">(0%+33.33%)</span></span>
           </div>
           <div className="spad-lot-stat-item">
-            <span className="spad-lot-stat-k">Projected 168h Yield</span>
+            <span className="spad-lot-stat-k">Predicted Yield</span>
             <span className="spad-lot-stat-v status-yield">{context.currentYield || '—'}</span>
           </div>
           <div className="spad-lot-stat-item">

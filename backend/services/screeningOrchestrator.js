@@ -47,7 +47,8 @@ function extractTelemetryDictionary(measurements = {}, limits = {}) {
       val24h = typeof raw24h === 'number' && !isNaN(raw24h) ? raw24h : null;
     }
 
-    const unit = limits[paramKey]?.unit || (paramKey === 'iddq' ? 'mA' : paramKey === 'leakage' ? 'µA' : paramKey === 'propDelay' ? 'ns' : '');
+    const lowerParam = paramKey.toLowerCase();
+    const unit = limits[paramKey]?.unit || (lowerParam.includes('rds') ? 'Ω' : lowerParam.includes('temp') ? '°C' : lowerParam.startsWith('v') ? 'V' : lowerParam.includes('freq') ? 'Hz' : lowerParam === 'iddq' ? 'mA' : lowerParam.includes('leak') ? 'µA' : '');
 
     params[paramKey] = {
       unit,

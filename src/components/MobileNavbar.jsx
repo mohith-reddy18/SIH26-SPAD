@@ -21,7 +21,7 @@ function SpadMiniMark() {
   );
 }
 
-export default function MobileNavbar({ onToggleMenu, currentLot = 'LOT-2026-001' }) {
+export default function MobileNavbar({ onToggleMenu, currentLot = 'NASA-MOSFET-199C' }) {
   return (
     <header className="spad-mobile-topbar" aria-label="Mobile Header">
       <div className="spad-mobile-left">

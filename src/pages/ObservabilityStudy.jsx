@@ -14,7 +14,7 @@ import { mapScreeningRecord, getParameterMeta, extractPredictedValue } from '../
 
 export default function ObservabilityStudy() {
   const [screeningRecords, setScreeningRecords] = useState([]);
-  const [selectedComponentId, setSelectedComponentId] = useState('C-0001');
+  const [selectedComponentId, setSelectedComponentId] = useState('TEST-01');
   const [selectedParamKey, setSelectedParamKey] = useState('ALL');
   const [dataSource, setDataSource] = useState('loading'); // 'loading' | 'api' | 'empty' | 'offline'
   const [isLoading, setIsLoading] = useState(true);
@@ -36,7 +36,7 @@ export default function ObservabilityStudy() {
             if (isMounted) {
               setScreeningRecords(result.data);
               setDataSource('api');
-              const initialId = result.data[0].componentId || result.data[0].id || 'C-0001';
+              const initialId = result.data[0].componentId || result.data[0].id || 'TEST-01';
               setSelectedComponentId((prev) => prev || initialId);
             }
             return;
@@ -89,7 +89,7 @@ export default function ObservabilityStudy() {
   // 3. Dynamic parameter keys extraction from backend measurements
   const availableParamKeys = useMemo(() => {
     const keys = Object.keys(measurements);
-    return keys.length > 0 ? keys : ['iddq', 'leakage', 'propDelay'];
+    return keys.length > 0 ? keys : ['rdson', 'delta_rdson', 'temp'];
   }, [measurements]);
 
   // Map parameter keys to display information
@@ -247,10 +247,10 @@ export default function ObservabilityStudy() {
             <thead>
               <tr>
                 <th>PARAMETER</th>
-                <th>0h (BASELINE)</th>
-                <th>24h (OBSERVED)</th>
-                <th>96h (CURRENT)</th>
-                <th>168h (AI FORECAST)</th>
+                <th>0% (BASELINE)</th>
+                <th>33.33% (EARLY)</th>
+                <th>66.67% (INTERMEDIATE)</th>
+                <th>100% (AI FORECAST)</th>
                 <th>ENGINEERING LIMIT</th>
                 <th>SAFETY MARGIN</th>
                 <th>STATUS</th>
@@ -325,7 +325,7 @@ export default function ObservabilityStudy() {
             <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: 'rgba(56, 189, 248, 0.04)', borderRadius: '4px' }}>
               <span style={{ fontSize: '12px', color: '#94a3b8' }}>Observed Checkpoints Count:</span>
               <span className="font-mono" style={{ color: '#f8fafc', fontWeight: '700' }}>
-                {measurements[availableParamKeys[0]]?.length || 4} intervals (0h &rarr; 168h)
+                {measurements[availableParamKeys[0]]?.length || 4} intervals (0% &rarr; 100%)
               </span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: 'rgba(56, 189, 248, 0.04)', borderRadius: '4px' }}>

@@ -15,8 +15,8 @@ import { mapScreeningRecord, getNormalizedEngineeringStatus, getParameterMeta, e
 export default function Reports() {
   const [screeningRecords, setScreeningRecords] = useState([]);
   const [reportType, setReportType] = useState('component'); // 'component' | 'lot'
-  const [selectedComponentId, setSelectedComponentId] = useState('C-0001');
-  const [selectedLotId, setSelectedLotId] = useState('LOT-2026-001');
+  const [selectedComponentId, setSelectedComponentId] = useState('TEST-01');
+  const [selectedLotId, setSelectedLotId] = useState('NASA-MOSFET-199C');
   const [dataSource, setDataSource] = useState('loading'); // 'loading' | 'api' | 'empty' | 'offline'
   const [isLoading, setIsLoading] = useState(true);
   const [fetchError, setFetchError] = useState(null);
@@ -37,8 +37,8 @@ export default function Reports() {
             if (isMounted) {
               setScreeningRecords(result.data);
               setDataSource('api');
-              const firstId = result.data[0].componentId || result.data[0].id || 'C-0001';
-              const firstLot = result.data[0].lotId || 'LOT-2026-001';
+              const firstId = result.data[0].componentId || result.data[0].id || 'TEST-01';
+              const firstLot = result.data[0].lotId || 'NASA-MOSFET-199C';
               setSelectedComponentId((prev) => prev || firstId);
               setSelectedLotId((prev) => prev || firstLot);
             }
@@ -460,9 +460,9 @@ export default function Reports() {
                   <tr>
                     <th>COMPONENT ID</th>
                     <th>STAGE</th>
-                    <th>STANDBY (Iddq)</th>
-                    <th>LEAKAGE (I_leak)</th>
-                    <th>PROP DELAY (t_pd)</th>
+                    <th>RDS(on) 0%</th>
+                    <th>RDS(on) 33%</th>
+                    <th>RDS(on) 100%</th>
                     <th>AI RISK</th>
                     <th>EVIDENCE</th>
                     <th>ENGINEERING STATUS</th>
@@ -471,21 +471,22 @@ export default function Reports() {
                 <tbody>
                   {activeLotRecords.map((item) => {
                     const cId = item.componentId || item.id;
-                    const cStage = item.stage || '96h';
+                    const cStage = item.stage || '100%';
                     const cRisk = typeof item.aiRisk === 'number' ? item.aiRisk : 0;
                     const cStatus = item.engineeringStatus || item.status || 'NORMAL';
                     const cEvidence = item.evidence || 'Within Expected Range';
-                    const iddqVal = item.measurements?.iddq ? item.measurements.iddq[item.measurements.iddq.length - 1] + ' mA' : item.standbyCurrent || '—';
-                    const leakVal = item.measurements?.leakage ? item.measurements.leakage[item.measurements.leakage.length - 1] + ' µA' : item.leakageCurrent || '—';
-                    const propVal = item.measurements?.propDelay ? item.measurements.propDelay[item.measurements.propDelay.length - 1] + ' ns' : item.propagationDelay || '—';
+                    const rdsSeries = item.measurements?.rdson || item.measurements?.rdson_ohm || [];
+                    const rds0Val = Array.isArray(rdsSeries) && rdsSeries.length > 0 ? `${rdsSeries[0].toFixed(3)} Ω` : (item.rdson || '—');
+                    const rds33Val = Array.isArray(rdsSeries) && rdsSeries.length > 1 ? `${rdsSeries[1].toFixed(3)} Ω` : '—';
+                    const rds100Val = Array.isArray(rdsSeries) && rdsSeries.length > 3 ? `${rdsSeries[3].toFixed(3)} Ω` : (item.predictions?.rdson ? `${item.predictions.rdson.toFixed(3)} Ω [Pred]` : '—');
 
                     return (
                       <tr key={cId} className="spad-table-row" onClick={() => { setSelectedComponentId(cId); setReportType('component'); }}>
                         <td className="spad-td-mono font-bold text-cyan">{cId}</td>
                         <td className="spad-td-mono">{cStage}</td>
-                        <td className="spad-td-mono">{iddqVal}</td>
-                        <td className="spad-td-mono">{leakVal}</td>
-                        <td className="spad-td-mono">{propVal}</td>
+                        <td className="spad-td-mono">{rds0Val}</td>
+                        <td className="spad-td-mono">{rds33Val}</td>
+                        <td className="spad-td-mono">{rds100Val}</td>
                         <td className="spad-td-mono font-bold" style={{ color: cRisk > 75 ? '#ef4444' : cRisk > 40 ? '#f59e0b' : '#10b981' }}>{cRisk}%</td>
                         <td className="spad-td-evidence"><span className="spad-evidence-pill">{cEvidence}</span></td>
                         <td>

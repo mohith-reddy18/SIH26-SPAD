@@ -132,9 +132,9 @@ export default function ComponentSearch({ onNavigateToComponent, initialComponen
     });
     if (keysSet.size === 0) {
       return [
-        getParameterMeta('iddq'),
-        getParameterMeta('leakage'),
-        getParameterMeta('propDelay'),
+        getParameterMeta('rdson'),
+        getParameterMeta('delta_rdson'),
+        getParameterMeta('temp'),
       ];
     }
     return Array.from(keysSet).map((k) => getParameterMeta(k));
@@ -161,7 +161,7 @@ export default function ComponentSearch({ onNavigateToComponent, initialComponen
             <SearchIcon />
             <input
               type="text"
-              placeholder="Enter Component Serial (e.g. C-0001, LOT-2026)..."
+              placeholder="Enter Component Serial (e.g. TEST-01, TEST-10, NASA-MOSFET-199C)..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="spad-search-input"

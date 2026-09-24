@@ -332,35 +332,35 @@ export default function ComponentDetailModal({
             </div>
 
             <p className="spad-shap-intro-desc">
-              Dual AI methods: Method 1 (168h trajectory forecast from 0h+24h) and Method 2 (intra-lot statistical peer comparison) assist screening engineers.
+              NASA MOSFET V1 dual ML pathways: Module B (drift forecast [RDS0, RDS33] &rarr; RDS100) and Module A (Isolation Forest novelty on [RDS0, ΔRDS(0→33)]) assist screening engineers.
             </p>
 
             <div className="spad-ai-evidence-grid">
               <div className="spad-ai-evidence-card">
                 <div className="spad-ai-evidence-title-row">
-                  <span className="spad-ai-evidence-k">Method 1: 168h Trajectory</span>
+                  <span className="spad-ai-evidence-k">Module B: 100% Trajectory Drift</span>
                   <span className={`spad-ai-status-tag ${prediction?.status === 'PREDICTED' ? (isAiFlagged ? 'tag-warning' : 'tag-nominal') : 'tag-nominal'}`}>
                     {isAiFlagged ? 'FLAGGED' : 'NOT FLAGGED'}
                   </span>
                 </div>
                 <p className="spad-ai-evidence-desc">
                   {isAiFlagged
-                    ? '168h forecast indicates accelerated degradation gradient approaching specification boundaries.'
-                    : '168h forecasted parameters remain safely within designated engineering margins.'}
+                    ? 'Predicted 100% RDS(on) vs actual residual breaches the 0.165 Ω normal upper fence (large forecast residual).'
+                    : 'Learned Random Forest forecast tracks actual 100% measurement within normal error bounds (MAE ≈ 0.0528 Ω).'}
                 </p>
               </div>
 
               <div className="spad-ai-evidence-card">
                 <div className="spad-ai-evidence-title-row">
-                  <span className="spad-ai-evidence-k">Method 2: Lot Peer Comparison</span>
+                  <span className="spad-ai-evidence-k">Module A: Dynamic Anomaly (IF)</span>
                   <span className={`spad-ai-status-tag ${lotAnomaly?.status === 'ANALYZED' ? (lotAnomaly.overallStatus === 'FLAGGED' ? 'tag-warning' : 'tag-nominal') : 'tag-nominal'}`}>
                     {lotAnomaly?.overallStatus === 'FLAGGED' ? 'FLAGGED' : 'NOT FLAGGED'}
                   </span>
                 </div>
                 <p className="spad-ai-evidence-desc">
                   {lotAnomaly?.overallStatus === 'FLAGGED'
-                    ? 'Statistical divergence observed relative to same-lot peer cohort cluster.'
-                    : 'Parametric measurements tightly track nominal same-lot peer distribution.'}
+                    ? 'Isolation Forest score indicates significant early isolation/novelty from normal reference population.'
+                    : 'Early observations conform to learned normal reference cluster (IF_Score > 0).'}
                 </p>
               </div>
 

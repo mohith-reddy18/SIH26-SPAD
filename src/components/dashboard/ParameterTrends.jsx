@@ -320,18 +320,18 @@ export default function ParameterTrends({
     if (rawDataForCheckpoints && typeof rawDataForCheckpoints === 'object' && !Array.isArray(rawDataForCheckpoints)) {
       const keys = Object.keys(rawDataForCheckpoints);
       if (typeof dynamicPrediction === 'number') {
-        return [...keys, 'Predicted (168h)'];
+        return [...keys, 'Predicted (100%)'];
       }
-      return keys.length > 0 ? keys : ['Stage 1', 'Stage 2', 'Stage 3'];
+      return keys.length > 0 ? keys : ['0%', '33.33%', '66.67%', '100%'];
     }
     if (Array.isArray(rawDataForCheckpoints)) {
       const len = rawDataForCheckpoints.length + (typeof dynamicPrediction === 'number' && rawDataForCheckpoints.length <= 2 ? 1 : 0);
-      if (len === 4) return ['0h / Stage 1', '24h / Stage 2', '96h / Stage 3', '168h / Final'];
-      if (len === 3) return ['0h', '24h', '168h [Forecast]'];
-      if (len === 2) return ['Stage 1', 'Stage 2'];
-      if (len === 1) return ['Baseline'];
+      if (len === 4) return ['0%', '33.33%', '66.67%', '100%'];
+      if (len === 3) return ['0%', '33.33%', '100% [Forecast]'];
+      if (len === 2) return ['0%', '33.33%'];
+      if (len === 1) return ['Baseline (0%)'];
     }
-    return ['0h', '24h', '168h'];
+    return ['0%', '33.33%', '66.67%', '100%'];
   }, [rawDataForCheckpoints, dynamicPrediction]);
 
   const getX = (index) => padding.left + (index / (Math.max(1, checkpoints.length - 1))) * chartW;

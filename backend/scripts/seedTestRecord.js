@@ -1,7 +1,6 @@
 /**
- * Temporary Test Data Seeder for SPAD Screening
- * Inserts exactly ONE test screening record into MongoDB Atlas.
- * Kept strictly isolated from application logic so it can be easily removed or replaced.
+ * Test Data Seeder for SPAD Screening (TEST-01)
+ * Inserts one NASA MOSFET test screening record into MongoDB Atlas.
  */
 const mongoose = require('mongoose');
 const path = require('path');
@@ -10,49 +9,78 @@ require('dotenv').config({ path: path.join(__dirname, '../.env') });
 const ScreeningRecord = require('../models/ScreeningRecord');
 
 const testScreeningData = {
-  componentId: 'C-0001',
-  lotId: 'LOT-2026-001',
-  stage: '96h',
+  componentId: 'TEST-01',
+  lotId: 'NASA-MOSFET-199C',
+  stage: '100%',
   measurements: {
-    iddq: [2.00, 2.10, 2.10, 2.20],
-    leakage: [0.38, 0.40, 0.41, 0.43],
-    propDelay: [8.10, 8.14, 8.18, 8.22],
+    rdson: [0.512410, 0.540182, 0.562304, 0.595211],
+    delta_rdson: [0.0, 0.027772, 0.049894, 0.082801],
+    vgs: [10.0, 10.0, 10.0, 10.0],
+    vds: [5.0, 5.0, 5.0, 5.0],
+    temp: [199.8, 200.1, 199.9, 200.2],
   },
   predictions: {
-    iddq_168h: 2.20,
-    leakage_168h: 0.43,
-    propDelay_168h: 8.22,
+    rdson: 0.602140,
+    rdson_168h: 0.602140,
+    residual: 0.006929,
   },
   engineeringLimits: {
-    iddq: 4.00,
-    leakage: 1.50,
-    propDelay: 11.00,
+    rdson: { limitValue: 1.00, direction: 'UPPER', source: 'NASA_SPEC_LIMIT', unit: 'Ω' },
+    vgs: { limitValue: 12.0, direction: 'UPPER', source: 'NASA_SPEC_LIMIT', unit: 'V' },
+    temp: { limitValue: 210.0, direction: 'UPPER', source: 'NASA_SPEC_LIMIT', unit: '°C' },
   },
   engineeringLimitStatus: 'WITHIN LIMIT',
-  aiRisk: 12,
-  riskScore: 0.12,
+  aiRisk: 8,
+  riskScore: 0.08,
   anomalies: {
     populationAbnormality: false,
     trajectoryAbnormality: false,
-    futureRiskPrediction: 'Low (<5%)',
+    futureRiskPrediction: 'Low (<10%)',
   },
-  aiAssessment: 'NORMAL',
-  evidence: 'Within Expected Range',
+  aiAssessment: {
+    overallStatus: 'NOT FLAGGED',
+    prediction: {
+      status: 'PREDICTED',
+      parameters: {
+        rdson: {
+          predicted168h: 0.602140,
+          futureRiskScore: 0.08,
+          aiFlag: 'NOT FLAGGED',
+        },
+      },
+    },
+    lotAnomaly: {
+      overallStatus: 'NOT FLAGGED',
+      score: 0.0821,
+      method: 'Isolation Forest',
+    },
+    explanation: {
+      framework: 'SHAP (TreeExplainer)',
+      targetPrediction: 'Predicted 100% Stage RDS(on)',
+      predictedRiskPercent: 8,
+      baseValue: 0.5519,
+      features: [
+        { name: 'RDS33 Checkpoint (Mod B SHAP)', featureValue: '0.540 Ω (Normal)', shapValue: -0.012 },
+        { name: 'RDS0 Baseline (Mod B SHAP)', featureValue: '0.512 Ω (Nominal)', shapValue: -0.008 },
+        { name: 'ΔRDS(0→33) Drift (Mod A SHAP)', featureValue: '+0.028 Ω (Nominal)', shapValue: 0.150 },
+      ],
+      summaryText: 'Normal trajectory tightly tracking reference median (0.5519 Ω). Forecast residual 0.007 Ω is well below the 0.165 Ω upper fence.',
+    },
+  },
+  evidence: 'Within Normal Degradation Envelope',
   decision: 'NORMAL',
   status: 'NORMAL',
   modelExplanation: {
     framework: 'SHAP (TreeExplainer)',
-    targetPrediction: 'Predicted 168h Limit Risk',
-    predictedRiskPercent: 12,
-    baseValue: 0.15,
+    targetPrediction: 'Predicted 100% Stage RDS(on)',
+    predictedRiskPercent: 8,
+    baseValue: 0.5519,
     features: [
-      { name: 'Pre-Burn-In Baseline Iddq', featureValue: '2.00 mA (Healthy)', shapValue: -0.14 },
-      { name: 'Leakage Current Rate (0h→96h)', featureValue: '+0.05 µA/100h', shapValue: -0.12 },
-      { name: 'Propagation Delay Stability', featureValue: '8.18 ns (Nominal)', shapValue: -0.10 },
-      { name: 'Iddq Drift Gradient', featureValue: '2.20 mA proj.', shapValue: -0.08 },
-      { name: '24h Intermediate Trace', featureValue: '0.40 µA (Stable)', shapValue: 0.02 },
+      { name: 'RDS33 Checkpoint (Mod B SHAP)', featureValue: '0.540 Ω (Normal)', shapValue: -0.012 },
+      { name: 'RDS0 Baseline (Mod B SHAP)', featureValue: '0.512 Ω (Nominal)', shapValue: -0.008 },
+      { name: 'ΔRDS(0→33) Drift (Mod A SHAP)', featureValue: '+0.028 Ω (Nominal)', shapValue: 0.150 },
     ],
-    summaryText: 'Parametric measurements tightly track the healthy baseline curve, with negative SHAP contributions lowering predicted failure risk below lot baseline.',
+    summaryText: 'Normal trajectory tightly tracking reference median (0.5519 Ω). Forecast residual 0.007 Ω is well below the 0.165 Ω upper fence.',
   },
 };
 
@@ -68,18 +96,13 @@ async function seedOneRecord() {
     await mongoose.connect(uri);
     console.log('Connected to MongoDB Atlas.');
 
-    // Check if test record already exists
-    const existing = await ScreeningRecord.findOne({ componentId: testScreeningData.componentId });
-    if (existing) {
-      console.log(`Test record for ${testScreeningData.componentId} already exists (ID: ${existing._id}). Skipping duplicate creation.`);
-      console.log(JSON.stringify(existing, null, 2));
-    } else {
-      const created = await ScreeningRecord.create(testScreeningData);
-      console.log(`Successfully inserted test record for ${testScreeningData.componentId} (ID: ${created._id}).`);
-      console.log(JSON.stringify(created, null, 2));
-    }
+    const updated = await ScreeningRecord.findOneAndUpdate(
+      { componentId: testScreeningData.componentId },
+      { $set: testScreeningData },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+    console.log(`Successfully saved test record for ${testScreeningData.componentId} (ID: ${updated._id}).`);
 
-    // Verify retrieval
     const count = await ScreeningRecord.countDocuments();
     console.log(`Total screening records in MongoDB: ${count}`);
 
@@ -91,4 +114,8 @@ async function seedOneRecord() {
   }
 }
 
-seedOneRecord();
+if (require.main === module) {
+  seedOneRecord();
+}
+
+module.exports = { testScreeningData, seedOneRecord };

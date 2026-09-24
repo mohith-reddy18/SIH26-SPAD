@@ -75,7 +75,7 @@ export default function App() {
         {/* Mobile Header Topbar (Visible on < 1024px) */}
         <MobileNavbar 
           onToggleMenu={() => setIsMobileMenuOpen((prev) => !prev)}
-          currentLot="LOT-2026-001"
+          currentLot="NASA-MOSFET-199C"
         />
 
         <main className="app-main-content">

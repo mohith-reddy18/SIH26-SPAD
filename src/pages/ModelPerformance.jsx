@@ -14,7 +14,7 @@ import { mapScreeningRecord, getParameterMeta } from '../utils/recordMapping';
 
 export default function ModelPerformance() {
   const [screeningRecords, setScreeningRecords] = useState([]);
-  const [selectedComponentId, setSelectedComponentId] = useState('C-0001');
+  const [selectedComponentId, setSelectedComponentId] = useState('TEST-01');
   const [dataSource, setDataSource] = useState('loading'); // 'loading' | 'api' | 'empty' | 'offline'
   const [isLoading, setIsLoading] = useState(true);
   const [fetchError, setFetchError] = useState(null);
@@ -35,7 +35,7 @@ export default function ModelPerformance() {
             if (isMounted) {
               setScreeningRecords(result.data);
               setDataSource('api');
-              const initialId = result.data[0].componentId || result.data[0].id || 'C-0001';
+              const initialId = result.data[0].componentId || result.data[0].id || 'TEST-01';
               setSelectedComponentId((prev) => prev || initialId);
             }
             return;

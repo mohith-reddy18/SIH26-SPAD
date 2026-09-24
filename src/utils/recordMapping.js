@@ -80,7 +80,7 @@ export function extractLatestValue(data) {
  * Extracts numeric 168h forecast prediction value for a given parameter key
  *
  * @param {Object} recordOrPredictions - Screening record or predictions container
- * @param {string} paramKey - Parameter key (e.g. 'iddq', 'leakage', 'propDelay')
+ * @param {string} paramKey - Parameter key (e.g. 'rdson', 'delta_rdson', 'temp')
  * @returns {number|null}
  */
 export function extractPredictedValue(recordOrPredictions, paramKey) {
@@ -124,24 +124,23 @@ export function extractPredictedValue(recordOrPredictions, paramKey) {
  * Standard Display Mapping for common aerospace electronic parameters.
  */
 export const PARAMETER_DISPLAY_MAP = {
-  iddq: { name: 'Standby Current (Iddq)', shortName: 'Iddq', unit: 'mA', defaultRef: [2.00, 2.05, 2.10, 2.15] },
-  leakage: { name: 'Leakage Current (I_leak)', shortName: 'I_leak', unit: 'µA', defaultRef: [0.38, 0.40, 0.41, 0.43] },
-  leakageCurrent: { name: 'Leakage Current (I_leak)', shortName: 'I_leak', unit: 'µA', defaultRef: [0.38, 0.40, 0.41, 0.43] },
-  propDelay: { name: 'Propagation Delay (t_pd)', shortName: 't_pd', unit: 'ns', defaultRef: [8.10, 8.14, 8.18, 8.22] },
-  propagationDelay: { name: 'Propagation Delay (t_pd)', shortName: 't_pd', unit: 'ns', defaultRef: [8.10, 8.14, 8.18, 8.22] },
+  rdson: { name: 'On-Resistance (RDS(on))', shortName: 'RDS(on)', unit: 'Ω', defaultRef: [0.513, 0.545, 0.569, 0.612] },
+  rdson_ohm: { name: 'On-Resistance (RDS(on))', shortName: 'RDS(on)', unit: 'Ω', defaultRef: [0.513, 0.545, 0.569, 0.612] },
+  rds_on: { name: 'On-Resistance (RDS(on))', shortName: 'RDS(on)', unit: 'Ω', defaultRef: [0.513, 0.545, 0.569, 0.612] },
+  delta_rdson: { name: 'Early Drift ΔRDS(0→33)', shortName: 'ΔRDS', unit: 'Ω', defaultRef: [0.0, 0.031, 0.055, 0.080] },
+  temp: { name: 'Chamber Temperature (T_j)', shortName: 'T_j', unit: '°C', defaultRef: [199.5, 200.0, 199.8, 200.2] },
+  vgs: { name: 'Gate Voltage (V_GS)', shortName: 'V_GS', unit: 'V', defaultRef: [10.0, 10.0, 10.0, 10.0] },
+  vds: { name: 'Drain-Source Voltage (V_DS)', shortName: 'V_DS', unit: 'V', defaultRef: [5.0, 5.0, 5.0, 5.0] },
+  freq: { name: 'Switching Frequency (f_sw)', shortName: 'f_sw', unit: 'Hz', defaultRef: [1000, 1000, 1000, 1000] },
+  dutyCycle: { name: 'Duty Cycle', shortName: 'Duty', unit: '%', defaultRef: [40, 40, 40, 40] },
   v_th: { name: 'Threshold Voltage (V_th)', shortName: 'V_th', unit: 'V', defaultRef: [1.20, 1.20, 1.20, 1.20] },
   vth: { name: 'Threshold Voltage (V_th)', shortName: 'V_th', unit: 'V', defaultRef: [1.20, 1.20, 1.20, 1.20] },
-  rdson: { name: 'On-Resistance (RDS(on))', shortName: 'RDS(on)', unit: 'Ω', defaultRef: [0.50, 0.52, 0.54, 0.56] },
-  rdson_ohm: { name: 'On-Resistance (RDS(on))', shortName: 'RDS(on)', unit: 'Ω', defaultRef: [0.50, 0.52, 0.54, 0.56] },
-  rds_on: { name: 'On-Resistance (RDS(on))', shortName: 'RDS(on)', unit: 'Ω', defaultRef: [0.50, 0.52, 0.54, 0.56] },
-  freq: { name: 'Frequency (Freq)', shortName: 'Freq', unit: 'MHz', defaultRef: [100.0, 100.0, 100.0, 100.0] },
-  gain: { name: 'Open Loop Gain (Gain)', shortName: 'Gain', unit: 'dB', defaultRef: [80.0, 80.0, 79.9, 79.8] },
 };
 
 /**
  * Derives rich display metadata dynamically for any parameter key from backend telemetry & limits.
  *
- * @param {string} key - Machine-readable parameter key (e.g. 'iddq', 'leakage', 'rdson')
+ * @param {string} key - Machine-readable parameter key (e.g. 'rdson', 'delta_rdson', 'temp')
  * @param {number|Object} limit - Engineering limit value or object
  * @returns {Object} Parameter metadata with id, name, shortName, unit, specLimitMax, healthyRef
  */
@@ -228,9 +227,9 @@ export function getParameterMeta(key, limit) {
 export function mapScreeningRecord(record) {
   if (!record || typeof record !== 'object') return null;
 
-  const componentId = String(record.componentId || record.id || 'C-0001').trim();
-  const lotId = String(record.lotId || 'LOT-2026-001').trim();
-  const stage = String(record.stage || '24h').trim();
+  const componentId = String(record.componentId || record.id || 'TEST-01').trim();
+  const lotId = String(record.lotId || 'NASA-MOSFET-199C').trim();
+  const stage = String(record.stage || '100%').trim();
 
   const measurements = record.measurements && typeof record.measurements === 'object' ? record.measurements : {};
   const engineeringLimits = record.engineeringLimits && typeof record.engineeringLimits === 'object' ? record.engineeringLimits : {};
@@ -249,14 +248,17 @@ export function mapScreeningRecord(record) {
 
   const aiStatus = getNormalizedAiStatus(aiAssessmentObj);
 
-  // Extract latest readings for quick table display
+  // Extract latest readings for quick table display (prioritizing NASA MOSFET ML outputs)
+  const rdsonVal = extractLatestValue(measurements.rdson || measurements.rdson_ohm || measurements.rds_on);
+  const deltaRdsonVal = extractLatestValue(measurements.delta_rdson);
+  const tempVal = extractLatestValue(measurements.temp);
   const iddqVal = extractLatestValue(measurements.iddq);
   const leakageVal = extractLatestValue(measurements.leakage || measurements.leakageCurrent);
   const propDelayVal = extractLatestValue(measurements.propDelay || measurements.propagationDelay);
 
   // Risk score extraction (prediction parameter level or top-level)
-  const firstParamPred = aiAssessmentObj.prediction?.parameters?.iddq || Object.values(aiAssessmentObj.prediction?.parameters || {})[0];
-  let riskScore = 0.12;
+  const firstParamPred = aiAssessmentObj.prediction?.parameters?.rdson || Object.values(aiAssessmentObj.prediction?.parameters || {})[0];
+  let riskScore = 0.08;
   if (typeof firstParamPred?.futureRiskScore === 'number') {
     riskScore = firstParamPred.futureRiskScore;
   } else if (typeof record.riskScore === 'number') {
@@ -264,7 +266,7 @@ export function mapScreeningRecord(record) {
   } else if (typeof record.aiRisk === 'number') {
     riskScore = record.aiRisk > 1 ? record.aiRisk / 100 : record.aiRisk;
   } else if (aiStatus === 'FLAGGED') {
-    riskScore = 0.78;
+    riskScore = 0.98;
   }
 
   const aiRisk = Math.round(riskScore * 100);
@@ -348,6 +350,9 @@ export function mapScreeningRecord(record) {
     rawPredictions,
     anomalies,
     modelExplanation,
+    rdson: rdsonVal !== null ? `${rdsonVal.toFixed(3)} Ω` : '-',
+    deltaRdson: deltaRdsonVal !== null ? `${deltaRdsonVal.toFixed(3)} Ω` : '-',
+    temperature: tempVal !== null ? `${tempVal.toFixed(1)} °C` : '-',
     standbyCurrent: iddqVal !== null ? `${iddqVal.toFixed(2)} mA` : '-',
     leakageCurrent: leakageVal !== null ? `${leakageVal.toFixed(2)} µA` : '-',
     propagationDelay: propDelayVal !== null ? `${propDelayVal.toFixed(2)} ns` : '-',

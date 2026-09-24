@@ -16,7 +16,7 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://sih26-spad.onrende
 
 export default function Dashboard({ onNavigateToComponent }) {
   const [selectedModalComponent, setSelectedModalComponent] = useState(null);
-  const [componentRecords, setComponentRecords] = useState([]);
+  const [componentRecords, setComponentRecords] = useState(() => (mockDashboardData.componentRecords || []).map(mapScreeningRecord));
   const [dataSource, setDataSource] = useState('loading'); // 'loading' | 'api' | 'empty' | 'offline'
   const [isLoading, setIsLoading] = useState(true);
   const [fetchError, setFetchError] = useState(null);
@@ -94,7 +94,7 @@ export default function Dashboard({ onNavigateToComponent }) {
     const normalCount = componentRecords.filter((c) => c.engineeringStatus === 'NORMAL').length;
     const anomalyCount = componentRecords.filter((c) => c.engineeringStatus === 'SUSPECT' || c.engineeringStatus === 'CRITICAL').length;
     const calculatedYield = totalUnits > 0 ? `${((normalCount / totalUnits) * 100).toFixed(1)}%` : '100.0%';
-    const primaryLotId = totalUnits > 0 && componentRecords[0].lotId ? componentRecords[0].lotId : 'LOT-2026-001';
+    const primaryLotId = totalUnits > 0 && componentRecords[0].lotId ? componentRecords[0].lotId : 'NASA-MOSFET-199C';
 
     return {
       ...mockDashboardData.screeningContext,

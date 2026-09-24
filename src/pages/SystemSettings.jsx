@@ -158,31 +158,31 @@ export default function SystemSettings() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '14px', marginTop: '14px' }}>
           <div style={{ padding: '14px', background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.06)', borderRadius: '4px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '13px', fontWeight: '600', color: '#f8fafc' }}>Standby Current (Iddq) Limit</span>
-              <span className="font-mono text-cyan font-bold" style={{ fontSize: '14px' }}>4.00 mA</span>
+              <span style={{ fontSize: '13px', fontWeight: '600', color: '#f8fafc' }}>On-Resistance (RDS(on)) Limit</span>
+              <span className="font-mono text-cyan font-bold" style={{ fontSize: '14px' }}>1.00 Ω</span>
             </div>
             <p style={{ fontSize: '11px', color: '#64748b', margin: '4px 0 0 0' }}>
-              Max quiescent drain current limit for CMOS logic under thermal stress.
+              Upper specification limit for ON-state resistance under 199–200°C thermal overstress. (Normal Q3 upper fence: 0.679 Ω).
             </p>
           </div>
 
           <div style={{ padding: '14px', background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.06)', borderRadius: '4px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '13px', fontWeight: '600', color: '#f8fafc' }}>Leakage Current (I_leak) Limit</span>
-              <span className="font-mono text-cyan font-bold" style={{ fontSize: '14px' }}>1.50 µA</span>
+              <span style={{ fontSize: '13px', fontWeight: '600', color: '#f8fafc' }}>Module B Residual Error Fence</span>
+              <span className="font-mono text-cyan font-bold" style={{ fontSize: '14px' }}>0.165 Ω</span>
             </div>
             <p style={{ fontSize: '11px', color: '#64748b', margin: '4px 0 0 0' }}>
-              Parasitic gate oxide and subthreshold leakage boundary.
+              Normal population forecast error upper fence (IQR = 0.0579 Ω, Upper fence = 0.165046 Ω).
             </p>
           </div>
 
           <div style={{ padding: '14px', background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.06)', borderRadius: '4px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '13px', fontWeight: '600', color: '#f8fafc' }}>Propagation Delay (t_pd) Limit</span>
-              <span className="font-mono text-cyan font-bold" style={{ fontSize: '14px' }}>11.00 ns</span>
+              <span style={{ fontSize: '13px', fontWeight: '600', color: '#f8fafc' }}>Thermal Stress Chamber Point</span>
+              <span className="font-mono text-cyan font-bold" style={{ fontSize: '14px' }}>199–200°C</span>
             </div>
             <p style={{ fontSize: '11px', color: '#64748b', margin: '4px 0 0 0' }}>
-              Critical switching speed degradation indicating gate oxide wearout.
+              NASA accelerated stress condition: V_GS = 10 V, V_DD = 5 V, f_sw = 1000 Hz, Duty = 40%.
             </p>
           </div>
         </div>

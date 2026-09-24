@@ -24,9 +24,9 @@ export default function ComponentTable({ records = [], onSelectComponent }) {
     });
     if (keysSet.size === 0) {
       return [
-        getParameterMeta('iddq'),
-        getParameterMeta('leakage'),
-        getParameterMeta('propDelay'),
+        getParameterMeta('rdson'),
+        getParameterMeta('delta_rdson'),
+        getParameterMeta('temp'),
       ];
     }
     return Array.from(keysSet).map((k) => getParameterMeta(k));
