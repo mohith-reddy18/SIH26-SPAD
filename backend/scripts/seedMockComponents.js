@@ -638,7 +638,11 @@ async function seedMockComponents() {
   console.log(`F. C-0001 intact (not duplicated): ${finalRecords.filter((r) => r.componentId === 'C-0001').length === 1}`);
 }
 
-seedMockComponents().catch((err) => {
-  console.error('Seeding error:', err.message);
-  process.exit(1);
-});
+if (require.main === module) {
+  seedMockComponents().catch((err) => {
+    console.error('Seeding error:', err.message);
+    process.exit(1);
+  });
+}
+
+module.exports = { mockComponents, seedMockComponents };
