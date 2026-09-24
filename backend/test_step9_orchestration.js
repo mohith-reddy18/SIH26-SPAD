@@ -53,12 +53,16 @@ ScreeningRecord.find = function (query) {
   };
 };
 
-ScreeningRecord.findOneAndUpdate = async function (query, update, options) {
-  const key = `${query.componentId}_${query.lotId}`;
-  const existing = store.get(key) || {};
-  const merged = { ...existing, ...update.$set };
-  store.set(key, merged);
-  return JSON.parse(JSON.stringify(merged));
+ScreeningRecord.findOneAndUpdate = function (query, update, options) {
+  return {
+    lean: async () => {
+      const key = `${query.componentId}_${query.lotId}`;
+      const existing = store.get(key) || {};
+      const merged = { ...existing, ...update.$set };
+      store.set(key, merged);
+      return JSON.parse(JSON.stringify(merged));
+    },
+  };
 };
 
 // Mount routes
