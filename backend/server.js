@@ -94,6 +94,37 @@ app.post('/api/screening/analyze', (req, res) => {
 // ============================================================================
 
 const ScreeningRecord = require('./models/ScreeningRecord');
+const { runScreeningOrchestration } = require('./services/screeningOrchestrator');
+
+/**
+ * POST /api/screening/run
+ * Execute full end-to-end screening orchestration flow:
+ * Component -> Load Data & Cohort -> Method 1 + Method 2 -> Engineering Status -> Overall AI Status -> Persist -> Return
+ */
+app.post('/api/screening/run', async (req, res) => {
+  try {
+    const { componentId, lotId, engineeringLimits, context } = req.body || {};
+    const result = await runScreeningOrchestration({
+      componentId,
+      lotId,
+      customLimits: engineeringLimits,
+      context,
+    });
+    return res.status(200).json(result);
+  } catch (error) {
+    const statusCode = error.statusCode || 500;
+    return res.status(statusCode).json({
+      success: false,
+      error: {
+        code: error.code || 'INTERNAL_ERROR',
+        message: error.message || 'An unexpected error occurred during screening orchestration',
+        componentId: error.componentId || req.body?.componentId || null,
+        lotId: error.lotId || req.body?.lotId || null,
+        timestamp: new Date().toISOString(),
+      },
+    });
+  }
+});
 
 /**
  * POST /api/screening
