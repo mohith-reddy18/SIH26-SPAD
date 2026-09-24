@@ -304,10 +304,10 @@ export default function Reports() {
                 <thead>
                   <tr>
                     <th>PARAMETER NAME</th>
-                    <th>0h (ROOM/HOT)</th>
-                    <th>24h (EARLY)</th>
-                    <th>96h (CURRENT)</th>
-                    <th>168h (AI PREDICTED)</th>
+                    <th>0% (BASELINE)</th>
+                    <th>33.33% (EARLY)</th>
+                    <th>66.67% (INTERMEDIATE)</th>
+                    <th>100% (AI FORECAST)</th>
                     <th>SPEC LIMIT (MAX)</th>
                     <th>SAFETY MARGIN</th>
                     <th>STATUS</th>

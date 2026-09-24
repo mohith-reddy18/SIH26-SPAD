@@ -212,8 +212,8 @@ export default function FailureAnalysis() {
               <thead>
                 <tr>
                   <th>PARAMETER</th>
-                  <th>OBSERVED VALUES (0h &rarr; 96h)</th>
-                  <th>168h FORECAST PREDICTION</th>
+                  <th>OBSERVED VALUES (0% &rarr; 66.67%)</th>
+                  <th>100% FORECAST PREDICTION</th>
                   <th>ENGINEERING LIMIT</th>
                   <th>SAFETY MARGIN</th>
                   <th>STATUS</th>

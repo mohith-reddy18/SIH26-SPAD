@@ -116,8 +116,8 @@ export default function ParameterTrends({
         ...fallback,
         ...liveComponentData,
         id: liveComponentData.componentId || liveComponentData.id || fallback.id || selectedComponentId,
-        lotId: liveComponentData.lotId || fallback.lotId || 'LOT-2026-001',
-        stage: liveComponentData.stage || fallback.stage || '96h',
+        lotId: liveComponentData.lotId || fallback.lotId || 'NASA-MOSFET-199C',
+        stage: liveComponentData.stage || fallback.stage || '100%',
         measurements: liveComponentData.measurements || fallback.measurements || {},
         predictions: liveComponentData.predictions || fallback.predictions || {},
         engineeringLimits: liveComponentData.engineeringLimits || fallback.engineeringLimits || {},
@@ -191,7 +191,7 @@ export default function ParameterTrends({
 
   // 6. Selected Component Status
   const selectedStatus = activeComponent.status || 'NORMAL';
-  const currentLotId = context?.lotId || activeComponent.lotId || 'LOT-2026-001';
+  const currentLotId = context?.lotId || activeComponent.lotId || 'NASA-MOSFET-199C';
   const lotComponents = components.filter((c) => c.lotId === currentLotId);
 
   // 7. Trajectory Series Construction

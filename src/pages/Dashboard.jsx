@@ -16,7 +16,7 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://sih26-spad.onrende
 
 export default function Dashboard({ onNavigateToComponent }) {
   const [selectedModalComponent, setSelectedModalComponent] = useState(null);
-  const [componentRecords, setComponentRecords] = useState(() => (mockDashboardData.componentRecords || []).map(mapScreeningRecord));
+  const [componentRecords, setComponentRecords] = useState([]);
   const [dataSource, setDataSource] = useState('loading'); // 'loading' | 'api' | 'empty' | 'offline'
   const [isLoading, setIsLoading] = useState(true);
   const [fetchError, setFetchError] = useState(null);
@@ -106,11 +106,31 @@ export default function Dashboard({ onNavigateToComponent }) {
     };
   }, [componentRecords]);
 
+  // Derive alerts dynamically from database component records
+  const recentAlerts = useMemo(() => {
+    const alerts = [];
+    componentRecords.forEach((c) => {
+      const isCritical = c.engineeringStatus === 'CRITICAL' || c.status === 'CRITICAL';
+      const isSuspect = c.engineeringStatus === 'SUSPECT' || c.status === 'SUSPECT';
+      if (isCritical || isSuspect) {
+        alerts.push({
+          id: `alert-${c.id}`,
+          targetId: c.id,
+          type: 'component',
+          severity: isCritical ? 'danger' : 'warning',
+          message: c.evidence || `${c.id} flagged with ${c.status || c.engineeringStatus} anomaly status by screening models.`,
+          timeAgo: 'Live DB',
+          timestamp: 'MongoDB',
+        });
+      }
+    });
+    return alerts;
+  }, [componentRecords]);
+
   const {
     pipelineStages,
     evidencePathways,
     systemSubsystems,
-    recentAlerts,
   } = mockDashboardData;
 
   const handleSelectComponent = (component) => {

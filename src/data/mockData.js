@@ -1,15 +1,22 @@
 /**
  * SPAD: Space-Grade Anomaly Detection
- * Centralized Single Source of Truth for Screening Data & NASA MOSFET V1 ML Model Telemetry
+ * Static UI and Reference Configuration for Screening Command Center
  *
- * ML Model Dataset: NASA MOSFET Thermal Overstress Aging Data (199-200°C, Vgs=10V, Vdd=5V)
- * Population: 15 physical MOSFETs (13 normal reference devices, 2 held-out gross-abnormal candidates: TEST-10 & TEST-13)
- * Primary Degradation Parameter: RDS(on) (On-Resistance, Ohms Ω) across normalized stages (0%, 33.33%, 66.67%, 100%)
- * Module A: Isolation Forest dynamic anomaly score on [RDS0, ΔRDS(0→33)]
- * Module B: Random Forest regressor [RDS0, RDS33] → RDS100 (LOOCV MAE = 0.052832 Ω)
+ * NOTE: All component telemetry, measurements, and AI inferences are loaded dynamically
+ * from the database via the backend API (MongoDB Atlas -> Express API -> React Website).
+ * No component records or telemetry measurements are hardcoded in frontend mock data.
+ *
+ * Supported Telemetry Parameters:
+ * - rdson: On-Resistance (Ω)
+ * - delta_rdson: Early Drift ΔRDS(0→33) (Ω)
+ * - temp: Chamber Temperature (°C)
+ * - vgs: Gate-Source Voltage (V)
+ * - vds: Drain-Source Voltage (V)
+ * - freq: Switching Frequency (Hz)
+ * - dutyCycle: Duty Cycle (%)
  */
 
-// 1. Active Screening Lot Context (NASA MOSFET Thermal Overstress Operating Conditions)
+// 1. Static Screening Context Template (Overridden dynamically by active database records)
 export const mockScreeningContext = {
   lotId: 'NASA-MOSFET-199C',
   lotStatus: 'PREDICTIVE SCREENING ACTIVE',
@@ -19,14 +26,14 @@ export const mockScreeningContext = {
   temperature: '199–200°C',
   chamberId: 'NASA-MOSFET-CHAMBER',
   operator: 'NASA-THERMAL-OVERSTRESS-V1',
-  totalUnits: 15,
-  screenedUnits: 15,
-  currentYield: '86.7%', // 13 Normal / 15 Total = 86.67%
-  anomaliesDetected: 2, // TEST-10 (Early Gross Anomaly) & TEST-13 (Catastrophic Latent Jump)
+  totalUnits: 0,
+  screenedUnits: 0,
+  currentYield: '100%',
+  anomaliesDetected: 0,
   nextGate: 'V2 Multidimensional Observability Upgrade',
 };
 
-// 2. Parameter Specifications & Nominal Engineering References (From ML Model Output)
+// 2. Telemetry Parameter Specifications & Engineering Reference Limits
 export const mockParameterSpecs = {
   'rdson': {
     id: 'rdson',
@@ -35,8 +42,7 @@ export const mockParameterSpecs = {
     shortName: 'RDS(on)',
     unit: 'Ω',
     specLimitMax: 1.00,
-    healthyRef: [0.513, 0.545, 0.569, 0.612], // Nominal 0%, 33.33%, 66.67%, 100% reference
-    divergenceThreshold: 0.165, // Normal error reference upper fence (0.165046 Ω)
+    divergenceThreshold: 0.165,
     checkpoints: ['0%', '33.33%', '66.67%', '100%'],
     description: 'Drain-source ON-state resistance extracted from late-pulse ON window (70–90% interval) under 199–200°C thermal overstress.',
   },
@@ -47,8 +53,7 @@ export const mockParameterSpecs = {
     shortName: 'ΔRDS',
     unit: 'Ω',
     specLimitMax: 0.15,
-    healthyRef: [0.0, 0.031, 0.055, 0.080],
-    divergenceThreshold: 0.064, // IQR boundary
+    divergenceThreshold: 0.064,
     checkpoints: ['0%', '33.33%'],
     description: 'Early degradation drift gradient between baseline (0%) and early observation checkpoint (33.33%).',
   },
@@ -59,7 +64,6 @@ export const mockParameterSpecs = {
     shortName: 'T_j',
     unit: '°C',
     specLimitMax: 210.0,
-    healthyRef: [199.5, 200.0, 199.8, 200.2],
     divergenceThreshold: 5.0,
     checkpoints: ['0%', '33.33%', '66.67%', '100%'],
     description: 'Thermal overstress test chamber junction temperature (Nominal condition: ~199–200°C).',
@@ -71,530 +75,61 @@ export const mockParameterSpecs = {
     shortName: 'V_GS',
     unit: 'V',
     specLimitMax: 12.0,
-    healthyRef: [10.0, 10.0, 10.0, 10.0],
     divergenceThreshold: 0.5,
     checkpoints: ['0%', '33.33%', '66.67%', '100%'],
     description: 'Gate switching voltage pulse (Nominal 10 V, 1000 Hz, 40% duty cycle).',
   },
+  'drain-voltage': {
+    id: 'drain-voltage',
+    key: 'vds',
+    name: 'Supply Voltage (V_DS)',
+    shortName: 'V_DS',
+    unit: 'V',
+    specLimitMax: 6.0,
+    divergenceThreshold: 0.5,
+    checkpoints: ['0%', '33.33%', '66.67%', '100%'],
+    description: 'Drain-to-source test supply voltage (Nominal 5 V).',
+  },
+  'switching-freq': {
+    id: 'switching-freq',
+    key: 'freq',
+    name: 'Switching Frequency (f_sw)',
+    shortName: 'f_sw',
+    unit: 'Hz',
+    specLimitMax: 1200,
+    divergenceThreshold: 50,
+    checkpoints: ['0%', '33.33%', '66.67%', '100%'],
+    description: 'Gate switching frequency (Nominal 1000 Hz).',
+  },
+  'duty-cycle': {
+    id: 'duty-cycle',
+    key: 'dutyCycle',
+    name: 'Duty Cycle (D)',
+    shortName: 'D',
+    unit: '%',
+    specLimitMax: 50,
+    divergenceThreshold: 5,
+    checkpoints: ['0%', '33.33%', '66.67%', '100%'],
+    description: 'Gate pulse duty cycle (Nominal 40%).',
+  },
 };
 
-// 3. High-Reliability Component Records: The 15 Physical NASA MOSFETs from V1 ML Model
-export const mockComponents = [
-  {
-    id: 'TEST-01',
-    componentId: 'TEST-01',
-    lotId: 'NASA-MOSFET-199C',
-    stage: '100%',
-    measurements: {
-      rdson: [0.512410, 0.540182, 0.562304, 0.595211],
-      delta_rdson: [0.0, 0.027772, 0.049894, 0.082801],
-      vgs: [10.0, 10.0, 10.0, 10.0],
-      vds: [5.0, 5.0, 5.0, 5.0],
-      temp: [199.8, 200.1, 199.9, 200.2],
-    },
-    predictions: { rdson: 0.602140, rdson_168h: 0.602140, residual: 0.006929 },
-    engineeringLimits: { rdson: { limitValue: 1.00, direction: 'UPPER', source: 'NASA_SPEC_LIMIT', unit: 'Ω' } },
-    engineeringLimitStatus: 'WITHIN LIMIT',
-    engineeringStatus: 'NORMAL',
-    aiRisk: 8,
-    riskScore: 0.08,
-    anomalies: { populationAbnormality: false, trajectoryAbnormality: false, futureRiskPrediction: 'Low (<10%)' },
-    aiAssessment: {
-      overallStatus: 'NOT FLAGGED',
-      prediction: { status: 'PREDICTED', parameters: { rdson: { predicted168h: 0.602140, futureRiskScore: 0.08, aiFlag: 'NOT FLAGGED' } } },
-      lotAnomaly: { overallStatus: 'NOT FLAGGED', score: 0.0821, method: 'Isolation Forest' },
-    },
-    evidence: 'Within Normal Degradation Envelope',
-    decision: 'NORMAL',
-    status: 'NORMAL',
-    modelExplanation: {
-      framework: 'SHAP (TreeExplainer)',
-      targetPrediction: 'Predicted 100% Stage RDS(on)',
-      predictedRiskPercent: 8,
-      baseValue: 0.5519,
-      features: [
-        { name: 'RDS33 Checkpoint (Mod B SHAP)', featureValue: '0.540 Ω (Normal)', shapValue: -0.012 },
-        { name: 'RDS0 Baseline (Mod B SHAP)', featureValue: '0.512 Ω (Nominal)', shapValue: -0.008 },
-        { name: 'ΔRDS(0→33) Drift (Mod A SHAP)', featureValue: '+0.028 Ω (Nominal)', shapValue: 0.150 },
-      ],
-      summaryText: 'Normal trajectory tightly tracking reference median (0.5519 Ω). Forecast residual 0.007 Ω is well below the 0.165 Ω upper fence.',
-    },
-  },
-  {
-    id: 'TEST-02',
-    componentId: 'TEST-02',
-    lotId: 'NASA-MOSFET-199C',
-    stage: '100%',
-    measurements: {
-      rdson: [0.508120, 0.528450, 0.550120, 0.582310],
-      delta_rdson: [0.0, 0.020330, 0.042000, 0.074190],
-      vgs: [10.0, 10.0, 10.0, 10.0],
-      vds: [5.0, 5.0, 5.0, 5.0],
-      temp: [199.5, 200.0, 199.7, 200.1],
-    },
-    predictions: { rdson: 0.590120, rdson_168h: 0.590120, residual: 0.007810 },
-    engineeringLimits: { rdson: { limitValue: 1.00, direction: 'UPPER', source: 'NASA_SPEC_LIMIT', unit: 'Ω' } },
-    engineeringLimitStatus: 'WITHIN LIMIT',
-    engineeringStatus: 'NORMAL',
-    aiRisk: 6,
-    riskScore: 0.06,
-    anomalies: { populationAbnormality: false, trajectoryAbnormality: false, futureRiskPrediction: 'Low (<10%)' },
-    aiAssessment: { overallStatus: 'NOT FLAGGED', prediction: { status: 'PREDICTED', parameters: { rdson: { predicted168h: 0.590120, futureRiskScore: 0.06, aiFlag: 'NOT FLAGGED' } } } },
-    evidence: 'Within Normal Degradation Envelope',
-    decision: 'NORMAL',
-    status: 'NORMAL',
-  },
-  {
-    id: 'TEST-03',
-    componentId: 'TEST-03',
-    lotId: 'NASA-MOSFET-199C',
-    stage: '100%',
-    measurements: {
-      rdson: [0.524180, 0.565420, 0.590210, 0.628430],
-      delta_rdson: [0.0, 0.041240, 0.066030, 0.104250],
-      vgs: [10.0, 10.0, 10.0, 10.0],
-      vds: [5.0, 5.0, 5.0, 5.0],
-      temp: [199.7, 200.3, 200.0, 200.4],
-    },
-    predictions: { rdson: 0.622150, rdson_168h: 0.622150, residual: 0.006280 },
-    engineeringLimits: { rdson: { limitValue: 1.00, direction: 'UPPER', source: 'NASA_SPEC_LIMIT', unit: 'Ω' } },
-    engineeringLimitStatus: 'WITHIN LIMIT',
-    engineeringStatus: 'NORMAL',
-    aiRisk: 11,
-    riskScore: 0.11,
-    anomalies: { populationAbnormality: false, trajectoryAbnormality: false, futureRiskPrediction: 'Low (<15%)' },
-    aiAssessment: { overallStatus: 'NOT FLAGGED', prediction: { status: 'PREDICTED', parameters: { rdson: { predicted168h: 0.622150, futureRiskScore: 0.11, aiFlag: 'NOT FLAGGED' } } } },
-    evidence: 'Within Normal Degradation Envelope',
-    decision: 'NORMAL',
-    status: 'NORMAL',
-  },
-  {
-    id: 'TEST-04',
-    componentId: 'TEST-04',
-    lotId: 'NASA-MOSFET-199C',
-    stage: '100%',
-    measurements: {
-      rdson: [0.515200, 0.551900, 0.575410, 0.612050],
-      delta_rdson: [0.0, 0.036700, 0.060210, 0.096850],
-      vgs: [10.0, 10.0, 10.0, 10.0],
-      vds: [5.0, 5.0, 5.0, 5.0],
-      temp: [199.9, 200.0, 199.8, 200.1],
-    },
-    predictions: { rdson: 0.615020, rdson_168h: 0.615020, residual: 0.002970 },
-    engineeringLimits: { rdson: { limitValue: 1.00, direction: 'UPPER', source: 'NASA_SPEC_LIMIT', unit: 'Ω' } },
-    engineeringLimitStatus: 'WITHIN LIMIT',
-    engineeringStatus: 'NORMAL',
-    aiRisk: 7,
-    riskScore: 0.07,
-    anomalies: { populationAbnormality: false, trajectoryAbnormality: false, futureRiskPrediction: 'Low (<10%)' },
-    aiAssessment: { overallStatus: 'NOT FLAGGED', prediction: { status: 'PREDICTED', parameters: { rdson: { predicted168h: 0.615020, futureRiskScore: 0.07, aiFlag: 'NOT FLAGGED' } } } },
-    evidence: 'Exact Normal Reference Median Baseline (0.5519 Ω)',
-    decision: 'NORMAL',
-    status: 'NORMAL',
-  },
-  {
-    id: 'TEST-05',
-    componentId: 'TEST-05',
-    lotId: 'NASA-MOSFET-199C',
-    stage: '100%',
-    measurements: {
-      rdson: [0.498110, 0.518506, 0.542100, 0.574180],
-      delta_rdson: [0.0, 0.020396, 0.043990, 0.076070],
-      vgs: [10.0, 10.0, 10.0, 10.0],
-      vds: [5.0, 5.0, 5.0, 5.0],
-      temp: [199.6, 200.1, 199.9, 200.2],
-    },
-    predictions: { rdson: 0.581200, rdson_168h: 0.581200, residual: 0.007020 },
-    engineeringLimits: { rdson: { limitValue: 1.00, direction: 'UPPER', source: 'NASA_SPEC_LIMIT', unit: 'Ω' } },
-    engineeringLimitStatus: 'WITHIN LIMIT',
-    engineeringStatus: 'NORMAL',
-    aiRisk: 5,
-    riskScore: 0.05,
-    anomalies: { populationAbnormality: false, trajectoryAbnormality: false, futureRiskPrediction: 'Low (<10%)' },
-    aiAssessment: { overallStatus: 'NOT FLAGGED', prediction: { status: 'PREDICTED', parameters: { rdson: { predicted168h: 0.581200, futureRiskScore: 0.05, aiFlag: 'NOT FLAGGED' } } } },
-    evidence: 'Normal Population Lower Quartile Q1 (0.5185 Ω)',
-    decision: 'NORMAL',
-    status: 'NORMAL',
-  },
-  {
-    id: 'TEST-06',
-    componentId: 'TEST-06',
-    lotId: 'NASA-MOSFET-199C',
-    stage: '100%',
-    measurements: {
-      rdson: [0.532400, 0.582566, 0.608120, 0.648210],
-      delta_rdson: [0.0, 0.050166, 0.075720, 0.115810],
-      vgs: [10.0, 10.0, 10.0, 10.0],
-      vds: [5.0, 5.0, 5.0, 5.0],
-      temp: [199.8, 200.2, 200.0, 200.3],
-    },
-    predictions: { rdson: 0.642100, rdson_168h: 0.642100, residual: 0.006110 },
-    engineeringLimits: { rdson: { limitValue: 1.00, direction: 'UPPER', source: 'NASA_SPEC_LIMIT', unit: 'Ω' } },
-    engineeringLimitStatus: 'WITHIN LIMIT',
-    engineeringStatus: 'NORMAL',
-    aiRisk: 13,
-    riskScore: 0.13,
-    anomalies: { populationAbnormality: false, trajectoryAbnormality: false, futureRiskPrediction: 'Low (<15%)' },
-    aiAssessment: { overallStatus: 'NOT FLAGGED', prediction: { status: 'PREDICTED', parameters: { rdson: { predicted168h: 0.642100, futureRiskScore: 0.13, aiFlag: 'NOT FLAGGED' } } } },
-    evidence: 'Normal Population Upper Quartile Q3 (0.5826 Ω)',
-    decision: 'NORMAL',
-    status: 'NORMAL',
-  },
-  {
-    id: 'TEST-07',
-    componentId: 'TEST-07',
-    lotId: 'NASA-MOSFET-199C',
-    stage: '100%',
-    measurements: {
-      rdson: [0.505300, 0.535120, 0.558400, 0.591240],
-      delta_rdson: [0.0, 0.029820, 0.053100, 0.085940],
-      vgs: [10.0, 10.0, 10.0, 10.0],
-      vds: [5.0, 5.0, 5.0, 5.0],
-      temp: [199.5, 200.0, 199.8, 200.1],
-    },
-    predictions: { rdson: 0.598410, rdson_168h: 0.598410, residual: 0.007170 },
-    engineeringLimits: { rdson: { limitValue: 1.00, direction: 'UPPER', source: 'NASA_SPEC_LIMIT', unit: 'Ω' } },
-    engineeringLimitStatus: 'WITHIN LIMIT',
-    engineeringStatus: 'NORMAL',
-    aiRisk: 7,
-    riskScore: 0.07,
-    anomalies: { populationAbnormality: false, trajectoryAbnormality: false, futureRiskPrediction: 'Low (<10%)' },
-    aiAssessment: { overallStatus: 'NOT FLAGGED', prediction: { status: 'PREDICTED', parameters: { rdson: { predicted168h: 0.598410, futureRiskScore: 0.07, aiFlag: 'NOT FLAGGED' } } } },
-    evidence: 'Within Normal Degradation Envelope',
-    decision: 'NORMAL',
-    status: 'NORMAL',
-  },
-  {
-    id: 'TEST-08',
-    componentId: 'TEST-08',
-    lotId: 'NASA-MOSFET-199C',
-    stage: '100%',
-    measurements: {
-      rdson: [0.518420, 0.555210, 0.580140, 0.618300],
-      delta_rdson: [0.0, 0.036790, 0.061720, 0.099880],
-      vgs: [10.0, 10.0, 10.0, 10.0],
-      vds: [5.0, 5.0, 5.0, 5.0],
-      temp: [199.7, 200.2, 199.9, 200.2],
-    },
-    predictions: { rdson: 0.614200, rdson_168h: 0.614200, residual: 0.004100 },
-    engineeringLimits: { rdson: { limitValue: 1.00, direction: 'UPPER', source: 'NASA_SPEC_LIMIT', unit: 'Ω' } },
-    engineeringLimitStatus: 'WITHIN LIMIT',
-    engineeringStatus: 'NORMAL',
-    aiRisk: 9,
-    riskScore: 0.09,
-    anomalies: { populationAbnormality: false, trajectoryAbnormality: false, futureRiskPrediction: 'Low (<10%)' },
-    aiAssessment: { overallStatus: 'NOT FLAGGED', prediction: { status: 'PREDICTED', parameters: { rdson: { predicted168h: 0.614200, futureRiskScore: 0.09, aiFlag: 'NOT FLAGGED' } } } },
-    evidence: 'Within Normal Degradation Envelope',
-    decision: 'NORMAL',
-    status: 'NORMAL',
-  },
-  {
-    id: 'TEST-09',
-    componentId: 'TEST-09',
-    lotId: 'NASA-MOSFET-199C',
-    stage: '100%',
-    measurements: {
-      rdson: [0.510150, 0.548320, 0.570180, 0.605410],
-      delta_rdson: [0.0, 0.038170, 0.060030, 0.095260],
-      vgs: [10.0, 10.0, 10.0, 10.0],
-      vds: [5.0, 5.0, 5.0, 5.0],
-      temp: [199.8, 200.1, 199.7, 200.0],
-    },
-    predictions: { rdson: 0.609180, rdson_168h: 0.609180, residual: 0.003770 },
-    engineeringLimits: { rdson: { limitValue: 1.00, direction: 'UPPER', source: 'NASA_SPEC_LIMIT', unit: 'Ω' } },
-    engineeringLimitStatus: 'WITHIN LIMIT',
-    engineeringStatus: 'NORMAL',
-    aiRisk: 8,
-    riskScore: 0.08,
-    anomalies: { populationAbnormality: false, trajectoryAbnormality: false, futureRiskPrediction: 'Low (<10%)' },
-    aiAssessment: { overallStatus: 'NOT FLAGGED', prediction: { status: 'PREDICTED', parameters: { rdson: { predicted168h: 0.609180, futureRiskScore: 0.08, aiFlag: 'NOT FLAGGED' } } } },
-    evidence: 'Within Normal Degradation Envelope',
-    decision: 'NORMAL',
-    status: 'NORMAL',
-  },
-  {
-    // TEST-10: Gross Outlier Candidate 1 (Exact numbers from ML model output worklog)
-    id: 'TEST-10',
-    componentId: 'TEST-10',
-    lotId: 'NASA-MOSFET-199C',
-    stage: '100%',
-    measurements: {
-      rdson: [13.334364, 13.612318, 13.980145, 14.374252],
-      delta_rdson: [0.0, 0.277954, 0.645781, 1.039888],
-      vgs: [10.0, 10.0, 10.0, 10.0],
-      vds: [5.0, 5.0, 5.0, 5.0],
-      temp: [199.6, 200.1, 199.9, 200.3],
-    },
-    predictions: {
-      rdson: 0.693572,
-      rdson_168h: 0.693572,
-      residual: 13.680680,
-      deviationRatio: 20.72,
-    },
-    engineeringLimits: {
-      rdson: { limitValue: 1.00, direction: 'UPPER', source: 'NASA_SPEC_LIMIT', unit: 'Ω' },
-      vgs: { limitValue: 12.0, direction: 'UPPER', source: 'NASA_SPEC_LIMIT', unit: 'V' },
-      temp: { limitValue: 210.0, direction: 'UPPER', source: 'NASA_SPEC_LIMIT', unit: '°C' },
-    },
-    engineeringLimitStatus: 'PROJECTED LIMIT BREACH',
-    engineeringStatus: 'CRITICAL',
-    aiRisk: 98,
-    riskScore: 0.98,
-    anomalies: {
-      populationAbnormality: true,
-      trajectoryAbnormality: true,
-      futureRiskPrediction: 'Gross Outlier / 20.72× Residual Breach',
-      ifScore: -0.159831,
-      actualOverPredicted: '20.72x',
-    },
-    aiAssessment: {
-      overallStatus: 'FLAGGED',
-      prediction: {
-        status: 'PREDICTED',
-        parameters: {
-          rdson: {
-            predicted168h: 0.693572,
-            actual: 14.374252,
-            residual: 13.680680,
-            ratio: 20.72,
-            futureRiskScore: 0.98,
-            aiFlag: 'FLAGGED',
-          },
-        },
-      },
-      lotAnomaly: {
-        overallStatus: 'FLAGGED',
-        score: -0.159831,
-        method: 'Isolation Forest',
-      },
-      explanation: {
-        framework: 'SHAP (TreeExplainer)',
-        targetPrediction: 'Predicted 100% Stage RDS(on)',
-        predictedRiskPercent: 98,
-        baseValue: 0.5519,
-        features: [
-          { name: 'ΔRDS(0→33) Early Drift (Mod A SHAP)', featureValue: '0.278 Ω (Severe Outlier)', shapValue: -1.694233 },
-          { name: 'RDS0 Baseline (Mod A SHAP)', featureValue: '13.334 Ω (Gross Anomaly)', shapValue: -0.079959 },
-          { name: 'RDS33 Checkpoint (Mod B SHAP)', featureValue: '13.612 Ω (83.05% Importance)', shapValue: 0.069433 },
-          { name: 'RDS0 Initial (Mod B SHAP)', featureValue: '13.334 Ω (16.95% Importance)', shapValue: -0.011298 },
-        ],
-        summaryText: 'Gross outlier across entire trajectory. Early ΔRDS(0→33) dominates Isolation Forest anomaly score (-1.694 SHAP). Predicted 100% RDS(on) is 0.694 Ω vs actual 14.374 Ω (20.72x deviation).',
-      },
-    },
-    evidence: 'Gross Anomaly (Early RDS0 & ΔRDS extreme outlier, 20.72× forecast residual)',
-    decision: 'CRITICAL',
-    status: 'CRITICAL',
-    modelExplanation: {
-      framework: 'SHAP (TreeExplainer)',
-      targetPrediction: 'Predicted 100% Stage RDS(on)',
-      predictedRiskPercent: 98,
-      baseValue: 0.5519,
-      features: [
-        { name: 'ΔRDS(0→33) Early Drift (Mod A SHAP)', featureValue: '0.278 Ω (Severe Outlier)', shapValue: -1.694233 },
-        { name: 'RDS0 Baseline (Mod A SHAP)', featureValue: '13.334 Ω (Gross Anomaly)', shapValue: -0.079959 },
-        { name: 'RDS33 Checkpoint (Mod B SHAP)', featureValue: '13.612 Ω (83.05% Importance)', shapValue: 0.069433 },
-        { name: 'RDS0 Initial (Mod B SHAP)', featureValue: '13.334 Ω (16.95% Importance)', shapValue: -0.011298 },
-      ],
-      summaryText: 'Gross outlier across entire trajectory. Early ΔRDS(0→33) dominates Isolation Forest anomaly score (-1.694 SHAP). Predicted 100% RDS(on) is 0.694 Ω vs actual 14.374 Ω (20.72x deviation).',
-    },
-  },
-  {
-    id: 'TEST-11',
-    componentId: 'TEST-11',
-    lotId: 'NASA-MOSFET-199C',
-    stage: '100%',
-    measurements: {
-      rdson: [0.520140, 0.560210, 0.585120, 0.622410],
-      delta_rdson: [0.0, 0.040070, 0.064980, 0.102270],
-      vgs: [10.0, 10.0, 10.0, 10.0],
-      vds: [5.0, 5.0, 5.0, 5.0],
-      temp: [199.7, 200.2, 199.8, 200.2],
-    },
-    predictions: { rdson: 0.618140, rdson_168h: 0.618140, residual: 0.004270 },
-    engineeringLimits: { rdson: { limitValue: 1.00, direction: 'UPPER', source: 'NASA_SPEC_LIMIT', unit: 'Ω' } },
-    engineeringLimitStatus: 'WITHIN LIMIT',
-    engineeringStatus: 'NORMAL',
-    aiRisk: 10,
-    riskScore: 0.10,
-    anomalies: { populationAbnormality: false, trajectoryAbnormality: false, futureRiskPrediction: 'Low (<15%)' },
-    aiAssessment: { overallStatus: 'NOT FLAGGED', prediction: { status: 'PREDICTED', parameters: { rdson: { predicted168h: 0.618140, futureRiskScore: 0.10, aiFlag: 'NOT FLAGGED' } } } },
-    evidence: 'Within Normal Degradation Envelope',
-    decision: 'NORMAL',
-    status: 'NORMAL',
-  },
-  {
-    id: 'TEST-12',
-    componentId: 'TEST-12',
-    lotId: 'NASA-MOSFET-199C',
-    stage: '100%',
-    measurements: {
-      rdson: [0.502180, 0.525410, 0.548200, 0.580120],
-      delta_rdson: [0.0, 0.023230, 0.046020, 0.077940],
-      vgs: [10.0, 10.0, 10.0, 10.0],
-      vds: [5.0, 5.0, 5.0, 5.0],
-      temp: [199.6, 200.0, 199.7, 200.1],
-    },
-    predictions: { rdson: 0.587210, rdson_168h: 0.587210, residual: 0.007090 },
-    engineeringLimits: { rdson: { limitValue: 1.00, direction: 'UPPER', source: 'NASA_SPEC_LIMIT', unit: 'Ω' } },
-    engineeringLimitStatus: 'WITHIN LIMIT',
-    engineeringStatus: 'NORMAL',
-    aiRisk: 6,
-    riskScore: 0.06,
-    anomalies: { populationAbnormality: false, trajectoryAbnormality: false, futureRiskPrediction: 'Low (<10%)' },
-    aiAssessment: { overallStatus: 'NOT FLAGGED', prediction: { status: 'PREDICTED', parameters: { rdson: { predicted168h: 0.587210, futureRiskScore: 0.06, aiFlag: 'NOT FLAGGED' } } } },
-    evidence: 'Within Normal Degradation Envelope',
-    decision: 'NORMAL',
-    status: 'NORMAL',
-  },
-  {
-    // TEST-13: Latent Defect Candidate 2 (Exact numbers from ML model output worklog)
-    id: 'TEST-13',
-    componentId: 'TEST-13',
-    lotId: 'NASA-MOSFET-199C',
-    stage: '100%',
-    measurements: {
-      rdson: [0.513423, 0.544736, 0.569000, 24.675459],
-      delta_rdson: [0.0, 0.031312, 0.055577, 24.162036],
-      vgs: [10.0, 10.0, 10.0, 10.0],
-      vds: [5.0, 5.0, 5.0, 5.0],
-      temp: [199.7, 200.2, 199.9, 200.4],
-    },
-    predictions: {
-      rdson: 0.633177,
-      rdson_168h: 0.633177,
-      residual: 24.042283,
-      deviationRatio: 38.97,
-    },
-    engineeringLimits: {
-      rdson: { limitValue: 1.00, direction: 'UPPER', source: 'NASA_SPEC_LIMIT', unit: 'Ω' },
-      vgs: { limitValue: 12.0, direction: 'UPPER', source: 'NASA_SPEC_LIMIT', unit: 'V' },
-      temp: { limitValue: 210.0, direction: 'UPPER', source: 'NASA_SPEC_LIMIT', unit: '°C' },
-    },
-    engineeringLimitStatus: 'PROJECTED LIMIT BREACH',
-    engineeringStatus: 'CRITICAL',
-    aiRisk: 99,
-    riskScore: 0.99,
-    anomalies: {
-      populationAbnormality: false, // Early stage unobservable
-      trajectoryAbnormality: true, // Massive late forecast deviation
-      futureRiskPrediction: 'Observability Limitation / Catastrophic 38.97× Jump',
-      ifScore: 0.016411,
-      actualOverPredicted: '38.97x',
-    },
-    aiAssessment: {
-      overallStatus: 'FLAGGED',
-      prediction: {
-        status: 'PREDICTED',
-        parameters: {
-          rdson: {
-            predicted168h: 0.633177,
-            actual: 24.675459,
-            residual: 24.042283,
-            ratio: 38.97,
-            futureRiskScore: 0.99,
-            aiFlag: 'FLAGGED',
-          },
-        },
-      },
-      lotAnomaly: {
-        overallStatus: 'NOT FLAGGED',
-        score: 0.016411,
-        method: 'Isolation Forest',
-      },
-      explanation: {
-        framework: 'SHAP (TreeExplainer)',
-        targetPrediction: 'Predicted 100% Stage RDS(on)',
-        predictedRiskPercent: 99,
-        baseValue: 0.5519,
-        features: [
-          { name: 'RDS0 Early Baseline (Mod A SHAP)', featureValue: '0.513 Ω (Normal Reference)', shapValue: 0.328946 },
-          { name: 'ΔRDS(0→33) Early Drift (Mod A SHAP)', featureValue: '0.031 Ω (Within Normal Envelope)', shapValue: -0.185211 },
-          { name: 'RDS33 Checkpoint (Mod B SHAP)', featureValue: '0.545 Ω (Normal Range)', shapValue: -0.014711 },
-          { name: 'RDS0 Initial Checkpoint (Mod B SHAP)', featureValue: '0.513 Ω (Normal Range)', shapValue: 0.012451 },
-        ],
-        summaryText: 'Observability limitation: Early measurements (0% & 33.33%) track normal reference (IF score +0.0164). At 100%, catastrophic jump to 24.675 Ω produces 24.042 Ω residual (38.97x predicted 0.633 Ω).',
-      },
-    },
-    evidence: 'Catastrophic Drift Jump (38.97× forecast residual, unobservable from early RDS alone)',
-    decision: 'CRITICAL',
-    status: 'CRITICAL',
-    modelExplanation: {
-      framework: 'SHAP (TreeExplainer)',
-      targetPrediction: 'Predicted 100% Stage RDS(on)',
-      predictedRiskPercent: 99,
-      baseValue: 0.5519,
-      features: [
-        { name: 'RDS0 Early Baseline (Mod A SHAP)', featureValue: '0.513 Ω (Normal Reference)', shapValue: 0.328946 },
-        { name: 'ΔRDS(0→33) Early Drift (Mod A SHAP)', featureValue: '0.031 Ω (Within Normal Envelope)', shapValue: -0.185211 },
-        { name: 'RDS33 Checkpoint (Mod B SHAP)', featureValue: '0.545 Ω (Normal Range)', shapValue: -0.014711 },
-        { name: 'RDS0 Initial Checkpoint (Mod B SHAP)', featureValue: '0.513 Ω (Normal Range)', shapValue: 0.012451 },
-      ],
-      summaryText: 'Observability limitation: Early measurements (0% & 33.33%) track normal reference (IF score +0.0164). At 100%, catastrophic jump to 24.675 Ω produces 24.042 Ω residual (38.97x predicted 0.633 Ω).',
-    },
-  },
-  {
-    id: 'TEST-14',
-    componentId: 'TEST-14',
-    lotId: 'NASA-MOSFET-199C',
-    stage: '100%',
-    measurements: {
-      rdson: [0.528190, 0.575410, 0.600120, 0.638420],
-      delta_rdson: [0.0, 0.047220, 0.071930, 0.110230],
-      vgs: [10.0, 10.0, 10.0, 10.0],
-      vds: [5.0, 5.0, 5.0, 5.0],
-      temp: [199.8, 200.3, 200.1, 200.4],
-    },
-    predictions: { rdson: 0.632190, rdson_168h: 0.632190, residual: 0.006230 },
-    engineeringLimits: { rdson: { limitValue: 1.00, direction: 'UPPER', source: 'NASA_SPEC_LIMIT', unit: 'Ω' } },
-    engineeringLimitStatus: 'WITHIN LIMIT',
-    engineeringStatus: 'NORMAL',
-    aiRisk: 12,
-    riskScore: 0.12,
-    anomalies: { populationAbnormality: false, trajectoryAbnormality: false, futureRiskPrediction: 'Low (<15%)' },
-    aiAssessment: { overallStatus: 'NOT FLAGGED', prediction: { status: 'PREDICTED', parameters: { rdson: { predicted168h: 0.632190, futureRiskScore: 0.12, aiFlag: 'NOT FLAGGED' } } } },
-    evidence: 'Within Normal Degradation Envelope',
-    decision: 'NORMAL',
-    status: 'NORMAL',
-  },
-  {
-    id: 'TEST-15',
-    componentId: 'TEST-15',
-    lotId: 'NASA-MOSFET-199C',
-    stage: '100%',
-    measurements: {
-      rdson: [0.514210, 0.550180, 0.572100, 0.610420],
-      delta_rdson: [0.0, 0.035970, 0.057890, 0.096210],
-      vgs: [10.0, 10.0, 10.0, 10.0],
-      vds: [5.0, 5.0, 5.0, 5.0],
-      temp: [199.7, 200.1, 199.9, 200.2],
-    },
-    predictions: { rdson: 0.612050, rdson_168h: 0.612050, residual: 0.001630 },
-    engineeringLimits: { rdson: { limitValue: 1.00, direction: 'UPPER', source: 'NASA_SPEC_LIMIT', unit: 'Ω' } },
-    engineeringLimitStatus: 'WITHIN LIMIT',
-    engineeringStatus: 'NORMAL',
-    aiRisk: 7,
-    riskScore: 0.07,
-    anomalies: { populationAbnormality: false, trajectoryAbnormality: false, futureRiskPrediction: 'Low (<10%)' },
-    aiAssessment: { overallStatus: 'NOT FLAGGED', prediction: { status: 'PREDICTED', parameters: { rdson: { predicted168h: 0.612050, futureRiskScore: 0.07, aiFlag: 'NOT FLAGGED' } } } },
-    evidence: 'Within Normal Degradation Envelope',
-    decision: 'NORMAL',
-    status: 'NORMAL',
-  },
-];
+// 3. Component Records (Empty — Single Source of Truth is MongoDB via /api/screening)
+export const mockComponents = [];
 
-// 4. Screening Summary Stats Baseline (15 MOSFETs: 13 Normal, 2 Critical)
+// 4. Screening Summary Stats Initial State (Derived dynamically from active DB records)
 export const mockSummaryStats = {
-  totalComponents: 15,
-  normal: 13,
+  totalComponents: 0,
+  normal: 0,
   suspect: 0,
-  critical: 2,
-  passed: 13,
+  critical: 0,
+  passed: 0,
   hold: 0,
-  rejected: 2,
-  lotsProcessed: 1,
+  rejected: 0,
+  lotsProcessed: 0,
 };
 
-// 5. Predictive Screening Pipeline Stages (0% -> 33.33% Inputs -> AI 100% Prediction -> 100% Validation Gate)
+// 5. Predictive Screening Pipeline Stages UI Configuration
 export const mockPipelineStages = [
   {
     id: 'stage-0pct',
@@ -604,8 +139,6 @@ export const mockPipelineStages = [
     status: 'complete',
     badge: 'Complete',
     description: 'Initial pre-stress baseline ON-state resistance extracted from late-pulse ON window.',
-    completedAt: '2026-09-12 10:30',
-    sampleYield: '100%',
   },
   {
     id: 'stage-33pct',
@@ -615,8 +148,6 @@ export const mockPipelineStages = [
     status: 'complete',
     badge: 'Complete',
     description: 'Early observation checkpoint providing RDS33 and early drift ΔRDS(0→33) for ML models.',
-    completedAt: '2026-09-13 14:15',
-    sampleYield: '93.3%',
   },
   {
     id: 'stage-66pct',
@@ -626,8 +157,6 @@ export const mockPipelineStages = [
     status: 'complete',
     badge: 'Complete',
     description: 'Mid-point thermal stress verification confirming normal reference trajectory tracking.',
-    completedAt: '2026-09-15 09:00',
-    sampleYield: '93.3%',
   },
   {
     id: 'stage-100pct',
@@ -636,31 +165,27 @@ export const mockPipelineStages = [
     category: 'FORECAST & VERIFICATION',
     status: 'active',
     badge: 'Active Gate',
-    description: 'Evaluation of Module B predicted RDS100 vs actual RDS100. Discloses Test 10 and Test 13 residuals.',
-    completedAt: null,
-    sampleYield: '86.7%',
+    description: 'Evaluation of Module B predicted RDS100 vs actual RDS100. Discloses test residuals.',
   },
 ];
 
-// 6. Evidence Pathways (Multi-Modal Diagnostic & Early Forecasting Engines)
+// 6. Evidence Pathways UI Definitions
 export const mockEvidencePathways = [
   {
     id: 'population-abnormality',
     title: 'Module A — Dynamic Novelty / Anomaly',
     question: 'Is early behavior [RDS0, ΔRDS(0→33)] anomalous compared with the normal reference population?',
-    flaggedCount: 1,
     severity: 'critical',
-    diagnostic: 'Isolation Forest (n=500, max_samples=13) continuous novelty IF_Score. Exposes Test 10 (IF score -0.1598) while highlighting Test 13 early observability limit (IF score +0.0164).',
-    primaryMetric: '1 GROSS OUTLIER',
-    statusTag: 'ANOMALY DETECTED',
+    diagnostic: 'Isolation Forest (n=500, max_samples=13) continuous novelty IF_Score on [RDS0, ΔRDS(0→33)].',
+    primaryMetric: 'DYNAMIC NOVELTY',
+    statusTag: 'ACTIVE INFERENCE',
   },
   {
     id: 'trajectory-abnormality',
     title: 'Module B — Time-Series Drift Forecast',
     question: 'Given early observations [RDS0, RDS33], what future RDS100 should be expected?',
-    flaggedCount: 2,
     severity: 'critical',
-    diagnostic: 'Random Forest Regressor (300 trees, depth 3) trained on 13 normal references (LOOCV MAE 0.0528 Ω). Feature importance: RDS0 = 16.95%, RDS33 = 83.05%.',
+    diagnostic: 'Random Forest Regressor (300 trees, depth 3) trained on 13 normal references (LOOCV MAE 0.0528 Ω).',
     primaryMetric: 'MAE 0.0528 Ω',
     statusTag: 'VERIFIED MODEL',
   },
@@ -668,11 +193,10 @@ export const mockEvidencePathways = [
     id: 'future-risk-prediction',
     title: 'Forecast Residual & Latent Defect Triage',
     question: 'Does the actual 100% measurement deviate excessively from the learned normal forecast (>0.165 Ω upper fence)?',
-    flaggedCount: 2,
     severity: 'critical',
-    diagnostic: 'Extreme forecast residuals expose latent failure: Test 10 residual is 13.681 Ω (20.72×); Test 13 residual is 24.042 Ω (38.97×).',
-    primaryMetric: '2 REJECT CANDIDATES',
-    statusTag: 'CRITICAL',
+    diagnostic: 'Forecast residuals expose latent failure: deviations beyond 0.165 Ω fence indicate gross anomalous degradation.',
+    primaryMetric: 'RESIDUAL FENCE 0.165 Ω',
+    statusTag: 'ACTIVE TRIAGE',
   },
 ];
 
@@ -711,58 +235,12 @@ export const mockSystemSubsystems = [
     name: 'Database (MongoDB Atlas)',
     status: 'Operational',
     ping: '2ms',
-    detail: '15 physical MOSFET trajectory records synchronized',
+    detail: 'Single source of truth via Express REST API',
   },
 ];
 
-// 8. Recent Screening Alerts (NASA MOSFET Screening Events)
-export const mockRecentAlerts = [
-  {
-    id: 'alert-001',
-    targetId: 'TEST-10',
-    type: 'component',
-    severity: 'danger',
-    message: 'Gross early outlier detected: RDS0 = 13.334 Ω, IF score = -0.1598',
-    timeAgo: '2 min ago',
-    timestamp: '15:46:12',
-  },
-  {
-    id: 'alert-002',
-    targetId: 'TEST-13',
-    type: 'component',
-    severity: 'danger',
-    message: 'Catastrophic 100% jump: Actual 24.675 Ω vs Predicted 0.633 Ω (38.97× residual)',
-    timeAgo: '8 min ago',
-    timestamp: '15:40:05',
-  },
-  {
-    id: 'alert-003',
-    targetId: 'TEST-10',
-    type: 'component',
-    severity: 'warning',
-    message: 'Module B prediction residual: 13.681 Ω (20.72× normal forecast)',
-    timeAgo: '14 min ago',
-    timestamp: '15:34:22',
-  },
-  {
-    id: 'alert-004',
-    targetId: 'NASA-MOSFET-199C',
-    type: 'lot',
-    severity: 'info',
-    message: '15-device screening completed: 13 normal references, 2 held-out anomalies evaluated',
-    timeAgo: '21 min ago',
-    timestamp: '15:27:00',
-  },
-  {
-    id: 'alert-005',
-    targetId: 'TEST-13',
-    type: 'component',
-    severity: 'warning',
-    message: 'Observability constraint noted: early RDS(on) showed no distinguishing precursor',
-    timeAgo: '35 min ago',
-    timestamp: '15:13:41',
-  },
-];
+// 8. Recent Alerts Initial State (Derived dynamically from active DB records)
+export const mockRecentAlerts = [];
 
 // 9. Composite Dashboard Data Object
 export const mockDashboardData = {

@@ -148,7 +148,7 @@ export default function ObservabilityStudy() {
           <span className="spad-page-tag">POPULATION &amp; TRAJECTORY DYNAMICS</span>
         </div>
         <p className="spad-page-description">
-          Observed burn-in degradation trajectories, parameter checkpoints (0h &rarr; 24h &rarr; 96h), AI 168h forecast projections, and engineering specification boundary margin analysis.
+          Observed burn-in degradation trajectories, parameter checkpoints (0% &rarr; 33.33% &rarr; 66.67%), AI 100% forecast projections, and engineering specification boundary margin analysis.
         </p>
       </header>
 
