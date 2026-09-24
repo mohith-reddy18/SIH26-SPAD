@@ -126,53 +126,52 @@ app.post('/api/screening/run', async (req, res) => {
   }
 });
 
+const { validateAtePayload } = require('./utils/ateValidation');
+
 /**
  * POST /api/screening
- * Store a screening record in MongoDB Atlas.
+ * Ingest / Store an ATE screening record in MongoDB Atlas.
  */
 app.post('/api/screening', async (req, res) => {
   try {
-    const { componentId, lotId } = req.body || {};
-
-    // Validate required fields
-    if (!componentId || typeof componentId !== 'string' || !componentId.trim()) {
+    const validation = validateAtePayload(req.body);
+    if (!validation.isValid) {
       return res.status(400).json({
         success: false,
         error: 'Validation Error',
-        message: 'Field "componentId" is required and must be a non-empty string'
+        message: validation.error,
       });
     }
 
-    if (!lotId || typeof lotId !== 'string' || !lotId.trim()) {
-      return res.status(400).json({
-        success: false,
-        error: 'Validation Error',
-        message: 'Field "lotId" is required and must be a non-empty string'
-      });
-    }
+    const { componentId, lotId } = req.body;
+    const cleanCompId = componentId.trim();
+    const cleanLotId = lotId.trim();
 
-    // Create and save the screening record
-    const newRecord = new ScreeningRecord(req.body);
-    const savedRecord = await newRecord.save();
+    // Upsert or save the record to handle repeated/duplicate checkpoint data cleanly
+    const savedRecord = await ScreeningRecord.findOneAndUpdate(
+      { componentId: cleanCompId, lotId: cleanLotId },
+      { $set: { ...req.body, componentId: cleanCompId, lotId: cleanLotId } },
+      { new: true, upsert: true, setDefaultsOnInsert: true }
+    );
 
     return res.status(201).json({
       success: true,
       message: 'Screening record created successfully',
-      data: savedRecord
+      data: savedRecord,
     });
   } catch (error) {
     if (error.name === 'ValidationError') {
       return res.status(400).json({
         success: false,
         error: 'Validation Error',
-        message: error.message
+        message: error.message,
       });
     }
 
     return res.status(500).json({
       success: false,
       error: 'Database Error',
-      message: error.message || 'Failed to save screening record to MongoDB'
+      message: error.message || 'Failed to save screening record to MongoDB',
     });
   }
 });
