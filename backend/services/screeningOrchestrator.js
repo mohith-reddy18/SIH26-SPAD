@@ -1,17 +1,14 @@
 /**
- * SPAD Backend Screening Orchestration Service (Step 9)
+ * SPAD Backend Screening Orchestration Service (Step 9 & Step 19)
  *
  * Orchestrates the complete end-to-end evaluation flow:
- * 1. Load target component from MongoDB (by componentId + lotId)
- * 2. Load same-lot cohort from MongoDB
- * 3. Validate parametric observations (0h, 24h)
- * 4. Resolve official engineering limits
- * 5. Method 1: Future Trajectory Prediction (0h + 24h -> 168h)
- * 6. Method 2: Same-Lot Statistical Anomaly Detection (>= 3 cohort units)
- * 7. Deterministic Engineering Status (from measurements + official limits)
- * 8. Aggregate AI Overall Status
- * 9. Persist combined screening record to MongoDB (upsert / update)
- * 10. Return combined screening record
+ * 1. Supports both Single Component and Whole Lot evaluation modes
+ * 2. Method 1: Future Trajectory Prediction (0h + 24h -> 168h)
+ * 3. Method 2: Same-Lot Statistical Anomaly Detection (>= 3 cohort units)
+ * 4. Deterministic Engineering Status (from physical measurements + official limits)
+ * 5. Aggregate AI Overall Status
+ * 6. Persist canonical screening record to MongoDB (upsert / update)
+ * 7. Return single record or lot summary
  */
 
 const ScreeningRecord = require('../models/ScreeningRecord');
@@ -21,12 +18,14 @@ const {
   projectedMargin,
   engineeringStatus,
   overallStatus,
+  currentYield,
 } = require('../utils/contractCalculations');
 
 /**
  * Normalizes parameter observations from measurements dictionary or history.
  *
  * @param {Object} measurements
+ * @param {Object} limits
  * @returns {Object} { [param]: { observed: { "0h": number, "24h": number }, unit: string } }
  */
 function extractTelemetryDictionary(measurements = {}, limits = {}) {
@@ -63,52 +62,21 @@ function extractTelemetryDictionary(measurements = {}, limits = {}) {
 }
 
 /**
- * Executes full screening orchestration flow.
+ * Evaluates a single component against its same-lot cohort and persists the result.
  *
  * @param {Object} params
- * @param {string} params.componentId
- * @param {string} params.lotId
+ * @param {Object} params.targetDoc
+ * @param {Array<Object>} params.sameLotDocs
  * @param {Object} [params.customLimits]
  * @param {Object} [params.context]
- * @returns {Promise<Object>} Combined screening evaluation outcome
+ * @returns {Promise<Object>} Persisted canonical document
  */
-async function runScreeningOrchestration({ componentId, lotId, customLimits = null, context = {} }) {
-  if (!componentId || typeof componentId !== 'string' || !componentId.trim()) {
-    throw {
-      statusCode: 400,
-      code: 'VALIDATION_ERROR',
-      message: 'Field "componentId" is required and must be a non-empty string',
-      componentId: null,
-      lotId,
-    };
-  }
-
-  const cleanCompId = componentId.trim();
-  const cleanLotId = (typeof lotId === 'string' && lotId.trim()) ? lotId.trim() : null;
-
-  // 1. Load target component from MongoDB (enforcing lotId if provided)
-  const query = { componentId: cleanCompId };
-  if (cleanLotId) query.lotId = cleanLotId;
-
-  const targetDoc = await ScreeningRecord.findOne(query).lean();
-
-  if (!targetDoc) {
-    throw {
-      statusCode: 404,
-      code: 'NOT_FOUND',
-      message: `Screening record for component "${cleanCompId}"${cleanLotId ? ` in lot "${cleanLotId}"` : ''} not found in database`,
-      componentId: cleanCompId,
-      lotId: cleanLotId,
-    };
-  }
-
-  const resolvedLotId = targetDoc.lotId || cleanLotId || 'LOT-2026-001';
+async function evaluateSingleComponent({ targetDoc, sameLotDocs = [], customLimits = null, context = {} }) {
+  const cleanCompId = targetDoc.componentId;
+  const resolvedLotId = targetDoc.lotId || 'LOT-2026-001';
   const measurements = targetDoc.measurements || {};
   const engineeringLimits = customLimits || targetDoc.engineeringLimits || {};
 
-  // 2. Load SAME-LOT cohort from MongoDB
-  const sameLotDocs = await ScreeningRecord.find({ lotId: resolvedLotId }).lean();
-  
   // Ensure target is included in the cohort array
   const cohort = sameLotDocs.some((d) => d.componentId === cleanCompId)
     ? sameLotDocs
@@ -117,13 +85,12 @@ async function runScreeningOrchestration({ componentId, lotId, customLimits = nu
   const componentsAnalyzed = cohort.length;
   const eligiblePeersCount = Math.max(0, componentsAnalyzed - 1);
 
-  // 3. Extract & Validate Telemetry Dictionary
+  // 1. Extract & Validate Telemetry Dictionary
   const telemetryParams = extractTelemetryDictionary(measurements, engineeringLimits);
-
   const allAiFlags = [];
 
   // ==========================================================================
-  // 4. Method 1: Future Trajectory Prediction
+  // 2. Method 1: Future Trajectory Prediction
   // ==========================================================================
   let m1Result;
   try {
@@ -201,7 +168,7 @@ async function runScreeningOrchestration({ componentId, lotId, customLimits = nu
   }
 
   // ==========================================================================
-  // 5. Method 2: Same-Lot Anomaly Detection
+  // 3. Method 2: Same-Lot Anomaly Detection
   // ==========================================================================
   let responseM2Params = {};
   let m2CohortQuality = 'SUFFICIENT';
@@ -275,17 +242,17 @@ async function runScreeningOrchestration({ componentId, lotId, customLimits = nu
   }
 
   // ==========================================================================
-  // 6. Deterministic Engineering Status
+  // 4. Deterministic Engineering Status
   // ==========================================================================
   const calculatedEngineeringStatus = engineeringStatus(measurements, engineeringLimits);
 
   // ==========================================================================
-  // 7. Aggregate Overall AI Status
+  // 5. Aggregate Overall AI Status
   // ==========================================================================
   const calculatedAiOverallStatus = overallStatus(allAiFlags);
 
   // ==========================================================================
-  // 8. Combine & Structure Canonical Screening Record
+  // 6. Combine & Structure Canonical Screening Record
   // ==========================================================================
   const combinedRecord = {
     componentId: cleanCompId,
@@ -319,13 +286,147 @@ async function runScreeningOrchestration({ componentId, lotId, customLimits = nu
   };
 
   // ==========================================================================
-  // 9. Persist Combined Screening Record to MongoDB (Upsert / Update)
+  // 7. Persist Combined Screening Record to MongoDB (Upsert / Update)
   // ==========================================================================
   const savedDocument = await ScreeningRecord.findOneAndUpdate(
     { componentId: cleanCompId, lotId: resolvedLotId },
     { $set: combinedRecord },
     { new: true, upsert: true, setDefaultsOnInsert: true }
   ).lean();
+
+  return savedDocument;
+}
+
+/**
+ * Executes full screening orchestration flow for a single component or an entire lot.
+ *
+ * @param {Object} params
+ * @param {string} [params.componentId]
+ * @param {string} [params.lotId]
+ * @param {Object} [params.customLimits]
+ * @param {Object} [params.context]
+ * @returns {Promise<Object>} Combined screening evaluation outcome or lot summary
+ */
+async function runScreeningOrchestration({ componentId, lotId, customLimits = null, context = {} }) {
+  // Validation: if componentId is explicitly passed, it must not be empty/whitespace
+  if (componentId !== undefined && componentId !== null) {
+    if (typeof componentId !== 'string' || !componentId.trim()) {
+      throw {
+        statusCode: 400,
+        code: 'VALIDATION_ERROR',
+        message: 'Field "componentId" is required and must be a non-empty string',
+        componentId: null,
+        lotId,
+      };
+    }
+  }
+
+  const cleanCompId = (typeof componentId === 'string' && componentId.trim()) ? componentId.trim() : null;
+  const cleanLotId = (typeof lotId === 'string' && lotId.trim()) ? lotId.trim() : null;
+
+  // Validation: at least componentId or lotId must be present
+  if (!cleanCompId && !cleanLotId) {
+    throw {
+      statusCode: 400,
+      code: 'VALIDATION_ERROR',
+      message: 'Either "componentId" or "lotId" is required for screening orchestration',
+      componentId: null,
+      lotId: null,
+    };
+  }
+
+  // --- MODE 1: Whole Lot Screening Orchestration ---
+  if (!cleanCompId && cleanLotId) {
+    const lotDocs = await ScreeningRecord.find({ lotId: cleanLotId }).lean();
+
+    if (!lotDocs || lotDocs.length === 0) {
+      throw {
+        statusCode: 404,
+        code: 'NOT_FOUND',
+        message: `No screening records found for lot "${cleanLotId}" in database`,
+        componentId: null,
+        lotId: cleanLotId,
+      };
+    }
+
+    const evaluatedRecords = [];
+    for (const doc of lotDocs) {
+      const evaluated = await evaluateSingleComponent({
+        targetDoc: doc,
+        sameLotDocs: lotDocs,
+        customLimits,
+        context,
+      });
+      evaluatedRecords.push(evaluated);
+    }
+
+    // Compute Lot Summary Metrics
+    let normalCount = 0;
+    let suspectCount = 0;
+    let criticalCount = 0;
+    let aiFlaggedCount = 0;
+    let aiNotFlaggedCount = 0;
+    let aiNotEvaluatedCount = 0;
+
+    for (const rec of evaluatedRecords) {
+      const eng = rec.engineeringStatus;
+      if (eng === 'NORMAL') normalCount++;
+      else if (eng === 'SUSPECT') suspectCount++;
+      else if (eng === 'CRITICAL') criticalCount++;
+
+      const ai = rec.aiAssessment?.overallStatus;
+      if (ai === 'FLAGGED') aiFlaggedCount++;
+      else if (ai === 'NOT FLAGGED') aiNotFlaggedCount++;
+      else aiNotEvaluatedCount++;
+    }
+
+    const totalComponents = evaluatedRecords.length;
+    const engineeringYield = Number(currentYield(evaluatedRecords).toFixed(2));
+
+    return {
+      success: true,
+      message: 'Lot screening orchestration completed successfully',
+      lotId: cleanLotId,
+      summary: {
+        totalComponents,
+        evaluatedCount: totalComponents,
+        normalCount,
+        suspectCount,
+        criticalCount,
+        aiFlaggedCount,
+        aiNotFlaggedCount,
+        aiNotEvaluatedCount,
+        engineeringYield,
+      },
+      data: evaluatedRecords,
+    };
+  }
+
+  // --- MODE 2: Single Component Screening Orchestration ---
+  const query = { componentId: cleanCompId };
+  if (cleanLotId) query.lotId = cleanLotId;
+
+  const targetDoc = await ScreeningRecord.findOne(query).lean();
+
+  if (!targetDoc) {
+    throw {
+      statusCode: 404,
+      code: 'NOT_FOUND',
+      message: `Screening record for component "${cleanCompId}"${cleanLotId ? ` in lot "${cleanLotId}"` : ''} not found in database`,
+      componentId: cleanCompId,
+      lotId: cleanLotId,
+    };
+  }
+
+  const resolvedLotId = targetDoc.lotId || cleanLotId || 'LOT-2026-001';
+  const sameLotDocs = await ScreeningRecord.find({ lotId: resolvedLotId }).lean();
+
+  const savedDocument = await evaluateSingleComponent({
+    targetDoc,
+    sameLotDocs,
+    customLimits,
+    context,
+  });
 
   return {
     success: true,
@@ -336,4 +437,5 @@ async function runScreeningOrchestration({ componentId, lotId, customLimits = nu
 
 module.exports = {
   runScreeningOrchestration,
+  evaluateSingleComponent,
 };

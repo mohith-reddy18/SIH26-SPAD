@@ -8,8 +8,13 @@ const PORT = process.env.PORT || 5000;
 const MONGODB_URI = process.env.MONGODB_URI;
 
 // Middleware
-app.use(cors());
-app.use(express.json());
+const corsOrigin = process.env.CORS_ORIGIN;
+const corsOptions = corsOrigin && corsOrigin.trim() !== '*'
+  ? { origin: corsOrigin.split(',').map((o) => o.trim()) }
+  : undefined;
+
+app.use(cors(corsOptions));
+app.use(express.json({ limit: '2mb' }));
 
 // MongoDB Atlas Connection
 if (MONGODB_URI) {
@@ -32,10 +37,13 @@ app.use('/api/ai', aiRouter);
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
+  const aiServiceStatus = process.env.AI_SERVICE_URL ? 'configured' : 'local_dev_interface';
   res.status(200).json({
     status: 'ok',
     message: 'SPAD backend is running',
     database: dbStatus,
+    aiService: aiServiceStatus,
+    environment: process.env.NODE_ENV || 'development',
     timestamp: new Date().toISOString()
   });
 });
@@ -130,7 +138,7 @@ const { validateAtePayload } = require('./utils/ateValidation');
 
 /**
  * POST /api/screening
- * Ingest / Store an ATE screening record in MongoDB Atlas.
+ * Ingest / Store an ATE screening record in MongoDB Atlas with mass-assignment protection.
  */
 app.post('/api/screening', async (req, res) => {
   try {
@@ -143,14 +151,24 @@ app.post('/api/screening', async (req, res) => {
       });
     }
 
-    const { componentId, lotId } = req.body;
+    const { componentId, lotId, stage, measurements, engineeringLimits, context } = req.body;
     const cleanCompId = componentId.trim();
     const cleanLotId = lotId.trim();
+
+    // Mass-assignment protection: Only ingest allowed fields; protected screening fields remain server-authoritative
+    const allowedFields = {
+      componentId: cleanCompId,
+      lotId: cleanLotId,
+      ...(typeof stage === 'string' && stage.trim() ? { stage: stage.trim() } : {}),
+      ...(measurements && typeof measurements === 'object' ? { measurements } : {}),
+      ...(engineeringLimits && typeof engineeringLimits === 'object' ? { engineeringLimits } : {}),
+      ...(context && typeof context === 'object' ? { context } : {}),
+    };
 
     // Upsert or save the record to handle repeated/duplicate checkpoint data cleanly
     const savedRecord = await ScreeningRecord.findOneAndUpdate(
       { componentId: cleanCompId, lotId: cleanLotId },
-      { $set: { ...req.body, componentId: cleanCompId, lotId: cleanLotId } },
+      { $set: allowedFields },
       { new: true, upsert: true, setDefaultsOnInsert: true }
     );
 
@@ -178,15 +196,17 @@ app.post('/api/screening', async (req, res) => {
 
 /**
  * GET /api/screening
- * Retrieve screening records from MongoDB Atlas (supports optional lotId filter).
+ * Retrieve screening records from MongoDB Atlas with query sanitization.
  */
 app.get('/api/screening', async (req, res) => {
   try {
     const { lotId, limit } = req.query;
     const filter = {};
-    if (lotId) filter.lotId = lotId;
+    if (typeof lotId === 'string' && lotId.trim()) {
+      filter.lotId = lotId.trim();
+    }
 
-    const maxLimit = parseInt(limit, 10) || 100;
+    const maxLimit = Math.min(Math.max(parseInt(limit, 10) || 100, 1), 500);
     const records = await ScreeningRecord.find(filter)
       .sort({ createdAt: -1 })
       .limit(maxLimit)
@@ -208,22 +228,24 @@ app.get('/api/screening', async (req, res) => {
 
 /**
  * GET /api/screening/:componentId
- * Retrieve the screening record(s) for a specific component.
+ * Retrieve the screening record(s) for a specific component with parameter sanitization.
  */
 app.get('/api/screening/:componentId', async (req, res) => {
   try {
     const { componentId } = req.params;
 
-    if (!componentId) {
+    if (!componentId || typeof componentId !== 'string' || !componentId.trim()) {
       return res.status(400).json({
         success: false,
         error: 'Validation Error',
-        message: 'Parameter "componentId" is required'
+        message: 'Parameter "componentId" is required and must be a non-empty string'
       });
     }
 
+    const cleanCompId = componentId.trim();
+
     // Find the latest screening record for this component
-    const record = await ScreeningRecord.findOne({ componentId })
+    const record = await ScreeningRecord.findOne({ componentId: cleanCompId })
       .sort({ createdAt: -1 })
       .lean();
 
@@ -231,7 +253,7 @@ app.get('/api/screening/:componentId', async (req, res) => {
       return res.status(404).json({
         success: false,
         error: 'Not Found',
-        message: `Screening record for component "${componentId}" not found`
+        message: `Screening record for component "${cleanCompId}" not found`
       });
     }
 
