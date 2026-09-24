@@ -66,7 +66,7 @@ async function runStep4Tests() {
 
   // 1. Direct aiService Unit Tests
   console.log('--- 1. Testing aiService directly ---');
-  const servicePred = aiService.predict168h({
+  const servicePred = await aiService.predict168h({
     componentId: 'C-0001',
     lotId: 'LOT-2026-001',
     parameters: {
@@ -83,7 +83,7 @@ async function runStep4Tests() {
   assert(servicePred.predictions.iddq.predictionInterval === null, 'aiService.predict168h: Uncalibrated predictionInterval is null');
   assert(servicePred.predictions.iddq.futureRiskPercent === null, 'aiService.predict168h: Uncalibrated futureRiskPercent is null');
 
-  const serviceAnomaly = aiService.detectLotAnomalies({
+  const serviceAnomaly = await aiService.detectLotAnomalies({
     targetComponentId: 'C-0001',
     lotId: 'LOT-2026-001',
     cohort: [

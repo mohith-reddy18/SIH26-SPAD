@@ -1,22 +1,23 @@
 /**
- * SPAD AI Model Interface Service
+ * SPAD AI Model Interface Service (Step 8 Finalization)
  *
  * Model-Agnostic Interface connecting SPAD backend endpoints to the AI inference engine.
  *
  * Architecture Separation:
- * - AI Service Responsibilities:
+ * - AI Model Responsibilities (Model-Owned Outputs):
  *     - predicted168h
  *     - predictionInterval (when calibrated)
  *     - futureRiskScore
  *     - futureRiskPercent (when calibrated)
- *     - limitBreachProbability (when meaningful)
+ *     - limitBreachProbability (when calibrated/meaningful)
  *     - lotAnomalyScore
  *     - peerComparisonEvidence
  *     - divergenceType
  *     - aiFlag ("FLAGGED" | "NOT FLAGGED" | "NOT_EVALUATED")
  *     - modelExplanation
+ *     - modelMetadata (modelName, modelVersion, timestamp)
  *
- * - Backend Responsibilities (Computed outside this service):
+ * - Backend Responsibilities (Computed strictly outside the model):
  *     - rateOfChangePerHour
  *     - projectedMargin
  *     - engineeringStatus
@@ -24,18 +25,62 @@
  *     - currentYield
  */
 
+// Model Identification Metadata
+const MODEL_METADATA = {
+  modelName: 'SPAD-Predictive-Drift-V1',
+  modelVersion: '1.0.0-interface',
+  status: 'INTERFACE_READY',
+};
+
 /**
- * Method 1: Component-Level 168h Future Trajectory Prediction
+ * Method 1: Component-Level 168h Future Trajectory Prediction Model Interface
+ *
+ * Input Contract:
+ * {
+ *   componentId: string,
+ *   lotId: string,
+ *   parameters: {
+ *     [paramKey]: {
+ *       unit: string,
+ *       observed: {
+ *         "0h": number,
+ *         "24h": number
+ *       }
+ *     }
+ *   },
+ *   engineeringLimits?: {
+ *     [paramKey]: {
+ *       limitValue: number,
+ *       direction?: "UPPER" | "LOWER",
+ *       source?: "DATABASE_CATALOG" | "SUPPLIED" | "AI_ESTIMATED_BOUNDARY" | "NONE_AVAILABLE"
+ *     }
+ *   },
+ *   context?: { ... }
+ * }
+ *
+ * Output Contract:
+ * {
+ *   componentId: string,
+ *   lotId: string,
+ *   modelMetadata: { modelName, modelVersion, timestamp },
+ *   predictions: {
+ *     [paramKey]: {
+ *       status: "PREDICTED" | "UNSUPPORTED_PARAMETER",
+ *       predicted168h: number | null,
+ *       predictionInterval: [number, number] | null,
+ *       futureRiskScore: number,
+ *       futureRiskPercent: number | null,
+ *       limitBreachProbability: number | null,
+ *       aiFlag: "FLAGGED" | "NOT FLAGGED" | "NOT_EVALUATED",
+ *       modelExplanation: Object | null
+ *     }
+ *   }
+ * }
  *
  * @param {Object} input
- * @param {string} input.componentId - Target component identifier
- * @param {string} input.lotId - Lot/batch identifier
- * @param {Object} input.parameters - Dynamic parameter telemetry with 0h and 24h observations
- * @param {Object} [input.engineeringLimits] - Optional engineering limits
- * @param {Object} [input.context] - Optional environmental/device metadata
- * @returns {Promise<Object>|Object} Model-level prediction results keyed by parameter
+ * @returns {Promise<Object>|Object} Model output
  */
-function predict168h(input) {
+async function predict168h(input) {
   const { componentId, lotId, parameters = {}, engineeringLimits = {}, context = {} } = input || {};
 
   const predictions = {};
@@ -62,11 +107,11 @@ function predict168h(input) {
     // ========================================================================
     // REAL AI MODEL INTEGRATION POINT (Method 1)
     // ------------------------------------------------------------------------
-    // Replace the temporary deterministic calculation below with the live AI
-    // model inference (e.g., Python service HTTP call, ONNX model runner, etc.).
+    // When the real trained model (Python service, ONNX, ML inference worker)
+    // is deployed, replace the isolated deterministic logic below with the
+    // inference call. The surrounding API contract will remain unchanged.
     // ========================================================================
 
-    // Temporary linear projection: 24h + ((24h - 0h) / 24) * 144
     const deltaPerHour = (val24h - val0h) / 24;
     const predicted168h = Number((val24h + deltaPerHour * 144).toFixed(4));
 
@@ -77,7 +122,7 @@ function predict168h(input) {
 
     if (limitObj && typeof limitObj === 'object') {
       limitValue = typeof limitObj.limitValue === 'number' ? limitObj.limitValue : (limitObj.upper ?? limitObj.lower);
-      direction = limitObj.direction || (limitObj.upper !== undefined ? 'UPPER' : 'LOWER');
+      direction = String(limitObj.direction || (limitObj.lower !== undefined ? 'LOWER' : 'UPPER')).toUpperCase();
     }
 
     let aiFlag = 'NOT FLAGGED';
@@ -97,9 +142,9 @@ function predict168h(input) {
     predictions[paramName] = {
       status: 'PREDICTED',
       predicted168h,
-      predictionInterval: null, // Only return when calibrated interval is available
+      predictionInterval: null, // Only return when calibrated interval is generated
       futureRiskScore,
-      futureRiskPercent: null, // Only return when calibrated probability % is available
+      futureRiskPercent: null, // Only return when calibrated probability % is generated
       limitBreachProbability: null, // Only return when meaningful basis exists
       aiFlag,
       modelExplanation: null, // Model explainability payload (SHAP, feature importance, etc.)
@@ -109,21 +154,59 @@ function predict168h(input) {
   return {
     componentId,
     lotId,
+    modelMetadata: {
+      ...MODEL_METADATA,
+      timestamp: new Date().toISOString(),
+    },
     predictions,
   };
 }
 
 /**
- * Method 2: Intra-Lot Statistical Peer Comparison Anomaly Detection
+ * Method 2: Intra-Lot Statistical Peer Comparison Anomaly Detection Model Interface
+ *
+ * Input Contract:
+ * {
+ *   targetComponentId: string, // or componentId
+ *   lotId: string,
+ *   cohort: [ // STRICTLY SAME-LOT components
+ *     {
+ *       componentId: string,
+ *       parameters: {
+ *         [paramKey]: {
+ *           unit: string,
+ *           observed: {
+ *             "0h": number,
+ *             "24h": number
+ *           }
+ *         }
+ *       }
+ *     }
+ *   ],
+ *   context?: { ... }
+ * }
+ *
+ * Output Contract:
+ * {
+ *   targetComponentId: string,
+ *   lotId: string,
+ *   modelMetadata: { modelName, modelVersion, timestamp },
+ *   anomalyResults: {
+ *     [paramKey]: {
+ *       status: "ANALYZED" | "UNSUPPORTED_PARAMETER",
+ *       lotAnomalyScore: number | null,
+ *       peerComparisonEvidence: Object,
+ *       divergenceType: string | null,
+ *       aiFlag: "FLAGGED" | "NOT FLAGGED" | "NOT_EVALUATED",
+ *       modelExplanation: Object | null
+ *     }
+ *   }
+ * }
  *
  * @param {Object} input
- * @param {string} input.targetComponentId - Component to evaluate against same-lot cohort
- * @param {string} input.lotId - Lot identifier
- * @param {Array<Object>} input.cohort - Array of eligible components from the SAME lot
- * @param {Object} [input.context] - Optional environmental/device metadata
- * @returns {Promise<Object>|Object} Model-level anomaly detection results keyed by parameter
+ * @returns {Promise<Object>|Object} Model output
  */
-function detectLotAnomalies(input) {
+async function detectLotAnomalies(input) {
   const { targetComponentId, lotId, cohort = [], context = {} } = input || {};
 
   const anomalyResults = {};
@@ -176,8 +259,9 @@ function detectLotAnomalies(input) {
     // ========================================================================
     // REAL AI MODEL INTEGRATION POINT (Method 2)
     // ------------------------------------------------------------------------
-    // Replace the temporary statistical z-score calculation below with the
-    // live AI model / anomaly detector (e.g., Python service, ONNX model, etc.).
+    // When the real trained anomaly model (Isolation Forest, Mahalanobis,
+    // Autoencoder, etc.) is deployed, replace the isolated statistical logic
+    // below with the inference call.
     // ========================================================================
 
     const sum = peerValues.reduce((a, b) => a + b, 0);
@@ -211,11 +295,16 @@ function detectLotAnomalies(input) {
   return {
     targetComponentId,
     lotId,
+    modelMetadata: {
+      ...MODEL_METADATA,
+      timestamp: new Date().toISOString(),
+    },
     anomalyResults,
   };
 }
 
 module.exports = {
+  MODEL_METADATA,
   predict168h,
   detectLotAnomalies,
 };

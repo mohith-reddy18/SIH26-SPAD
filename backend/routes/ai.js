@@ -131,8 +131,9 @@ router.post('/predict-168h', async (req, res) => {
 
       if (rawLimit && typeof rawLimit === 'object') {
         const limitVal = typeof rawLimit.limitValue === 'number' ? rawLimit.limitValue : (rawLimit.upper ?? rawLimit.lower);
-        const dir = rawLimit.direction || (rawLimit.upper !== undefined ? 'UPPER' : 'LOWER');
-        const src = rawLimit.source || 'DATABASE_CATALOG';
+        const dir = rawLimit.direction || (rawLimit.lower !== undefined ? 'LOWER' : 'UPPER');
+        const src = rawLimit.source ? String(rawLimit.source).toUpperCase() : 'DATABASE_CATALOG';
+        const isOfficialLimit = src === 'DATABASE_CATALOG' || src === 'SUPPLIED';
 
         if (typeof limitVal === 'number') {
           limitOutput = {
@@ -141,8 +142,8 @@ router.post('/predict-168h', async (req, res) => {
             source: src,
           };
 
-          // Backend-derived: projectedMargin (direction-aware)
-          if (aiPred.predicted168h !== null && typeof aiPred.predicted168h === 'number') {
+          // Backend-derived: projectedMargin computed against official limits only
+          if (isOfficialLimit && aiPred.predicted168h !== null && typeof aiPred.predicted168h === 'number') {
             calculatedMargin = projectedMargin(aiPred.predicted168h, limitVal, dir);
             if (calculatedMargin !== null) {
               calculatedMargin = Number(calculatedMargin.toFixed(4));
@@ -181,6 +182,7 @@ router.post('/predict-168h', async (req, res) => {
       componentId: componentId.trim(),
       lotId: lotId.trim(),
       status: 'PREDICTED',
+      modelMetadata: aiResult.modelMetadata || undefined,
       parameters: responseParameters,
       aiAssessment: {
         overallStatus: calculatedOverallStatus,
@@ -189,9 +191,11 @@ router.post('/predict-168h', async (req, res) => {
   } catch (error) {
     return createErrorResponse(
       res,
-      500,
-      'INTERNAL_ERROR',
-      error.message || 'An unexpected error occurred during Method 1 prediction'
+      503,
+      'MODEL_UNAVAILABLE',
+      'The predictive screening model service is currently unavailable or encountered an error',
+      req.body?.componentId,
+      req.body?.lotId
     );
   }
 });
@@ -334,6 +338,7 @@ router.post('/detect-lot-anomalies', async (req, res) => {
       cohortQuality: 'SUFFICIENT',
       componentsAnalyzed,
       eligiblePeersCount,
+      modelMetadata: aiResult.modelMetadata || undefined,
       parameters: responseParameters,
       aiAssessment: {
         overallStatus: calculatedOverallStatus,
@@ -342,9 +347,11 @@ router.post('/detect-lot-anomalies', async (req, res) => {
   } catch (error) {
     return createErrorResponse(
       res,
-      500,
-      'INTERNAL_ERROR',
-      error.message || 'An unexpected error occurred during Method 2 anomaly detection'
+      503,
+      'MODEL_UNAVAILABLE',
+      'The lot anomaly detection model service is currently unavailable or encountered an error',
+      req.body?.componentId,
+      req.body?.lotId
     );
   }
 });
