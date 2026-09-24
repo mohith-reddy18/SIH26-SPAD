@@ -20,7 +20,7 @@ function rateOfChangePerHour(val0h, val24h) {
   ) {
     return null;
   }
-  return (val24h - val0h) / 24;
+  return Number(((val24h - val0h) / 24).toFixed(6));
 }
 
 /**
@@ -47,10 +47,10 @@ function projectedMargin(predicted168h, limitValue, direction) {
 
   const dir = direction.trim().toUpperCase();
   if (dir === 'UPPER') {
-    return limitValue - predicted168h;
+    return Number((limitValue - predicted168h).toFixed(4));
   }
   if (dir === 'LOWER') {
-    return predicted168h - limitValue;
+    return Number((predicted168h - limitValue).toFixed(4));
   }
 
   return null;
@@ -68,26 +68,71 @@ function projectedMargin(predicted168h, limitValue, direction) {
  * Important:
  * - Counts distinct violating parameters, NOT repeated timepoints.
  * - AI-estimated boundaries are NEVER used for engineeringStatus.
- * - Supports dynamic parameter dictionaries.
+ * - Supports dynamic parameter dictionaries and (measurements, limits) signatures.
  *
- * @param {Object|Array} parameterMap - Map or array of dynamic parameter definitions
+ * @param {Object|Array} param1 - Parameter map, measurements map, or parameters array
+ * @param {Object} [param2] - Optional engineering limits map
  * @returns {string} "NORMAL" | "SUSPECT" | "CRITICAL"
  */
-function engineeringStatus(parameterMap) {
-  if (!parameterMap || typeof parameterMap !== 'object') {
+function engineeringStatus(param1, param2) {
+  if (!param1 || typeof param1 !== 'object') {
     return 'NORMAL';
   }
 
   const violatingParams = new Set();
 
-  const entries = Array.isArray(parameterMap)
-    ? parameterMap.map((item, idx) => [item.parameterId || item.name || String(idx), item])
-    : Object.entries(parameterMap);
+  // Signature: engineeringStatus(measurements, limits)
+  if (param2 && typeof param2 === 'object') {
+    const measurementsMap = param1;
+    const limitsMap = param2;
+
+    for (const [paramKey, series] of Object.entries(measurementsMap)) {
+      const limitObj = limitsMap[paramKey];
+      if (limitObj == null) continue;
+
+      let upper = null;
+      let lower = null;
+      if (typeof limitObj === 'number' && !isNaN(limitObj)) {
+        upper = limitObj;
+      } else if (typeof limitObj === 'object') {
+        const limVal = typeof limitObj.limitValue === 'number' ? limitObj.limitValue : (limitObj.upper ?? limitObj.lower ?? limitObj.max);
+        const dir = String(limitObj.direction || (limitObj.lower !== undefined || limitObj.min !== undefined ? 'LOWER' : 'UPPER')).toUpperCase();
+        if (dir === 'UPPER') upper = limVal;
+        else if (dir === 'LOWER') lower = limVal;
+        else upper = limVal;
+      }
+
+      if (upper === null && lower === null) continue;
+
+      const values = Array.isArray(series)
+        ? series
+        : typeof series === 'object'
+        ? Object.values(series)
+        : [series];
+
+      for (const val of values) {
+        if (typeof val !== 'number' || isNaN(val)) continue;
+        if ((upper !== null && val > upper) || (lower !== null && val < lower)) {
+          violatingParams.add(paramKey);
+          break;
+        }
+      }
+    }
+
+    const violationCount = violatingParams.size;
+    if (violationCount === 0) return 'NORMAL';
+    if (violationCount === 1) return 'SUSPECT';
+    return 'CRITICAL';
+  }
+
+  // Signature: engineeringStatus(parameterMap)
+  const entries = Array.isArray(param1)
+    ? param1.map((item, idx) => [item.parameterId || item.name || String(idx), item])
+    : Object.entries(param1);
 
   for (const [paramKey, paramData] of entries) {
     if (!paramData || typeof paramData !== 'object') continue;
 
-    // Extract official engineering limits only
     const limitObj = paramData.engineeringLimit || paramData.specLimit || paramData.officialLimit || paramData.limit;
     if (limitObj == null) continue;
 
@@ -106,7 +151,6 @@ function engineeringStatus(parameterMap) {
 
     if (upper === null && lower === null) continue;
 
-    // Collect all actual physical measurement values across timepoints
     let measurements = [];
     if (paramData.history && typeof paramData.history === 'object') {
       measurements = Object.values(paramData.history);
@@ -123,13 +167,12 @@ function engineeringStatus(parameterMap) {
       if (typeof paramData['24h'] === 'number') measurements.push(paramData['24h']);
     }
 
-    // Check if any measurement violates the official limit
     for (const val of measurements) {
       if (typeof val !== 'number' || isNaN(val)) continue;
 
       if ((upper !== null && val > upper) || (lower !== null && val < lower)) {
         violatingParams.add(paramKey);
-        break; // Count this distinct parameter once
+        break;
       }
     }
   }
