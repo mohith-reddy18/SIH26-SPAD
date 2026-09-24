@@ -433,59 +433,65 @@ export default function ComponentDetailModal({
               </div>
 
               <div className="spad-shap-features-list">
-                {explanation.features.map((feat, idx) => {
-                  const val = feat.shapValue || 0;
-                  const isPositive = val >= 0;
-                  const absVal = Math.abs(val);
-                  const barWidthPercent = Math.min(100, (absVal / maxAbsShap) * 88);
+                {(!explanation.features || explanation.features.length === 0) ? (
+                  <div style={{ padding: '24px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>
+                    No feature attribution telemetry available for this component.
+                  </div>
+                ) : (
+                  explanation.features.map((feat, idx) => {
+                    const val = feat.shapValue || 0;
+                    const isPositive = val >= 0;
+                    const absVal = Math.abs(val);
+                    const barWidthPercent = Math.min(100, (absVal / maxAbsShap) * 88);
 
-                  return (
-                    <div key={idx} className="spad-shap-feature-row">
-                      {/* Feature Name & Observed Value */}
-                      <div className="spad-shap-feature-info">
-                        <span className="spad-shap-feat-name">{feat.name}</span>
-                        {feat.featureValue && (
-                          <span className="spad-shap-feat-val">{feat.featureValue}</span>
-                        )}
-                      </div>
-
-                      {/* Diverging Bar from Center 0.00 */}
-                      <div className="spad-shap-bar-track">
-                        {/* Center Zero Reference Line */}
-                        <div className="spad-shap-zero-line" aria-hidden="true" />
-
-                        {/* Negative Side (Left) */}
-                        <div className="spad-shap-bar-half left">
-                          {!isPositive && (
-                            <div
-                              className="spad-shap-bar-fill neg"
-                              style={{ width: `${barWidthPercent}%` }}
-                              title={`Negative impact: ${val.toFixed(2)} (reduces risk)`}
-                            />
+                    return (
+                      <div key={idx} className="spad-shap-feature-row">
+                        {/* Feature Name & Observed Value */}
+                        <div className="spad-shap-feature-info">
+                          <span className="spad-shap-feat-name">{feat.name}</span>
+                          {feat.featureValue && (
+                            <span className="spad-shap-feat-val">{feat.featureValue}</span>
                           )}
                         </div>
 
-                        {/* Positive Side (Right) */}
-                        <div className="spad-shap-bar-half right">
-                          {isPositive && (
-                            <div
-                              className="spad-shap-bar-fill pos"
-                              style={{ width: `${barWidthPercent}%` }}
-                              title={`Positive impact: +${val.toFixed(2)} (increases risk)`}
-                            />
-                          )}
+                        {/* Diverging Bar from Center 0.00 */}
+                        <div className="spad-shap-bar-track">
+                          {/* Center Zero Reference Line */}
+                          <div className="spad-shap-zero-line" aria-hidden="true" />
+
+                          {/* Negative Side (Left) */}
+                          <div className="spad-shap-bar-half left">
+                            {!isPositive && (
+                              <div
+                                className="spad-shap-bar-fill neg"
+                                style={{ width: `${barWidthPercent}%` }}
+                                title={`Negative impact: ${val.toFixed(2)} (reduces risk)`}
+                              />
+                            )}
+                          </div>
+
+                          {/* Positive Side (Right) */}
+                          <div className="spad-shap-bar-half right">
+                            {isPositive && (
+                              <div
+                                className="spad-shap-bar-fill pos"
+                                style={{ width: `${barWidthPercent}%` }}
+                                title={`Positive impact: +${val.toFixed(2)} (increases risk)`}
+                              />
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Numeric SHAP Value Badge */}
+                        <div className="spad-shap-val-col">
+                          <span className={`spad-shap-val-badge ${isPositive ? 'shap-pos' : 'shap-neg'}`}>
+                            {isPositive ? `+${val.toFixed(2)}` : val.toFixed(2)}
+                          </span>
                         </div>
                       </div>
-
-                      {/* Numeric SHAP Value Badge */}
-                      <div className="spad-shap-val-col">
-                        <span className={`spad-shap-val-badge ${isPositive ? 'shap-pos' : 'shap-neg'}`}>
-                          {isPositive ? `+${val.toFixed(2)}` : val.toFixed(2)}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })
+                )}
               </div>
 
               <div className="spad-shap-scale-legend">

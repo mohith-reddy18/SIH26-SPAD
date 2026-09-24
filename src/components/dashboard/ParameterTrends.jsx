@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { mockScreeningContext } from '../../data/mockData';
-import { getParameterMeta } from '../../utils/recordMapping';
+import { getParameterMeta, extractPredictedValue } from '../../utils/recordMapping';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://sih26-spad.onrender.com';
 
@@ -38,11 +38,18 @@ export default function ParameterTrends({
   // 1. Interactive State Management
   const [viewMode, setViewMode] = useState('component'); // 'component' | 'lot'
   const [selectedComponentId, setSelectedComponentId] = useState(
-    () => components?.[0]?.id || 'C-0001'
+    () => components?.[0]?.id || components?.[0]?.componentId || ''
   );
   const [selectedParamKey, setSelectedParamKey] = useState('iddq');
   const [hoveredPoint, setHoveredPoint] = useState(null);
   const [hoveredCompId, setHoveredCompId] = useState(null);
+
+  // Keep selectedComponentId in sync when components load
+  useEffect(() => {
+    if (components.length > 0 && (!selectedComponentId || !components.some((c) => (c.id || c.componentId) === selectedComponentId))) {
+      setSelectedComponentId(components[0].id || components[0].componentId);
+    }
+  }, [components, selectedComponentId]);
 
   // 2. Fetch selected component from backend API with fallback
   const [liveComponentData, setLiveComponentData] = useState(null);
@@ -51,8 +58,8 @@ export default function ParameterTrends({
 
   useEffect(() => {
     let isMounted = true;
-    const targetId = selectedComponentId || components[0]?.id;
-    if (!targetId) return;
+    const targetId = selectedComponentId || components[0]?.id || components[0]?.componentId;
+    if (!targetId || targetId === 'Healthy Reference') return;
 
     async function fetchComponentScreening() {
       setIsLoadingComp(true);
@@ -153,26 +160,9 @@ export default function ParameterTrends({
   }, [activeComponent.engineeringLimits, activeSpec]);
 
   const dynamicPrediction = useMemo(() => {
-    // 1. Canonical Method 1 prediction location
-    const canonicalPred1 = activeComponent.aiAssessment?.prediction?.parameters?.[activeSpec.key]?.predicted168h;
-    const canonicalPred2 = activeComponent.aiAssessment?.prediction?.parameters?.[activeSpec.id]?.predicted168h;
-    if (typeof canonicalPred1 === 'number') return canonicalPred1;
-    if (typeof canonicalPred2 === 'number') return canonicalPred2;
-
-    // 2. Legacy fallback locations
-    const key1 = `${activeSpec.key}_168h`;
-    const key2 = `${activeSpec.id}_168h`;
-    if (typeof activeComponent.predictions?.[activeSpec.key] === 'number') {
-      return activeComponent.predictions[activeSpec.key];
-    }
-    if (typeof activeComponent.predictions?.[key1] === 'number') {
-      return activeComponent.predictions[key1];
-    }
-    if (typeof activeComponent.predictions?.[key2] === 'number') {
-      return activeComponent.predictions[key2];
-    }
-    return undefined;
-  }, [activeComponent.aiAssessment, activeComponent.predictions, activeSpec]);
+    const val = extractPredictedValue(activeComponent, activeSpec.key || activeSpec.id);
+    return val !== null ? val : undefined;
+  }, [activeComponent, activeSpec]);
 
   // 6. Selected Component Status
   const selectedStatus = activeComponent.status || 'NORMAL';

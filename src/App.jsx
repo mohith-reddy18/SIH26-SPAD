@@ -14,13 +14,17 @@ import SystemSettings from './pages/SystemSettings';
 // Route dictionary mapping path to page component
 const PAGE_ROUTES = {
   '/': Dashboard,
+  '/dashboard': Dashboard,
   '/components': ComponentSearch,
+  '/component-search': ComponentSearch,
   '/screening-pipeline': ScreeningPipeline,
   '/model-performance': ModelPerformance,
   '/observability': ObservabilityStudy,
+  '/observability-study': ObservabilityStudy,
   '/reports': Reports,
   '/failure-analysis': FailureAnalysis,
   '/settings': SystemSettings,
+  '/system-settings': SystemSettings,
 };
 
 export default function App() {

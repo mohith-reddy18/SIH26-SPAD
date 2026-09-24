@@ -10,7 +10,7 @@ function getStatusColor(status) {
   return '#38bdf8';
 }
 
-import { mapScreeningRecord, getParameterMeta } from '../utils/recordMapping';
+import { mapScreeningRecord, getParameterMeta, extractPredictedValue } from '../utils/recordMapping';
 
 export default function FailureAnalysis() {
   const [screeningRecords, setScreeningRecords] = useState([]);
@@ -87,7 +87,19 @@ export default function FailureAnalysis() {
   const measurements = activeComponent?.measurements || {};
   const predictions = activeComponent?.predictions || {};
   const engineeringLimits = activeComponent?.engineeringLimits || {};
-  const modelExplanation = activeComponent?.modelExplanation || null;
+  const modelExplanation = activeComponent?.modelExplanation || {
+    framework: 'SHAP (TreeExplainer)',
+    targetPrediction: 'Predicted 168h Limit Risk',
+    baseValue: null,
+    features: [],
+    summaryText: 'No model explanation available for this record.',
+  };
+
+  const anomalies = activeComponent?.anomalies || {
+    populationAbnormality: null,
+    trajectoryAbnormality: null,
+    futureRiskPrediction: null,
+  };
 
   const isAnomalous = engineeringStatus !== 'NORMAL' || aiStatus === 'FLAGGED';
 
@@ -217,7 +229,7 @@ export default function FailureAnalysis() {
                   const obsFormatted = Array.isArray(series)
                     ? series.map((v) => `${v} ${unit}`).join(' → ')
                     : (typeof series === 'object' ? Object.entries(series).map(([tp, val]) => `${tp}: ${val} ${unit}`).join(' → ') : `${series} ${unit}`);
-                  const predVal = predictions[`${key}_168h`] ?? (Array.isArray(series) ? series[series.length - 1] : series);
+                  const predVal = extractPredictedValue(activeComponent, key) ?? (Array.isArray(series) ? series[series.length - 1] : null);
                   const limitVal = meta.specLimitMax;
                   const margin = typeof limitVal === 'number' && typeof predVal === 'number' ? (limitVal - predVal).toFixed(2) : '—';
                   const isBreached = typeof limitVal === 'number' && typeof predVal === 'number' && predVal > limitVal;
@@ -226,8 +238,8 @@ export default function FailureAnalysis() {
                     <tr key={key} className="spad-table-row">
                       <td className="spad-td-mono font-bold text-cyan">{name}</td>
                       <td className="spad-td-mono">{obsFormatted}</td>
-                      <td className="spad-td-mono font-bold" style={{ color: '#38bdf8' }}>{predVal !== undefined && predVal !== null ? `${predVal} ${unit}` : '—'}</td>
-                      <td className="spad-td-mono" style={{ color: '#f87171', fontWeight: '700' }}>{limitVal !== undefined && limitVal !== null ? `${limitVal} ${unit}` : '—'}</td>
+                      <td className="spad-td-mono font-bold" style={{ color: '#38bdf8' }}>{predVal !== undefined && predVal !== null ? `${typeof predVal === 'number' ? predVal.toFixed(2) : predVal} ${unit}` : '—'}</td>
+                      <td className="spad-td-mono" style={{ color: '#f87171', fontWeight: '700' }}>{limitVal !== undefined && limitVal !== null ? `${typeof limitVal === 'number' ? limitVal.toFixed(2) : limitVal} ${unit}` : '—'}</td>
                       <td className="spad-td-mono" style={{ color: isBreached ? '#ef4444' : '#10b981' }}>{margin !== '—' ? `+${margin} ${unit}` : '—'}</td>
                       <td>
                         <span className={`spad-status-pill ${isBreached ? 'badge-status-critical' : 'badge-status-normal'}`}>
@@ -255,20 +267,20 @@ export default function FailureAnalysis() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '12px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(56, 189, 248, 0.04)', borderRadius: '4px' }}>
                 <span style={{ fontSize: '13px', color: '#94a3b8' }}>Population Abnormality:</span>
-                <span className="font-mono" style={{ color: anomalies.populationAbnormality ? '#f59e0b' : '#10b981', fontWeight: '700' }}>
-                  {anomalies.populationAbnormality ? 'FLAGGED (Outlier)' : 'NOMINAL (Normal Distribution)'}
+                <span className="font-mono" style={{ color: anomalies.populationAbnormality === true ? '#f59e0b' : anomalies.populationAbnormality === false ? '#10b981' : '#94a3b8', fontWeight: '700' }}>
+                  {anomalies.populationAbnormality === true ? 'FLAGGED (Outlier)' : anomalies.populationAbnormality === false ? 'NOMINAL (Normal Distribution)' : 'NOT_EVALUATED'}
                 </span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(56, 189, 248, 0.04)', borderRadius: '4px' }}>
                 <span style={{ fontSize: '13px', color: '#94a3b8' }}>Trajectory Abnormality:</span>
-                <span className="font-mono" style={{ color: anomalies.trajectoryAbnormality ? '#f59e0b' : '#10b981', fontWeight: '700' }}>
-                  {anomalies.trajectoryAbnormality ? 'FLAGGED (Non-Linear Drift)' : 'NOMINAL (Stable)'}
+                <span className="font-mono" style={{ color: anomalies.trajectoryAbnormality === true ? '#f59e0b' : anomalies.trajectoryAbnormality === false ? '#10b981' : '#94a3b8', fontWeight: '700' }}>
+                  {anomalies.trajectoryAbnormality === true ? 'FLAGGED (Non-Linear Drift)' : anomalies.trajectoryAbnormality === false ? 'NOMINAL (Stable)' : 'NOT_EVALUATED'}
                 </span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(56, 189, 248, 0.04)', borderRadius: '4px' }}>
                 <span style={{ fontSize: '13px', color: '#94a3b8' }}>AI Risk Forecast:</span>
                 <span className="font-mono" style={{ color: '#38bdf8', fontWeight: '700' }}>
-                  {typeof anomalies.futureRiskPrediction === 'string' ? anomalies.futureRiskPrediction : `${aiRisk}% Risk Index`}
+                  {anomalies.futureRiskPrediction || (typeof activeComponent?.riskScore === 'number' ? `${aiRisk}% Risk Index` : 'NOT_EVALUATED')}
                 </span>
               </div>
             </div>
@@ -283,14 +295,18 @@ export default function FailureAnalysis() {
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px' }}>
-              {(modelExplanation.features || []).slice(0, 4).map((f, i) => (
-                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 10px', background: 'rgba(255, 255, 255, 0.02)', borderRadius: '4px', fontSize: '12px' }}>
-                  <span style={{ color: '#f8fafc' }}>{f.name}</span>
-                  <span className="font-mono" style={{ color: f.shapValue >= 0 ? '#f87171' : '#34d399', fontWeight: '700' }}>
-                    {f.shapValue >= 0 ? `+${f.shapValue.toFixed(2)}` : f.shapValue.toFixed(2)}
-                  </span>
-                </div>
-              ))}
+              {(!modelExplanation.features || modelExplanation.features.length === 0) ? (
+                <span style={{ fontSize: '12px', color: '#64748b' }}>No SHAP feature attribution data available.</span>
+              ) : (
+                (modelExplanation.features || []).slice(0, 4).map((f, i) => (
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 10px', background: 'rgba(255, 255, 255, 0.02)', borderRadius: '4px', fontSize: '12px' }}>
+                    <span style={{ color: '#f8fafc' }}>{f.name}</span>
+                    <span className="font-mono" style={{ color: f.shapValue >= 0 ? '#f87171' : '#34d399', fontWeight: '700' }}>
+                      {f.shapValue >= 0 ? `+${f.shapValue.toFixed(2)}` : f.shapValue.toFixed(2)}
+                    </span>
+                  </div>
+                ))
+              )}
               <div className="spad-shap-disclaimer-note" style={{ marginTop: '8px', fontSize: '11px' }}>
                 <span className="font-bold text-cyan">Diagnostic Distinction:</span> SHAP values quantify mathematical feature weighting for predictive early screening. They do not constitute physical failure analysis or root-cause destructive findings.
               </div>

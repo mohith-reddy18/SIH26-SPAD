@@ -10,7 +10,7 @@ function getStatusColor(status) {
   return '#38bdf8';
 }
 
-import { mapScreeningRecord, getParameterMeta } from '../utils/recordMapping';
+import { mapScreeningRecord, getParameterMeta, extractPredictedValue } from '../utils/recordMapping';
 
 export default function ObservabilityStudy() {
   const [screeningRecords, setScreeningRecords] = useState([]);
@@ -107,11 +107,7 @@ export default function ObservabilityStudy() {
       const obsFinal = Array.isArray(series) && series.length > 0 ? series[series.length - 1] : obs24h;
 
       // Canonical prediction resolution
-      const canonicalPred = activeRecord.aiAssessment?.prediction?.parameters?.[key]?.predicted168h;
-      const predKey = `${key}_168h`;
-      const pred168h = typeof canonicalPred === 'number'
-        ? canonicalPred
-        : (typeof predictions[predKey] === 'number' ? predictions[predKey] : (typeof predictions[key] === 'number' ? predictions[key] : obsFinal));
+      const pred168h = extractPredictedValue(activeRecord, key) ?? obsFinal;
 
       const limit = meta.specLimitMax;
 

@@ -83,29 +83,27 @@ export default function ModelPerformance() {
   const riskScore = activeRecord?.riskScore || 0;
   const aiRisk = activeRecord?.aiRisk || 0;
 
-  const prediction = activeRecord?.aiAssessment?.prediction || {
-    status: 'PREDICTED',
-    parameters: activeRecord?.predictions || {},
-  };
-
+  const prediction = activeRecord?.aiAssessment?.prediction || null;
+  const predictions = activeRecord?.rawPredictions || prediction?.parameters || activeRecord?.predictions || {};
   const lotAnomaly = activeRecord?.aiAssessment?.lotAnomaly || null;
 
-  const explanation = activeRecord?.aiAssessment?.explanation || activeRecord?.modelExplanation || {
-    framework: 'Explainability Attributions',
+  const explanation = activeRecord?.modelExplanation || activeRecord?.aiAssessment?.explanation || {
+    framework: 'SHAP (TreeExplainer)',
     targetPrediction: 'Predicted 168h Limit Risk',
-    baseValue: 0.15,
+    baseValue: null,
     features: [],
-    summaryText: 'Nominal telemetry tracking.',
+    summaryText: 'No model explanation available for this record.',
   };
 
   const anomalies = activeRecord?.anomalies || {
-    populationAbnormality: false,
-    trajectoryAbnormality: false,
-    futureRiskPrediction: 'Nominal',
+    populationAbnormality: null,
+    trajectoryAbnormality: null,
+    futureRiskPrediction: null,
   };
-  const aiAssessment = activeRecord?.aiStatus || (typeof activeRecord?.aiAssessment === 'string' ? activeRecord.aiAssessment : activeRecord?.aiAssessment?.overallStatus) || 'NOT_EVALUATED';
+  const aiAssessment = activeRecord?.aiStatus || 'NOT_EVALUATED';
 
-  const riskColor = aiStatus === 'FLAGGED' ? '#f59e0b' : '#10b981';
+  const riskColor = aiStatus === 'FLAGGED' ? '#f59e0b' : aiStatus === 'NOT_EVALUATED' ? '#94a3b8' : '#10b981';
+  const riskCategory = aiStatus === 'FLAGGED' ? 'FLAGGED RISK' : (aiRisk > 75 ? 'HIGH RISK' : aiRisk > 40 ? 'MODERATE RISK' : 'LOW RISK');
   const maxAbsShap = (explanation.features || []).reduce(
     (max, f) => Math.max(max, Math.abs(f.shapValue || 0)),
     0.1
@@ -203,28 +201,32 @@ export default function ModelPerformance() {
             <div className="spad-ai-evidence-card">
               <div className="spad-ai-evidence-title-row">
                 <span className="spad-ai-evidence-k">Population Abnormality</span>
-                <span className={`spad-ai-status-tag ${anomalies.populationAbnormality ? 'tag-warning' : 'tag-nominal'}`}>
-                  {anomalies.populationAbnormality ? 'FLAGGED' : 'NOMINAL'}
+                <span className={`spad-ai-status-tag ${anomalies.populationAbnormality === true ? 'tag-warning' : anomalies.populationAbnormality === false ? 'tag-nominal' : ''}`}>
+                  {anomalies.populationAbnormality === true ? 'FLAGGED' : anomalies.populationAbnormality === false ? 'NOMINAL' : 'NOT_EVALUATED'}
                 </span>
               </div>
               <p className="spad-ai-evidence-desc">
-                {anomalies.populationAbnormality
+                {anomalies.populationAbnormality === true
                   ? 'Multivariate Mahalanobis distance exceeds Gaussian lot threshold.'
-                  : 'Statistical distribution aligns tightly with active lot population baseline.'}
+                  : anomalies.populationAbnormality === false
+                  ? 'Statistical distribution aligns tightly with active lot population baseline.'
+                  : 'Statistical population anomaly metrics not evaluated.'}
               </p>
             </div>
 
             <div className="spad-ai-evidence-card">
               <div className="spad-ai-evidence-title-row">
                 <span className="spad-ai-evidence-k">Trajectory Abnormality</span>
-                <span className={`spad-ai-status-tag ${anomalies.trajectoryAbnormality ? 'tag-warning' : 'tag-nominal'}`}>
-                  {anomalies.trajectoryAbnormality ? 'FLAGGED' : 'NOMINAL'}
+                <span className={`spad-ai-status-tag ${anomalies.trajectoryAbnormality === true ? 'tag-warning' : anomalies.trajectoryAbnormality === false ? 'tag-nominal' : ''}`}>
+                  {anomalies.trajectoryAbnormality === true ? 'FLAGGED' : anomalies.trajectoryAbnormality === false ? 'NOMINAL' : 'NOT_EVALUATED'}
                 </span>
               </div>
               <p className="spad-ai-evidence-desc">
-                {anomalies.trajectoryAbnormality
+                {anomalies.trajectoryAbnormality === true
                   ? 'Non-linear rate of change observed across early burn-in intervals.'
-                  : 'Steady degradation gradient conforming to standard physics-of-failure curve.'}
+                  : anomalies.trajectoryAbnormality === false
+                  ? 'Steady degradation gradient conforming to standard physics-of-failure curve.'
+                  : 'Parametric degradation trajectory anomaly metrics not evaluated.'}
               </p>
             </div>
 
@@ -232,7 +234,7 @@ export default function ModelPerformance() {
               <div className="spad-ai-evidence-title-row">
                 <span className="spad-ai-evidence-k">Future-Risk Prediction</span>
                 <span className={`spad-ai-status-tag ${aiRisk > 75 ? 'tag-critical' : aiRisk > 40 ? 'tag-warning' : 'tag-nominal'}`}>
-                  {typeof anomalies.futureRiskPrediction === 'string' ? anomalies.futureRiskPrediction : `${aiRisk}% Risk`}
+                  {anomalies.futureRiskPrediction || (typeof activeRecord?.riskScore === 'number' ? `${aiRisk}% Risk` : 'NOT_EVALUATED')}
                 </span>
               </div>
               <p className="spad-ai-evidence-desc">
@@ -240,7 +242,9 @@ export default function ModelPerformance() {
                   ? `High probability (${aiRisk}%) of exceeding engineering limit at 168h.`
                   : aiRisk > 40
                   ? `Moderate probability (${aiRisk}%) of parameter drift toward specification boundary.`
-                  : `Nominal 168h forecast prediction (${aiRisk}%) well within safe engineering margins.`}
+                  : typeof activeRecord?.riskScore === 'number'
+                  ? `Nominal 168h forecast prediction (${aiRisk}%) well within safe engineering margins.`
+                  : 'Early risk prediction telemetry not evaluated.'}
               </p>
             </div>
           </div>
@@ -287,6 +291,9 @@ export default function ModelPerformance() {
                     ? 'ns'
                     : '';
 
+                const numericVal = typeof predVal === 'number' ? predVal : (typeof predVal?.predicted168h === 'number' ? predVal.predicted168h : null);
+                const displayVal = numericVal !== null ? `${numericVal.toFixed(2)} ${unit}`.trim() : '—';
+
                 return (
                   <div
                     key={predKey}
@@ -304,7 +311,7 @@ export default function ModelPerformance() {
                       {cleanName}
                     </span>
                     <span className="font-mono" style={{ color: '#38bdf8', fontWeight: '700', fontSize: '14px' }}>
-                      {typeof predVal === 'number' ? predVal.toFixed(2) : predVal} {unit}
+                      {displayVal}
                     </span>
                   </div>
                 );
@@ -350,7 +357,7 @@ export default function ModelPerformance() {
           <div className="spad-shap-pred-item">
             <span className="spad-pred-label">LOT BASELINE EXPECTED RISK (E[f(x)]):</span>
             <span className="spad-pred-base font-mono">
-              {((explanation.baseValue || 0.15) * 100).toFixed(1)}%
+              {explanation.baseValue !== null && typeof explanation.baseValue === 'number' ? `${(explanation.baseValue * 100).toFixed(1)}%` : '—'}
             </span>
           </div>
 
@@ -371,58 +378,64 @@ export default function ModelPerformance() {
           </div>
 
           <div className="spad-shap-features-list">
-            {(explanation.features || []).map((feat, idx) => {
-              const val = feat.shapValue || 0;
-              const isPositive = val >= 0;
-              const absVal = Math.abs(val);
-              const barWidthPercent = Math.min(100, (absVal / maxAbsShap) * 88);
+            {(!explanation.features || explanation.features.length === 0) ? (
+              <div style={{ padding: '24px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>
+                No feature attribution data available for this component.
+              </div>
+            ) : (
+              explanation.features.map((feat, idx) => {
+                const val = feat.shapValue || 0;
+                const isPositive = val >= 0;
+                const absVal = Math.abs(val);
+                const barWidthPercent = Math.min(100, (absVal / maxAbsShap) * 88);
 
-              return (
-                <div key={idx} className="spad-shap-feature-row">
-                  {/* Feature Name & Observed Value */}
-                  <div className="spad-shap-feature-info">
-                    <span className="spad-shap-feat-name">{feat.name}</span>
-                    {feat.featureValue && (
-                      <span className="spad-shap-feat-val">{feat.featureValue}</span>
-                    )}
-                  </div>
-
-                  {/* Diverging Bar from Center 0.00 */}
-                  <div className="spad-shap-bar-track">
-                    <div className="spad-shap-zero-line" aria-hidden="true" />
-
-                    {/* Negative Side (Left) */}
-                    <div className="spad-shap-bar-half left">
-                      {!isPositive && (
-                        <div
-                          className="spad-shap-bar-fill neg"
-                          style={{ width: `${barWidthPercent}%` }}
-                          title={`Negative impact: ${val.toFixed(2)} (reduces risk)`}
-                        />
+                return (
+                  <div key={idx} className="spad-shap-feature-row">
+                    {/* Feature Name & Observed Value */}
+                    <div className="spad-shap-feature-info">
+                      <span className="spad-shap-feat-name">{feat.name}</span>
+                      {feat.featureValue && (
+                        <span className="spad-shap-feat-val">{feat.featureValue}</span>
                       )}
                     </div>
 
-                    {/* Positive Side (Right) */}
-                    <div className="spad-shap-bar-half right">
-                      {isPositive && (
-                        <div
-                          className="spad-shap-bar-fill pos"
-                          style={{ width: `${barWidthPercent}%` }}
-                          title={`Positive impact: +${val.toFixed(2)} (increases risk)`}
-                        />
-                      )}
+                    {/* Diverging Bar from Center 0.00 */}
+                    <div className="spad-shap-bar-track">
+                      <div className="spad-shap-zero-line" aria-hidden="true" />
+
+                      {/* Negative Side (Left) */}
+                      <div className="spad-shap-bar-half left">
+                        {!isPositive && (
+                          <div
+                            className="spad-shap-bar-fill neg"
+                            style={{ width: `${barWidthPercent}%` }}
+                            title={`Negative impact: ${val.toFixed(2)} (reduces risk)`}
+                          />
+                        )}
+                      </div>
+
+                      {/* Positive Side (Right) */}
+                      <div className="spad-shap-bar-half right">
+                        {isPositive && (
+                          <div
+                            className="spad-shap-bar-fill pos"
+                            style={{ width: `${barWidthPercent}%` }}
+                            title={`Positive impact: +${val.toFixed(2)} (increases risk)`}
+                          />
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Numeric SHAP Value Badge */}
+                    <div className="spad-shap-val-col">
+                      <span className={`spad-shap-val-badge ${isPositive ? 'shap-pos' : 'shap-neg'}`}>
+                        {isPositive ? `+${val.toFixed(2)}` : val.toFixed(2)}
+                      </span>
                     </div>
                   </div>
-
-                  {/* Numeric SHAP Value Badge */}
-                  <div className="spad-shap-val-col">
-                    <span className={`spad-shap-val-badge ${isPositive ? 'shap-pos' : 'shap-neg'}`}>
-                      {isPositive ? `+${val.toFixed(2)}` : val.toFixed(2)}
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </div>
 
           <div className="spad-shap-scale-legend">

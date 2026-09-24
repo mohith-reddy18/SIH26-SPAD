@@ -1,7 +1,7 @@
 /**
  * SPAD Frontend Record Mapping Utility
  * Standardizes mapping from backend ScreeningRecord to frontend component state
- * strictly adhering to the SPAD AI Output Contract.
+ * strictly adhering to the SPAD AI Output Contract and MongoDB Atlas Schema.
  */
 
 /**
@@ -37,13 +37,15 @@ export function getNormalizedAiStatus(recordOrAi) {
     raw = recordOrAi;
   } else if (recordOrAi.aiAssessment) {
     raw = typeof recordOrAi.aiAssessment === 'object'
-      ? recordOrAi.aiAssessment.overallStatus
+      ? (recordOrAi.aiAssessment.overallStatus || recordOrAi.aiAssessment.status)
       : recordOrAi.aiAssessment;
   } else if (recordOrAi.overallStatus) {
     raw = recordOrAi.overallStatus;
+  } else if (recordOrAi.aiStatus) {
+    raw = recordOrAi.aiStatus;
   }
 
-  const s = String(raw).trim().toUpperCase();
+  const s = String(raw || '').trim().toUpperCase();
   if (s === 'FLAGGED') return 'FLAGGED';
   if (s === 'NOT FLAGGED' || s === 'NOT_FLAGGED' || s === 'NOMINAL' || s === 'NORMAL' || s === 'PASS') return 'NOT FLAGGED';
   return 'NOT_EVALUATED';
@@ -58,90 +60,68 @@ export function getNormalizedAiStatus(recordOrAi) {
 export function extractLatestValue(data) {
   if (typeof data === 'number' && !isNaN(data)) return data;
   if (Array.isArray(data) && data.length > 0) {
-    const val = data[data.length - 1];
-    return typeof val === 'number' && !isNaN(val) ? val : null;
+    for (let i = data.length - 1; i >= 0; i--) {
+      if (typeof data[i] === 'number' && !isNaN(data[i])) return data[i];
+    }
+    return null;
   }
   if (data && typeof data === 'object') {
-    const v24 = data['24h'] ?? data['24H'];
     const v168 = data['168h'] ?? data['168H'];
+    const v96 = data['96h'] ?? data['96H'];
+    const v24 = data['24h'] ?? data['24H'];
     const v0 = data['0h'] ?? data['0H'];
-    const finalVal = v168 ?? v24 ?? v0;
+    const finalVal = v168 ?? v96 ?? v24 ?? v0;
     return typeof finalVal === 'number' && !isNaN(finalVal) ? finalVal : null;
   }
   return null;
 }
 
 /**
- * Maps a backend ScreeningRecord to the unified frontend component object
+ * Extracts numeric 168h forecast prediction value for a given parameter key
  *
- * @param {Object} record - Raw MongoDB ScreeningRecord from backend
- * @returns {Object} Normalized component view object
+ * @param {Object} recordOrPredictions - Screening record or predictions container
+ * @param {string} paramKey - Parameter key (e.g. 'iddq', 'leakage', 'propDelay')
+ * @returns {number|null}
  */
-export function mapScreeningRecord(record) {
-  if (!record || typeof record !== 'object') return null;
+export function extractPredictedValue(recordOrPredictions, paramKey) {
+  if (!recordOrPredictions || !paramKey) return null;
 
-  const componentId = record.componentId || record.id || 'C-0001';
-  const lotId = record.lotId || 'LOT-2026-001';
-  const stage = record.stage || '24h';
+  // 1. Direct check if recordOrPredictions is a number
+  if (typeof recordOrPredictions === 'number' && !isNaN(recordOrPredictions)) {
+    return recordOrPredictions;
+  }
 
-  const measurements = record.measurements || {};
-  const engineeringLimits = record.engineeringLimits || {};
-  const engineeringStatus = getNormalizedEngineeringStatus(record);
+  // 2. Canonical AI Assessment: record.aiAssessment.prediction.parameters[paramKey]
+  const aiParams = recordOrPredictions.aiAssessment?.prediction?.parameters;
+  if (aiParams && typeof aiParams === 'object') {
+    const p1 = aiParams[paramKey];
+    if (typeof p1?.predicted168h === 'number') return p1.predicted168h;
+    if (typeof p1 === 'number') return p1;
+  }
 
-  // AI Assessment block
-  const rawAiAssessment = record.aiAssessment;
-  const aiAssessmentObj = typeof rawAiAssessment === 'object' && rawAiAssessment !== null
-    ? rawAiAssessment
-    : {
-        overallStatus: getNormalizedAiStatus(rawAiAssessment),
-        prediction: record.predictions ? { status: 'PREDICTED', parameters: record.predictions } : null,
-        lotAnomaly: null,
-        explanation: record.modelExplanation || null,
-      };
+  // 3. Predictions dictionary on record or passed directly
+  const preds = recordOrPredictions.predictions || (recordOrPredictions.status || recordOrPredictions.predicted168h ? null : recordOrPredictions);
+  if (preds && typeof preds === 'object') {
+    const valDirect = preds[paramKey];
+    if (typeof valDirect === 'number' && !isNaN(valDirect)) return valDirect;
+    if (valDirect && typeof valDirect.predicted168h === 'number') return valDirect.predicted168h;
 
-  const aiStatus = getNormalizedAiStatus(aiAssessmentObj);
+    const key168 = `${paramKey}_168h`;
+    const val168 = preds[key168];
+    if (typeof val168 === 'number' && !isNaN(val168)) return val168;
+    if (val168 && typeof val168.predicted168h === 'number') return val168.predicted168h;
+  }
 
-  // Extract latest readings for quick table display
-  const iddqVal = extractLatestValue(measurements.iddq);
-  const leakageVal = extractLatestValue(measurements.leakage || measurements.leakageCurrent);
-  const propDelayVal = extractLatestValue(measurements.propDelay || measurements.propagationDelay);
+  // 4. Fallback to direct property if passed a parameter object
+  if (typeof recordOrPredictions.predicted168h === 'number') {
+    return recordOrPredictions.predicted168h;
+  }
 
-  // Risk score extraction (legacy or prediction)
-  const firstParamPred = aiAssessmentObj.prediction?.parameters?.iddq || Object.values(aiAssessmentObj.prediction?.parameters || {})[0];
-  const riskScore = typeof firstParamPred?.futureRiskScore === 'number'
-    ? firstParamPred.futureRiskScore
-    : (typeof record.riskScore === 'number' ? record.riskScore : (typeof record.aiRisk === 'number' ? record.aiRisk / 100 : 0.12));
-
-  const aiRisk = Math.round(riskScore * 100);
-
-  return {
-    id: componentId,
-    componentId,
-    lotId,
-    stage,
-    measurements,
-    engineeringLimits,
-    engineeringStatus,
-    aiAssessment: aiAssessmentObj,
-    aiStatus,
-    aiRisk,
-    riskScore,
-    predictions: aiAssessmentObj.prediction?.parameters || record.predictions || {},
-    modelExplanation: aiAssessmentObj.explanation || record.modelExplanation || null,
-    standbyCurrent: iddqVal !== null ? `${iddqVal.toFixed(2)} mA` : '-',
-    leakageCurrent: leakageVal !== null ? `${leakageVal.toFixed(2)} µA` : '-',
-    propagationDelay: propDelayVal !== null ? `${propDelayVal.toFixed(2)} ns` : '-',
-    evidence: record.evidence || (aiStatus === 'FLAGGED' ? 'AI Degradation / Anomaly Flagged' : 'Within Expected Limits'),
-    // Backward compatibility aliases
-    status: engineeringStatus,
-    decision: engineeringStatus,
-    _source: 'backend-api',
-  };
+  return null;
 }
 
 /**
  * Standard Display Mapping for common aerospace electronic parameters.
- * Keys that do not exist here will gracefully fall back to their raw key name.
  */
 export const PARAMETER_DISPLAY_MAP = {
   iddq: { name: 'Standby Current (Iddq)', shortName: 'Iddq', unit: 'mA', defaultRef: [2.00, 2.05, 2.10, 2.15] },
@@ -183,3 +163,143 @@ export function getParameterMeta(key, limit) {
   };
 }
 
+/**
+ * Maps a backend ScreeningRecord to the unified frontend component object
+ *
+ * @param {Object} record - Raw MongoDB ScreeningRecord from backend
+ * @returns {Object} Normalized component view object
+ */
+export function mapScreeningRecord(record) {
+  if (!record || typeof record !== 'object') return null;
+
+  const componentId = String(record.componentId || record.id || 'C-0001').trim();
+  const lotId = String(record.lotId || 'LOT-2026-001').trim();
+  const stage = String(record.stage || '24h').trim();
+
+  const measurements = record.measurements && typeof record.measurements === 'object' ? record.measurements : {};
+  const engineeringLimits = record.engineeringLimits && typeof record.engineeringLimits === 'object' ? record.engineeringLimits : {};
+  const engineeringStatus = getNormalizedEngineeringStatus(record);
+
+  // AI Assessment block extraction
+  const rawAiAssessment = record.aiAssessment;
+  const aiAssessmentObj = typeof rawAiAssessment === 'object' && rawAiAssessment !== null
+    ? rawAiAssessment
+    : {
+        overallStatus: getNormalizedAiStatus(rawAiAssessment),
+        prediction: record.predictions ? { status: 'PREDICTED', parameters: record.predictions } : null,
+        lotAnomaly: null,
+        explanation: record.modelExplanation || null,
+      };
+
+  const aiStatus = getNormalizedAiStatus(aiAssessmentObj);
+
+  // Extract latest readings for quick table display
+  const iddqVal = extractLatestValue(measurements.iddq);
+  const leakageVal = extractLatestValue(measurements.leakage || measurements.leakageCurrent);
+  const propDelayVal = extractLatestValue(measurements.propDelay || measurements.propagationDelay);
+
+  // Risk score extraction (prediction parameter level or top-level)
+  const firstParamPred = aiAssessmentObj.prediction?.parameters?.iddq || Object.values(aiAssessmentObj.prediction?.parameters || {})[0];
+  let riskScore = 0.12;
+  if (typeof firstParamPred?.futureRiskScore === 'number') {
+    riskScore = firstParamPred.futureRiskScore;
+  } else if (typeof record.riskScore === 'number') {
+    riskScore = record.riskScore;
+  } else if (typeof record.aiRisk === 'number') {
+    riskScore = record.aiRisk > 1 ? record.aiRisk / 100 : record.aiRisk;
+  } else if (aiStatus === 'FLAGGED') {
+    riskScore = 0.78;
+  }
+
+  const aiRisk = Math.round(riskScore * 100);
+
+  // Build flattened prediction numbers map for ease of consumption
+  const flattenedPredictions = {};
+  const rawPredictions = aiAssessmentObj.prediction?.parameters || record.predictions || {};
+  if (rawPredictions && typeof rawPredictions === 'object') {
+    Object.entries(rawPredictions).forEach(([k, v]) => {
+      if (typeof v === 'number') {
+        flattenedPredictions[k] = v;
+      } else if (v && typeof v.predicted168h === 'number') {
+        flattenedPredictions[k] = v.predicted168h;
+      }
+    });
+  }
+
+  // Ensure canonical param names are keyed
+  Object.keys(measurements).forEach((k) => {
+    const val = extractPredictedValue(record, k);
+    if (val !== null) {
+      flattenedPredictions[k] = val;
+      flattenedPredictions[`${k}_168h`] = val;
+    }
+  });
+
+  // Safe Model Explanation
+  const rawExplanation = aiAssessmentObj.explanation || record.modelExplanation;
+  const modelExplanation = typeof rawExplanation === 'object' && rawExplanation !== null
+    ? {
+        framework: rawExplanation.framework || 'SHAP (TreeExplainer)',
+        targetPrediction: rawExplanation.targetPrediction || 'Predicted 168h Limit Risk',
+        baseValue: typeof rawExplanation.baseValue === 'number' ? rawExplanation.baseValue : null,
+        features: Array.isArray(rawExplanation.features) ? rawExplanation.features : [],
+        summaryText: rawExplanation.summaryText || 'Model explanation data synchronized with screening telemetry.',
+      }
+    : {
+        framework: 'SHAP (TreeExplainer)',
+        targetPrediction: 'Predicted 168h Limit Risk',
+        baseValue: null,
+        features: [],
+        summaryText: 'No model explanation available for this record.',
+      };
+
+  // Safe Anomalies object (derived from real backend record only)
+  const rawAnomalies = record.anomalies;
+  const lotAnomalyObj = aiAssessmentObj.lotAnomaly;
+  let anomalies = {
+    populationAbnormality: null,
+    trajectoryAbnormality: null,
+    futureRiskPrediction: null,
+  };
+
+  if (rawAnomalies && typeof rawAnomalies === 'object') {
+    anomalies = {
+      populationAbnormality: typeof rawAnomalies.populationAbnormality === 'boolean' ? rawAnomalies.populationAbnormality : null,
+      trajectoryAbnormality: typeof rawAnomalies.trajectoryAbnormality === 'boolean' ? rawAnomalies.trajectoryAbnormality : null,
+      futureRiskPrediction: typeof rawAnomalies.futureRiskPrediction === 'string' ? rawAnomalies.futureRiskPrediction : null,
+    };
+  } else if (lotAnomalyObj && typeof lotAnomalyObj === 'object') {
+    anomalies = {
+      populationAbnormality: lotAnomalyObj.overallStatus === 'FLAGGED' ? true : lotAnomalyObj.status === 'ANALYZED' ? false : null,
+      trajectoryAbnormality: aiAssessmentObj.prediction?.status === 'PREDICTED' ? (aiStatus === 'FLAGGED') : null,
+      futureRiskPrediction: typeof riskScore === 'number' ? `${aiRisk}% Risk` : null,
+    };
+  }
+
+  return {
+    id: componentId,
+    componentId,
+    lotId,
+    stage,
+    measurements,
+    engineeringLimits,
+    engineeringStatus,
+    aiAssessment: aiAssessmentObj,
+    aiStatus,
+    aiRisk,
+    riskScore,
+    predictions: flattenedPredictions,
+    rawPredictions,
+    anomalies,
+    modelExplanation,
+    standbyCurrent: iddqVal !== null ? `${iddqVal.toFixed(2)} mA` : '-',
+    leakageCurrent: leakageVal !== null ? `${leakageVal.toFixed(2)} µA` : '-',
+    propagationDelay: propDelayVal !== null ? `${propDelayVal.toFixed(2)} ns` : '-',
+    evidence: typeof record.evidence === 'string' ? record.evidence : (aiStatus === 'FLAGGED' ? 'AI Degradation / Anomaly Flagged' : 'Within Expected Limits'),
+    engineeringLimitStatus: typeof record.engineeringLimitStatus === 'string' ? record.engineeringLimitStatus : 'WITHIN LIMIT',
+    // Backward compatibility aliases
+    status: engineeringStatus,
+    decision: engineeringStatus,
+    _source: 'backend-api',
+  };
+}
