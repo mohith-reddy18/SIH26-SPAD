@@ -30,7 +30,7 @@ export default function Dashboard({ onNavigateToComponent }) {
       setFetchError(null);
 
       try {
-        const response = await fetch(`${API_BASE_URL}/api/screening`);
+        const response = await fetch(`${API_BASE_URL}/api/screening?lotId=NASA-MOSFET-199C`);
         if (response.ok) {
           const result = await response.json();
           if (result.success && Array.isArray(result.data)) {

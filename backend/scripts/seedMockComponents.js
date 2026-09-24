@@ -572,6 +572,26 @@ function makeRequest(url, options = {}, postData = null) {
 
 async function seedMockComponents() {
   console.log('=== NASA MOSFET V1 Screening Telemetry Seeder ===');
+
+  // Ensure all actual NASA parameters are present on all records
+  for (const comp of mockComponents) {
+    if (!comp.measurements.freq) {
+      comp.measurements.freq = [1000, 1000, 1000, 1000];
+    }
+    if (!comp.measurements.dutyCycle) {
+      comp.measurements.dutyCycle = [40, 40, 40, 40];
+    }
+    if (!comp.engineeringLimits.freq) {
+      comp.engineeringLimits.freq = { limitValue: 1200, direction: 'UPPER', source: 'NASA_SPEC_LIMIT', unit: 'Hz' };
+    }
+    if (!comp.engineeringLimits.dutyCycle) {
+      comp.engineeringLimits.dutyCycle = { limitValue: 50, direction: 'UPPER', source: 'NASA_SPEC_LIMIT', unit: '%' };
+    }
+    if (!comp.engineeringLimits.vds) {
+      comp.engineeringLimits.vds = { limitValue: 6.0, direction: 'UPPER', source: 'NASA_SPEC_LIMIT', unit: 'V' };
+    }
+  }
+
   console.log(`Preparing to seed ${mockComponents.length} NASA MOSFET physical components...`);
 
   // Direct MongoDB seeding if MONGODB_URI is provided
@@ -581,17 +601,30 @@ async function seedMockComponents() {
       await mongoose.connect(process.env.MONGODB_URI);
       const ScreeningRecord = require('../models/ScreeningRecord');
 
+      // Remove legacy dummy dataset (e.g. C-0001 to C-0050 or LOT-2026-001)
+      const cleanResult = await ScreeningRecord.deleteMany({
+        $or: [
+          { lotId: 'LOT-2026-001' },
+          { componentId: { $regex: /^C-\d+/ } }
+        ]
+      });
+      if (cleanResult.deletedCount > 0) {
+        console.log(`[x] Removed ${cleanResult.deletedCount} legacy dummy records.`);
+      }
+
       for (const comp of mockComponents) {
         await ScreeningRecord.findOneAndUpdate(
           { componentId: comp.componentId },
           { $set: comp },
           { upsert: true, new: true, setDefaultsOnInsert: true }
         );
-        console.log(`[+] Upserted ${comp.componentId} (${comp.status}) in MongoDB`);
+        console.log(`[+] Upserted ${comp.componentId} (${comp.status}) in MongoDB Atlas`);
       }
 
       const totalCount = await ScreeningRecord.countDocuments();
-      console.log(`\nSuccessfully seeded. Total records in MongoDB: ${totalCount}`);
+      const records = await ScreeningRecord.find({}, 'componentId lotId status engineeringStatus').sort({ componentId: 1 }).lean();
+      console.log(`\nSuccessfully seeded. Total records in MongoDB Atlas: ${totalCount}`);
+      console.log('Component IDs in Atlas:', records.map((r) => `${r.componentId} (${r.status})`).join(', '));
       await mongoose.disconnect();
       return;
     } catch (err) {
