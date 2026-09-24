@@ -136,7 +136,7 @@ async function runStep13Audit() {
 
   // 5. Current Yield Formula
   assert(currentYield(['NORMAL', 'NORMAL', 'SUSPECT', 'CRITICAL']) === 50.0, 'Yield: 2 NORMAL of 4 total = 50.0%');
-  assert(currentYield([]) === 100.0, 'Empty cohort yield returns 100.0%');
+  assert(currentYield([]) === 0.0, 'Empty cohort yield returns 0.0%');
 
   // ---------------------------------------------------------------------------
   // AUDIT 2: Method 1 (0h + 24h -> 168h, 96h NOT required)

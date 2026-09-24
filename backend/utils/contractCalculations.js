@@ -95,6 +95,11 @@ function engineeringStatus(param1, param2) {
       if (typeof limitObj === 'number' && !isNaN(limitObj)) {
         upper = limitObj;
       } else if (typeof limitObj === 'object') {
+        const src = limitObj.source ? String(limitObj.source).toUpperCase() : 'DATABASE_CATALOG';
+        if (src === 'AI_ESTIMATED_BOUNDARY' || src === 'NONE_AVAILABLE') {
+          continue; // AI estimated boundaries and none available never participate in engineeringStatus
+        }
+
         const limVal = typeof limitObj.limitValue === 'number' ? limitObj.limitValue : (limitObj.upper ?? limitObj.lower ?? limitObj.max);
         const dir = String(limitObj.direction || (limitObj.lower !== undefined || limitObj.min !== undefined ? 'LOWER' : 'UPPER')).toUpperCase();
         if (dir === 'UPPER') upper = limVal;
@@ -142,11 +147,18 @@ function engineeringStatus(param1, param2) {
     if (typeof limitObj === 'number' && !isNaN(limitObj)) {
       upper = limitObj;
     } else if (typeof limitObj === 'object') {
+      const src = limitObj.source ? String(limitObj.source).toUpperCase() : 'DATABASE_CATALOG';
+      if (src === 'AI_ESTIMATED_BOUNDARY' || src === 'NONE_AVAILABLE') {
+        continue;
+      }
+
       if (typeof limitObj.upper === 'number' && !isNaN(limitObj.upper)) upper = limitObj.upper;
       else if (typeof limitObj.upperLimit === 'number' && !isNaN(limitObj.upperLimit)) upper = limitObj.upperLimit;
+      else if (typeof limitObj.limitValue === 'number' && limitObj.direction !== 'LOWER') upper = limitObj.limitValue;
 
       if (typeof limitObj.lower === 'number' && !isNaN(limitObj.lower)) lower = limitObj.lower;
       else if (typeof limitObj.lowerLimit === 'number' && !isNaN(limitObj.lowerLimit)) lower = limitObj.lowerLimit;
+      else if (typeof limitObj.limitValue === 'number' && limitObj.direction === 'LOWER') lower = limitObj.limitValue;
     }
 
     if (upper === null && lower === null) continue;

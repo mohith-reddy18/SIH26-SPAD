@@ -108,13 +108,18 @@ function validateMethod1Output(rawOutput) {
       futureRiskScore = Math.max(0.0, Math.min(1.0, item.futureRiskScore));
     }
 
+    const hasValidInterval = Array.isArray(item.predictionInterval) &&
+      item.predictionInterval.length === 2 &&
+      typeof item.predictionInterval[0] === 'number' && !isNaN(item.predictionInterval[0]) &&
+      typeof item.predictionInterval[1] === 'number' && !isNaN(item.predictionInterval[1]);
+
     normalized[paramKey] = {
       status,
       predicted168h,
-      predictionInterval: Array.isArray(item.predictionInterval) && item.predictionInterval.length === 2 ? item.predictionInterval : null,
+      predictionInterval: hasValidInterval ? item.predictionInterval : null,
       futureRiskScore,
-      futureRiskPercent: typeof item.futureRiskPercent === 'number' ? item.futureRiskPercent : null,
-      limitBreachProbability: typeof item.limitBreachProbability === 'number' ? item.limitBreachProbability : null,
+      futureRiskPercent: typeof item.futureRiskPercent === 'number' && !isNaN(item.futureRiskPercent) ? item.futureRiskPercent : null,
+      limitBreachProbability: typeof item.limitBreachProbability === 'number' && !isNaN(item.limitBreachProbability) ? item.limitBreachProbability : null,
       aiFlag,
       modelExplanation: item.modelExplanation && typeof item.modelExplanation === 'object' ? item.modelExplanation : null,
     };
@@ -177,10 +182,14 @@ function validateMethod2Output(rawOutput) {
       lotAnomalyScore = Math.max(0.0, Math.min(1.0, item.lotAnomalyScore));
     }
 
+    const peerEvidence = item.peerComparisonEvidence && typeof item.peerComparisonEvidence === 'object' && !Array.isArray(item.peerComparisonEvidence)
+      ? item.peerComparisonEvidence
+      : {};
+
     normalized[paramKey] = {
       status,
       lotAnomalyScore,
-      peerComparisonEvidence: item.peerComparisonEvidence && typeof item.peerComparisonEvidence === 'object' ? item.peerComparisonEvidence : {},
+      peerComparisonEvidence: peerEvidence,
       divergenceType: typeof item.divergenceType === 'string' ? item.divergenceType : null,
       aiFlag,
       modelExplanation: item.modelExplanation && typeof item.modelExplanation === 'object' ? item.modelExplanation : null,
@@ -425,7 +434,7 @@ async function predict168h(input) {
   return {
     componentId,
     lotId,
-    modelMetadata: getModelMetadata(),
+    modelMetadata: rawModelOutput?.modelMetadata || getModelMetadata(),
     predictions: validatedPredictions,
   };
 }
@@ -467,7 +476,7 @@ async function detectLotAnomalies(input) {
   return {
     targetComponentId,
     lotId,
-    modelMetadata: getModelMetadata(),
+    modelMetadata: rawModelOutput?.modelMetadata || getModelMetadata(),
     anomalyResults: validatedAnomalyResults,
   };
 }
