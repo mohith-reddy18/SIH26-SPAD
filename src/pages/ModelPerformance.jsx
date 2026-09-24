@@ -10,7 +10,7 @@ function getStatusColor(status) {
   return '#38bdf8';
 }
 
-import { mapScreeningRecord } from '../utils/recordMapping';
+import { mapScreeningRecord, getParameterMeta } from '../utils/recordMapping';
 
 export default function ModelPerformance() {
   const [screeningRecords, setScreeningRecords] = useState([]);
@@ -273,23 +273,11 @@ export default function ModelPerformance() {
               </span>
             ) : (
               Object.entries(predictions).map(([predKey, predVal]) => {
-                const cleanName =
-                  predKey === 'iddq_168h'
-                    ? 'Standby Current (Iddq @ 168h)'
-                    : predKey === 'leakage_168h'
-                    ? 'Leakage Current (I_leak @ 168h)'
-                    : predKey === 'propDelay_168h'
-                    ? 'Propagation Delay (t_pd @ 168h)'
-                    : predKey;
-
-                const unit =
-                  predKey.includes('iddq')
-                    ? 'mA'
-                    : predKey.includes('leakage')
-                    ? 'µA'
-                    : predKey.includes('propDelay') || predKey.includes('Delay')
-                    ? 'ns'
-                    : '';
+                const baseKey = predKey.replace(/_168h$/i, '');
+                const meta = getParameterMeta(baseKey);
+                const is168hSuffix = predKey.toLowerCase().endsWith('_168h');
+                const cleanName = is168hSuffix ? `${meta.name} @ 168h` : meta.name;
+                const unit = meta.unit || '';
 
                 const numericVal = typeof predVal === 'number' ? predVal : (typeof predVal?.predicted168h === 'number' ? predVal.predicted168h : null);
                 const displayVal = numericVal !== null ? `${numericVal.toFixed(2)} ${unit}`.trim() : '—';

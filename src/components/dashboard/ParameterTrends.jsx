@@ -12,23 +12,36 @@ function getStatusColor(status) {
   return '#38bdf8';
 }
 
-// Helper to extract 0h, 24h observed checkpoints and 168h AI forecast
+// Helper to extract observed checkpoints and optional AI forecast
 function extractTrajectory(data, predictionVal) {
-  if (!Array.isArray(data) || data.length === 0) return [0, 0, 0];
-  if (data.length === 4) {
-    // 0h observed (idx 0), 24h observed (idx 1), 168h AI forecast (predictionVal ?? idx 3)
-    const forecastVal = typeof predictionVal === 'number' ? predictionVal : data[3];
-    return [data[0], data[1], forecastVal];
+  if (data === null || data === undefined) {
+    return typeof predictionVal === 'number' && !isNaN(predictionVal) ? [predictionVal] : [];
   }
-  if (data.length === 3) {
-    const forecastVal = typeof predictionVal === 'number' ? predictionVal : data[2];
-    return [data[0], data[1], forecastVal];
+  if (typeof data === 'number' && !isNaN(data)) {
+    return typeof predictionVal === 'number' && !isNaN(predictionVal) ? [data, predictionVal] : [data];
   }
-  if (data.length === 2) {
-    const forecastVal = typeof predictionVal === 'number' ? predictionVal : data[1];
-    return [data[0], data[1], forecastVal];
+  if (Array.isArray(data)) {
+    const numData = data.filter((v) => typeof v === 'number' && !isNaN(v));
+    if (numData.length === 0) {
+      return typeof predictionVal === 'number' && !isNaN(predictionVal) ? [predictionVal] : [];
+    }
+    if (typeof predictionVal === 'number' && !isNaN(predictionVal)) {
+      // If data already has full trajectory including prediction point
+      if (numData.length > 2 && Math.abs(numData[numData.length - 1] - predictionVal) < 0.0001) {
+        return numData;
+      }
+      return [...numData, predictionVal];
+    }
+    return numData;
   }
-  return data;
+  if (typeof data === 'object') {
+    const vals = Object.values(data).filter((v) => typeof v === 'number' && !isNaN(v));
+    if (typeof predictionVal === 'number' && !isNaN(predictionVal)) {
+      return [...vals, predictionVal];
+    }
+    return vals;
+  }
+  return [];
 }
 
 export default function ParameterTrends({
@@ -40,7 +53,7 @@ export default function ParameterTrends({
   const [selectedComponentId, setSelectedComponentId] = useState(
     () => components?.[0]?.id || components?.[0]?.componentId || ''
   );
-  const [selectedParamKey, setSelectedParamKey] = useState('iddq');
+  const [selectedParamKey, setSelectedParamKey] = useState('');
   const [hoveredPoint, setHoveredPoint] = useState(null);
   const [hoveredCompId, setHoveredCompId] = useState(null);
 
@@ -115,43 +128,54 @@ export default function ParameterTrends({
     return fallback;
   }, [liveComponentData, selectedComponentId, components]);
 
-  // 3. Dynamic available parameters constructed from measurements & engineering limits
+  // 3. Dynamic available parameters constructed exclusively from the component's actual telemetry
   const availableParams = useMemo(() => {
     const measurementKeys = Object.keys(activeComponent.measurements || {});
-    const keys = measurementKeys.length > 0 ? measurementKeys : Object.keys(activeComponent.engineeringLimits || {});
-    if (keys.length > 0) {
-      return keys.map((key) => {
+    const engineeringLimitKeys = Object.keys(activeComponent.engineeringLimits || {});
+    const predictionKeys = Object.keys(activeComponent.predictions || {}).map((k) => k.replace(/_168h$/, ''));
+    
+    // Extract unique parameter keys present in this specific component's record
+    const allKeys = Array.from(new Set([...measurementKeys, ...engineeringLimitKeys, ...predictionKeys])).filter(Boolean);
+
+    if (allKeys.length > 0) {
+      return allKeys.map((key) => {
         const limit = activeComponent.engineeringLimits?.[key];
         return getParameterMeta(key, limit);
       });
     }
 
-    return [getParameterMeta('iddq', 4.0)];
-  }, [activeComponent.measurements, activeComponent.engineeringLimits]);
+    return [];
+  }, [activeComponent.measurements, activeComponent.engineeringLimits, activeComponent.predictions]);
 
-  // Automatically keep selected parameter in sync if component changes
+  // Automatically keep selected parameter in sync when available parameters change
   useEffect(() => {
-    if (availableParams.length > 0 && !availableParams.some((p) => p.key === selectedParamKey || p.id === selectedParamKey)) {
-      setSelectedParamKey(availableParams[0].key || availableParams[0].id);
+    if (availableParams.length > 0) {
+      if (!availableParams.some((p) => p.key === selectedParamKey || p.id === selectedParamKey)) {
+        setSelectedParamKey(availableParams[0].key || availableParams[0].id);
+      }
     }
   }, [availableParams, selectedParamKey]);
 
   // 4. Active parameter specification lookup
   const activeSpec = useMemo(() => {
+    if (availableParams.length === 0) {
+      return { id: '', key: '', name: 'No Parameter', shortName: '', unit: '', specLimitMax: undefined, healthyRef: [] };
+    }
     return (
       availableParams.find(
         (p) => (p.id && p.id === selectedParamKey) || (p.key && p.key === selectedParamKey)
-      ) ||
-      availableParams[0] ||
-      getParameterMeta('iddq', 4.0)
+      ) || availableParams[0]
     );
   }, [availableParams, selectedParamKey]);
 
   // 5. Dynamic Limit and Prediction retrieval for the active parameter
   const dynamicLimit = useMemo(() => {
+    if (!activeSpec.key) return undefined;
     const rawLimit = activeComponent.engineeringLimits?.[activeSpec.key] ?? activeComponent.engineeringLimits?.[activeSpec.id];
-    if (rawLimit && typeof rawLimit === 'object' && typeof rawLimit.limitValue === 'number') {
-      return rawLimit.limitValue;
+    if (rawLimit && typeof rawLimit === 'object') {
+      if (typeof rawLimit.limitValue === 'number') return rawLimit.limitValue;
+      if (typeof rawLimit.max === 'number') return rawLimit.max;
+      if (typeof rawLimit.value === 'number') return rawLimit.value;
     }
     if (typeof rawLimit === 'number') {
       return rawLimit;
@@ -160,6 +184,7 @@ export default function ParameterTrends({
   }, [activeComponent.engineeringLimits, activeSpec]);
 
   const dynamicPrediction = useMemo(() => {
+    if (!activeSpec.key) return undefined;
     const val = extractPredictedValue(activeComponent, activeSpec.key || activeSpec.id);
     return val !== null ? val : undefined;
   }, [activeComponent, activeSpec]);
@@ -170,7 +195,9 @@ export default function ParameterTrends({
   const lotComponents = components.filter((c) => c.lotId === currentLotId);
 
   // 7. Trajectory Series Construction
-  const healthyTrajectory = extractTrajectory(activeSpec.healthyRef || [0, 0, 0, 0]);
+  const healthyTrajectory = activeSpec.healthyRef && activeSpec.healthyRef.length > 0
+    ? extractTrajectory(activeSpec.healthyRef)
+    : [];
 
   let activeSeries = [];
   if (viewMode === 'component') {
@@ -179,7 +206,7 @@ export default function ParameterTrends({
       activeComponent.measurements?.[activeSpec.id] ||
       [];
 
-    const compData = rawCompData.length > 0 ? extractTrajectory(rawCompData, dynamicPrediction) : [];
+    const compData = extractTrajectory(rawCompData, dynamicPrediction);
 
     activeSeries = [
       ...(activeComponent.id && compData.length > 0
@@ -198,18 +225,22 @@ export default function ParameterTrends({
             },
           ]
         : []),
-      {
-        id: 'healthy-ref',
-        label: 'Healthy Reference',
-        componentId: 'Healthy Reference',
-        data: healthyTrajectory,
-        color: '#64748b',
-        strokeWidth: 1.8,
-        opacity: 1.0,
-        dashed: true,
-        status: 'NOMINAL',
-        isComponent: false,
-      },
+      ...(healthyTrajectory.length > 0
+        ? [
+            {
+              id: 'healthy-ref',
+              label: 'Healthy Reference',
+              componentId: 'Healthy Reference',
+              data: healthyTrajectory,
+              color: '#64748b',
+              strokeWidth: 1.8,
+              opacity: 1.0,
+              dashed: true,
+              status: 'NOMINAL',
+              isComponent: false,
+            },
+          ]
+        : []),
     ];
   } else {
     // Lot Overview Mode: Plot all components belonging to the active lot
@@ -225,7 +256,7 @@ export default function ParameterTrends({
         [];
 
       const pred = predictionsObj?.[`${activeSpec.key}_168h`] ?? predictionsObj?.[`${activeSpec.id}_168h`];
-      const compData = rawCompData.length > 0 ? extractTrajectory(rawCompData, pred) : [];
+      const compData = extractTrajectory(rawCompData, pred);
       const cStatus = isSelected ? selectedStatus : (comp.status || 'NORMAL');
       const isHovered = hoveredCompId === comp.id;
 
@@ -243,18 +274,20 @@ export default function ParameterTrends({
       };
     });
 
-    activeSeries.push({
-      id: 'healthy-ref',
-      label: 'Healthy Reference',
-      componentId: 'Healthy Reference',
-      data: healthyTrajectory,
-      color: '#64748b',
-      strokeWidth: 1.8,
-      opacity: hoveredCompId ? 0.35 : 1.0,
-      dashed: true,
-      status: 'NOMINAL',
-      isComponent: false,
-    });
+    if (healthyTrajectory.length > 0) {
+      activeSeries.push({
+        id: 'healthy-ref',
+        label: 'Healthy Reference',
+        componentId: 'Healthy Reference',
+        data: healthyTrajectory,
+        color: '#64748b',
+        strokeWidth: 1.8,
+        opacity: hoveredCompId ? 0.35 : 1.0,
+        dashed: true,
+        status: 'NOMINAL',
+        isComponent: false,
+      });
+    }
   }
 
   // 8. SVG Chart Dimensions & Scaling
@@ -278,8 +311,30 @@ export default function ParameterTrends({
   const minVal = Math.max(0, dataMin * 0.82);
   const maxVal = dataMax * 1.15;
 
-  const checkpoints = ['0h', '24h', '168h'];
-  const getX = (index) => padding.left + (index / (checkpoints.length - 1 || 1)) * chartW;
+  // Derive dynamic checkpoints from actual measurements
+  const rawDataForCheckpoints =
+    activeComponent.measurements?.[activeSpec.key] ||
+    activeComponent.measurements?.[activeSpec.id];
+
+  const checkpoints = useMemo(() => {
+    if (rawDataForCheckpoints && typeof rawDataForCheckpoints === 'object' && !Array.isArray(rawDataForCheckpoints)) {
+      const keys = Object.keys(rawDataForCheckpoints);
+      if (typeof dynamicPrediction === 'number') {
+        return [...keys, 'Predicted (168h)'];
+      }
+      return keys.length > 0 ? keys : ['Stage 1', 'Stage 2', 'Stage 3'];
+    }
+    if (Array.isArray(rawDataForCheckpoints)) {
+      const len = rawDataForCheckpoints.length + (typeof dynamicPrediction === 'number' && rawDataForCheckpoints.length <= 2 ? 1 : 0);
+      if (len === 4) return ['0h / Stage 1', '24h / Stage 2', '96h / Stage 3', '168h / Final'];
+      if (len === 3) return ['0h', '24h', '168h [Forecast]'];
+      if (len === 2) return ['Stage 1', 'Stage 2'];
+      if (len === 1) return ['Baseline'];
+    }
+    return ['0h', '24h', '168h'];
+  }, [rawDataForCheckpoints, dynamicPrediction]);
+
+  const getX = (index) => padding.left + (index / (Math.max(1, checkpoints.length - 1))) * chartW;
   const getY = (val) => padding.top + chartH - ((val - minVal) / (maxVal - minVal || 1)) * chartH;
 
   // Spec Limit Line Y coordinate
