@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { mockComponents, mockParameterSpecs } from '../data/mockData';
+import { mockParameterSpecs } from '../data/mockData';
 import './Dashboard.css';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://sih26-spad.onrender.com';
@@ -10,6 +10,8 @@ function getStatusColor(status) {
   if (status === 'CRITICAL' || status === 'REJECT') return '#ef4444';
   return '#38bdf8';
 }
+
+import { mapScreeningRecord } from '../utils/recordMapping';
 
 export default function FailureAnalysis() {
   const [screeningRecords, setScreeningRecords] = useState([]);
@@ -41,7 +43,6 @@ export default function FailureAnalysis() {
           }
         }
         if (isMounted) {
-          console.warn('[SPAD] API returned empty/invalid records; using mock fallback.');
           setDataSource('fallback');
         }
       } catch (err) {
@@ -66,40 +67,36 @@ export default function FailureAnalysis() {
 
   // 2. Active component resolution
   const activeComponent = useMemo(() => {
-    if (dataSource === 'api' && screeningRecords.length > 0) {
+    if (screeningRecords.length > 0) {
       const match = screeningRecords.find(
         (r) => (r.componentId || r.id) === selectedComponentId
       );
-      if (match) return match;
+      if (match) return mapScreeningRecord(match);
+      return mapScreeningRecord(screeningRecords[0]);
     }
-    return mockComponents.find((c) => c.id === selectedComponentId) || mockComponents[0];
-  }, [screeningRecords, selectedComponentId, dataSource]);
+    return mapScreeningRecord({ id: selectedComponentId || 'C-0001', lotId: 'LOT-2026-001' });
+  }, [screeningRecords, selectedComponentId]);
 
-  const componentId = activeComponent.componentId || activeComponent.id || 'C-0001';
+  const componentId = activeComponent.componentId || 'C-0001';
   const lotId = activeComponent.lotId || 'LOT-2026-001';
-  const stage = activeComponent.stage || '96h';
-  const status = activeComponent.status || 'NORMAL';
-  const aiAssessment = activeComponent.aiAssessment || status;
-  const aiRisk = typeof activeComponent.aiRisk === 'number' ? activeComponent.aiRisk : 12;
-  const riskScore = typeof activeComponent.riskScore === 'number' ? activeComponent.riskScore : 0.12;
+  const stage = activeComponent.stage || '24h';
+  const engineeringStatus = activeComponent.engineeringStatus || 'NORMAL';
+  const aiStatus = activeComponent.aiStatus || 'NOT_EVALUATED';
+  const aiRisk = activeComponent.aiRisk || 15;
+  const riskScore = activeComponent.riskScore || 0.15;
 
   const measurements = activeComponent.measurements || {};
   const predictions = activeComponent.predictions || {};
   const engineeringLimits = activeComponent.engineeringLimits || {};
-  const anomalies = activeComponent.anomalies || {
-    populationAbnormality: false,
-    trajectoryAbnormality: false,
-    futureRiskPrediction: 'Low (<5%)',
-  };
   const modelExplanation = activeComponent.modelExplanation || {
-    framework: 'SHAP (TreeExplainer)',
+    framework: 'Explainability Attributions',
     targetPrediction: 'Predicted 168h Limit Risk',
     baseValue: 0.15,
     features: [],
     summaryText: 'Nominal telemetry tracking.',
   };
 
-  const isAnomalous = status === 'SUSPECT' || status === 'CRITICAL' || status === 'HOLD' || status === 'REJECT';
+  const isAnomalous = engineeringStatus !== 'NORMAL' || aiStatus === 'FLAGGED';
 
   return (
     <div className="spad-page-container">
@@ -127,17 +124,15 @@ export default function FailureAnalysis() {
               value={componentId}
               onChange={(e) => setSelectedComponentId(e.target.value)}
             >
-              {(dataSource === 'api' && screeningRecords.length > 0 ? screeningRecords : mockComponents).map(
-                (c) => {
-                  const id = c.componentId || c.id;
-                  const cStat = c.status || 'NORMAL';
-                  return (
-                    <option key={id} value={id}>
-                      {id} ({cStat})
-                    </option>
-                  );
-                }
-              )}
+              {screeningRecords.map((c) => {
+                const id = c.componentId || c.id;
+                const cStat = c.engineeringStatus || c.status || 'NORMAL';
+                return (
+                  <option key={id} value={id}>
+                    {id} ({cStat})
+                  </option>
+                );
+              })}
             </select>
           </div>
 

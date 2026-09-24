@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { mockComponents, mockParameterSpecs } from '../data/mockData';
+import { mockParameterSpecs } from '../data/mockData';
 import './Dashboard.css';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://sih26-spad.onrender.com';
@@ -10,6 +10,8 @@ function getStatusColor(status) {
   if (status === 'CRITICAL' || status === 'REJECT') return '#ef4444';
   return '#38bdf8';
 }
+
+import { mapScreeningRecord } from '../utils/recordMapping';
 
 export default function ObservabilityStudy() {
   const [screeningRecords, setScreeningRecords] = useState([]);
@@ -42,7 +44,6 @@ export default function ObservabilityStudy() {
           }
         }
         if (isMounted) {
-          console.warn('[SPAD] API returned empty/invalid records; using mock fallback.');
           setDataSource('fallback');
         }
       } catch (err) {
@@ -67,22 +68,24 @@ export default function ObservabilityStudy() {
 
   // 2. Active component resolution
   const activeRecord = useMemo(() => {
-    if (dataSource === 'api' && screeningRecords.length > 0) {
+    if (screeningRecords.length > 0) {
       const match = screeningRecords.find(
         (r) => (r.componentId || r.id) === selectedComponentId
       );
-      if (match) return match;
+      if (match) return mapScreeningRecord(match);
+      return mapScreeningRecord(screeningRecords[0]);
     }
-    return mockComponents.find((c) => c.id === selectedComponentId) || mockComponents[0];
-  }, [screeningRecords, selectedComponentId, dataSource]);
+    return mapScreeningRecord({ id: selectedComponentId || 'C-0001', lotId: 'LOT-2026-001' });
+  }, [screeningRecords, selectedComponentId]);
 
-  const componentId = activeRecord.componentId || activeRecord.id || 'C-0001';
+  const componentId = activeRecord.componentId || 'C-0001';
   const lotId = activeRecord.lotId || 'LOT-2026-001';
-  const stage = activeRecord.stage || '96h';
-  const status = activeRecord.status || 'NORMAL';
+  const stage = activeRecord.stage || '24h';
+  const engineeringStatus = activeRecord.engineeringStatus || 'NORMAL';
   const measurements = activeRecord.measurements || {};
   const predictions = activeRecord.predictions || {};
   const engineeringLimits = activeRecord.engineeringLimits || {};
+  const lotAnomaly = activeRecord.aiAssessment?.lotAnomaly || null;
 
   // 3. Dynamic parameter keys extraction from backend measurements
   const availableParamKeys = useMemo(() => {
@@ -109,18 +112,22 @@ export default function ObservabilityStudy() {
         (key === 'iddq' ? 'mA' : key === 'leakage' ? 'µA' : key === 'propDelay' ? 'ns' : '');
 
       const series = measurements[key] || [];
-      const obs0h = series.length > 0 ? series[0] : null;
-      const obs24h = series.length > 1 ? series[1] : null;
-      const obs96h = series.length > 2 ? series[2] : null;
-      const obsFinal = series.length > 3 ? series[3] : series[series.length - 1];
+      const obs0h = Array.isArray(series) && series.length > 0 ? series[0] : (series['0h'] ?? null);
+      const obs24h = Array.isArray(series) && series.length > 1 ? series[1] : (series['24h'] ?? null);
+      const obs96h = Array.isArray(series) && series.length > 2 ? series[2] : (series['96h'] ?? null);
+      const obsFinal = Array.isArray(series) && series.length > 0 ? series[series.length - 1] : obs24h;
 
+      // Canonical prediction resolution
+      const canonicalPred = activeRecord.aiAssessment?.prediction?.parameters?.[key]?.predicted168h;
       const predKey = `${key}_168h`;
-      const pred168h = typeof predictions[predKey] === 'number' ? predictions[predKey] : obsFinal;
+      const pred168h = typeof canonicalPred === 'number'
+        ? canonicalPred
+        : (typeof predictions[predKey] === 'number' ? predictions[predKey] : (typeof predictions[key] === 'number' ? predictions[key] : obsFinal));
 
-      const limit =
-        typeof engineeringLimits[key] === 'number'
-          ? engineeringLimits[key]
-          : matchedSpec.specLimitMax;
+      const rawLimit = engineeringLimits[key];
+      const limit = typeof rawLimit === 'object' && rawLimit !== null && typeof rawLimit.limitValue === 'number'
+        ? rawLimit.limitValue
+        : (typeof rawLimit === 'number' ? rawLimit : matchedSpec.specLimitMax);
 
       const margin =
         typeof limit === 'number' && typeof pred168h === 'number'
@@ -176,17 +183,15 @@ export default function ObservabilityStudy() {
               value={componentId}
               onChange={(e) => setSelectedComponentId(e.target.value)}
             >
-              {(dataSource === 'api' && screeningRecords.length > 0 ? screeningRecords : mockComponents).map(
-                (c) => {
-                  const id = c.componentId || c.id;
-                  const cStatus = c.status || 'NORMAL';
-                  return (
-                    <option key={id} value={id}>
-                      {id} ({cStatus})
-                    </option>
-                  );
-                }
-              )}
+              {screeningRecords.map((c) => {
+                const id = c.componentId || c.id;
+                const cStatus = c.engineeringStatus || c.status || 'NORMAL';
+                return (
+                  <option key={id} value={id}>
+                    {id} ({cStatus})
+                  </option>
+                );
+              })}
             </select>
           </div>
 

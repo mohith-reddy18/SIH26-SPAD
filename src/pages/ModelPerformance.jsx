@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { mockComponents } from '../data/mockData';
 import './Dashboard.css';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://sih26-spad.onrender.com';
@@ -10,6 +9,8 @@ function getStatusColor(status) {
   if (status === 'CRITICAL' || status === 'REJECT') return '#ef4444';
   return '#38bdf8';
 }
+
+import { mapScreeningRecord } from '../utils/recordMapping';
 
 export default function ModelPerformance() {
   const [screeningRecords, setScreeningRecords] = useState([]);
@@ -41,7 +42,6 @@ export default function ModelPerformance() {
           }
         }
         if (isMounted) {
-          console.warn('[SPAD] API returned empty/invalid records; using mock fallback.');
           setDataSource('fallback');
         }
       } catch (err) {
@@ -66,40 +66,39 @@ export default function ModelPerformance() {
 
   // 2. Active component resolution
   const activeRecord = useMemo(() => {
-    if (dataSource === 'api' && screeningRecords.length > 0) {
+    if (screeningRecords.length > 0) {
       const match = screeningRecords.find(
         (r) => (r.componentId || r.id) === selectedComponentId
       );
-      if (match) return match;
+      if (match) return mapScreeningRecord(match);
+      return mapScreeningRecord(screeningRecords[0]);
     }
-    return mockComponents.find((c) => c.id === selectedComponentId) || mockComponents[0];
-  }, [screeningRecords, selectedComponentId, dataSource]);
+    return mapScreeningRecord({ id: selectedComponentId || 'C-0001', lotId: 'LOT-2026-001' });
+  }, [screeningRecords, selectedComponentId]);
 
-  const componentId = activeRecord.componentId || activeRecord.id || 'C-0001';
+  const componentId = activeRecord.componentId || 'C-0001';
   const lotId = activeRecord.lotId || 'LOT-2026-001';
-  const aiAssessment = activeRecord.aiAssessment || activeRecord.status || 'NORMAL';
-  const aiRisk = typeof activeRecord.aiRisk === 'number' ? activeRecord.aiRisk : 12;
-  const riskScore = typeof activeRecord.riskScore === 'number' ? activeRecord.riskScore : 0.12;
+  const engineeringStatus = activeRecord.engineeringStatus || 'NORMAL';
+  const aiStatus = activeRecord.aiStatus || 'NOT_EVALUATED';
+  const riskScore = activeRecord.riskScore || 0.15;
+  const aiRisk = activeRecord.aiRisk || 15;
 
-  const anomalies = activeRecord.anomalies || {
-    populationAbnormality: false,
-    trajectoryAbnormality: false,
-    futureRiskPrediction: 'Low (<5%)',
+  const prediction = activeRecord.aiAssessment?.prediction || {
+    status: 'PREDICTED',
+    parameters: activeRecord.predictions || {},
   };
 
-  const predictions = activeRecord.predictions || {};
+  const lotAnomaly = activeRecord.aiAssessment?.lotAnomaly || null;
 
-  const explanation = activeRecord.modelExplanation || {
-    framework: 'SHAP (TreeExplainer)',
+  const explanation = activeRecord.aiAssessment?.explanation || activeRecord.modelExplanation || {
+    framework: 'Explainability Attributions',
     targetPrediction: 'Predicted 168h Limit Risk',
-    predictedRiskPercent: aiRisk,
     baseValue: 0.15,
     features: [],
     summaryText: 'Parametric measurements track nominal degradation curve.',
   };
 
-  const riskCategory = aiAssessment;
-  const riskColor = getStatusColor(riskCategory);
+  const riskColor = aiStatus === 'FLAGGED' ? '#f59e0b' : '#10b981';
   const maxAbsShap = (explanation.features || []).reduce(
     (max, f) => Math.max(max, Math.abs(f.shapValue || 0)),
     0.1
@@ -114,7 +113,7 @@ export default function ModelPerformance() {
           <span className="spad-page-tag">AI / ML EARLY FORECAST VALIDATION</span>
         </div>
         <p className="spad-page-description">
-          Multivariate early-risk anomaly detection telemetry, dynamic 168h parameter drift forecasts, and SHAP feature attribution explainability.
+          Multivariate early-risk anomaly detection telemetry, dynamic 168h parameter drift forecasts, and feature attribution explainability.
         </p>
       </header>
 
@@ -131,17 +130,15 @@ export default function ModelPerformance() {
               value={componentId}
               onChange={(e) => setSelectedComponentId(e.target.value)}
             >
-              {(dataSource === 'api' && screeningRecords.length > 0 ? screeningRecords : mockComponents).map(
-                (c) => {
-                  const id = c.componentId || c.id;
-                  const status = c.aiAssessment || c.status || 'NORMAL';
-                  return (
-                    <option key={id} value={id}>
-                      {id} ({status})
-                    </option>
-                  );
-                }
-              )}
+              {screeningRecords.map((c) => {
+                const id = c.componentId || c.id;
+                const status = c.engineeringStatus || c.status || 'NORMAL';
+                return (
+                  <option key={id} value={id}>
+                    {id} ({status})
+                  </option>
+                );
+              })}
             </select>
           </div>
 
@@ -149,12 +146,12 @@ export default function ModelPerformance() {
             <span className="spad-summary-pill-id">{componentId}</span>
             <span className="spad-summary-pill-lot">Lot: {lotId}</span>
             <span
-              className={`spad-summary-pill-status status-${riskCategory.toLowerCase()}`}
+              className={`spad-summary-pill-status status-${engineeringStatus.toLowerCase()}`}
             >
-              AI Assessment: {riskCategory}
+              Eng Status: {engineeringStatus}
             </span>
             <span className="spad-summary-pill-risk">
-              Risk Score: {riskScore} ({aiRisk}%)
+              AI Status: {aiStatus} (Risk Index: {riskScore.toFixed(2)})
             </span>
             <span className="spad-spec-badge" style={{ marginLeft: 'auto' }}>
               SOURCE: <strong>{dataSource === 'api' ? 'MONGODB ATLAS' : 'LOCAL FALLBACK'}</strong>

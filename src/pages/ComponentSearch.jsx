@@ -1,6 +1,7 @@
-import React, { useState, useMemo } from 'react';
-import { mockComponents, mockParameterSpecs } from '../data/mockData';
+import React, { useState, useEffect, useMemo } from 'react';
 import ComponentDetailModal from '../components/dashboard/ComponentDetailModal';
+import { mockParameterSpecs } from '../data/mockData';
+import { mapScreeningRecord, getNormalizedEngineeringStatus } from '../utils/recordMapping';
 
 function SearchIcon() {
   return (
@@ -14,6 +15,8 @@ function SearchIcon() {
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://sih26-spad.onrender.com';
 
 export default function ComponentSearch({ onNavigateToComponent, initialComponentId }) {
+  const [components, setComponents] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeParamFilter, setActiveParamFilter] = useState('ALL');
   const [selectedModalComponent, setSelectedModalComponent] = useState(null);
@@ -21,20 +24,50 @@ export default function ComponentSearch({ onNavigateToComponent, initialComponen
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const [fetchError, setFetchError] = useState(null);
 
-  // Fetch component detail from backend API with fallback
+  // 1. Fetch component records from backend API (source of truth)
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadComponents() {
+      setIsLoading(true);
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/screening`);
+        if (response.ok) {
+          const result = await response.json();
+          if (result.success && Array.isArray(result.data) && isMounted) {
+            setComponents(result.data.map(mapScreeningRecord));
+          }
+        }
+      } catch (err) {
+        console.warn('[SPAD] Failed to fetch components list from backend:', err.message);
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    }
+
+    loadComponents();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // 2. Fetch individual component detail on click or deep link
   const fetchComponentDetail = async (compItem) => {
     if (!compItem) return;
     const targetId = typeof compItem === 'string' ? compItem : compItem.id || compItem.componentId;
     if (!targetId) return;
 
-    // Fallback data from mockComponents if database does not contain this component yet
-    const fallback =
-      typeof compItem === 'object' && compItem.measurements
-        ? compItem
-        : mockComponents.find((c) => c.id === targetId) || { id: targetId, lotId: 'LOT-2026-001' };
+    // Check currently loaded records first
+    const existing = components.find(
+      (c) => (c.id || c.componentId) === targetId
+    );
 
-    setSelectedModalComponent(fallback);
-    setIsModalOpen(true);
+    if (existing) {
+      setSelectedModalComponent(existing);
+      setIsModalOpen(true);
+    }
+
     setIsLoadingDetail(true);
     setFetchError(null);
 
@@ -45,34 +78,14 @@ export default function ComponentSearch({ onNavigateToComponent, initialComponen
       if (response.ok) {
         const result = await response.json();
         if (result.success && result.data) {
-          const record = result.data;
-          // Merge backend screening record with UI structure
-          const merged = {
-            ...fallback,
-            ...record,
-            id: record.componentId || record.id || targetId,
-            lotId: record.lotId || fallback.lotId,
-            stage: record.stage || fallback.stage,
-            measurements: record.measurements || fallback.measurements || {},
-            parameters: record.parameters || fallback.parameters || {},
-            predictions: record.predictions || fallback.predictions || {},
-            engineeringLimits: record.engineeringLimits || fallback.engineeringLimits,
-            engineeringLimitStatus: record.engineeringLimitStatus || fallback.engineeringLimitStatus,
-            aiAssessment: record.aiAssessment || fallback.aiAssessment,
-            aiRisk: typeof record.aiRisk === 'number' ? record.aiRisk : fallback.aiRisk,
-            riskScore: typeof record.riskScore === 'number' ? record.riskScore : fallback.riskScore,
-            anomalies: record.anomalies || fallback.anomalies,
-            evidence: record.evidence || fallback.evidence,
-            decision: record.decision || fallback.decision,
-            status: record.status || fallback.status,
-            modelExplanation: record.modelExplanation || fallback.modelExplanation,
-            _source: 'backend-api',
-          };
+          const merged = mapScreeningRecord(result.data);
           setSelectedModalComponent(merged);
+          setIsModalOpen(true);
         }
       } else if (response.status === 404) {
-        // Record not in MongoDB yet - keep fallback mock data without throwing error
-        console.info(`[SPAD] Backend record for "${targetId}" not found in database; using local screening baseline.`);
+        if (!existing) {
+          setFetchError(`Component "${targetId}" not found in database.`);
+        }
       } else {
         setFetchError(`Backend returned status ${response.status}`);
       }
@@ -84,22 +97,27 @@ export default function ComponentSearch({ onNavigateToComponent, initialComponen
     }
   };
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (initialComponentId) {
       fetchComponentDetail(initialComponentId);
     }
   }, [initialComponentId]);
 
+  // Filter components dynamically from live backend data
   const filteredComponents = useMemo(() => {
-    return mockComponents.filter((comp) => {
-      const matchesSearch = comp.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                            comp.lotId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                            comp.evidence.toLowerCase().includes(searchTerm.toLowerCase());
-      const normalizedStatus = comp.status === 'PASS' ? 'NORMAL' : comp.status === 'HOLD' ? 'SUSPECT' : comp.status === 'REJECT' ? 'CRITICAL' : comp.status;
-      const matchesFilter = activeParamFilter === 'ALL' || normalizedStatus === activeParamFilter || comp.status === activeParamFilter;
+    return components.filter((comp) => {
+      const idStr = comp.id || comp.componentId || '';
+      const lotIdStr = comp.lotId || '';
+      const evidenceStr = comp.evidence || '';
+      const matchesSearch =
+        idStr.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        lotIdStr.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        evidenceStr.toLowerCase().includes(searchTerm.toLowerCase());
+      const engStatus = getNormalizedEngineeringStatus(comp);
+      const matchesFilter = activeParamFilter === 'ALL' || engStatus === activeParamFilter;
       return matchesSearch && matchesFilter;
     });
-  }, [searchTerm, activeParamFilter]);
+  }, [components, searchTerm, activeParamFilter]);
 
   const handleRowClick = (item) => {
     fetchComponentDetail(item);
@@ -165,15 +183,21 @@ export default function ComponentSearch({ onNavigateToComponent, initialComponen
               </tr>
             </thead>
             <tbody>
-              {filteredComponents.length === 0 ? (
+              {isLoading ? (
                 <tr>
                   <td colSpan="9" className="spad-table-empty">
-                    No components matching "{searchTerm}".
+                    Loading components from database...
+                  </td>
+                </tr>
+              ) : filteredComponents.length === 0 ? (
+                <tr>
+                  <td colSpan="9" className="spad-table-empty">
+                    {searchTerm ? `No components matching "${searchTerm}".` : 'No component records found in database.'}
                   </td>
                 </tr>
               ) : (
                 filteredComponents.map((item) => {
-                  const normalizedStatus = item.status === 'PASS' ? 'NORMAL' : item.status === 'HOLD' ? 'SUSPECT' : item.status === 'REJECT' ? 'CRITICAL' : item.status;
+                  const normalizedStatus = getNormalizedEngineeringStatus(item);
                   let statusBadgeClass = 'badge-status-normal';
                   if (normalizedStatus === 'SUSPECT') statusBadgeClass = 'badge-status-suspect';
                   if (normalizedStatus === 'CRITICAL') statusBadgeClass = 'badge-status-critical';
@@ -184,11 +208,11 @@ export default function ComponentSearch({ onNavigateToComponent, initialComponen
 
                   return (
                     <tr 
-                      key={item.id} 
+                      key={item.id || item.componentId} 
                       className="spad-table-row"
                       onClick={() => handleRowClick(item)}
                     >
-                      <td className="spad-td-mono font-bold text-cyan">{item.id}</td>
+                      <td className="spad-td-mono font-bold text-cyan">{item.id || item.componentId}</td>
                       <td className="spad-td-mono text-muted">{item.lotId}</td>
                       <td className="spad-td-mono text-slate">{item.stage}</td>
                       <td className="spad-td-mono">{item.standbyCurrent}</td>
@@ -222,7 +246,7 @@ export default function ComponentSearch({ onNavigateToComponent, initialComponen
           setSelectedModalComponent(null);
           setIsModalOpen(false);
         }}
-        components={mockComponents}
+        components={components}
         onSelectComponent={(comp) => fetchComponentDetail(comp)}
         parameterSpecs={mockParameterSpecs}
       />

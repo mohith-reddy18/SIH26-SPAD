@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { getNormalizedEngineeringStatus, getNormalizedAiStatus } from '../../utils/recordMapping';
 
 function SearchIcon() {
   return (
@@ -15,11 +16,12 @@ export default function ComponentTable({ records, onSelectComponent }) {
 
   const filteredRecords = useMemo(() => {
     return records.filter((rec) => {
-      const matchesSearch = rec.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                            rec.lotId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                            rec.evidence.toLowerCase().includes(searchTerm.toLowerCase());
-      const recStatus = rec.status === 'PASS' ? 'NORMAL' : rec.status === 'HOLD' ? 'SUSPECT' : rec.status === 'REJECT' ? 'CRITICAL' : rec.status;
-      const matchesStatus = statusFilter === 'ALL' || recStatus === statusFilter;
+      const matchesSearch =
+        rec.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        rec.lotId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (rec.evidence && rec.evidence.toLowerCase().includes(searchTerm.toLowerCase()));
+      const engStatus = getNormalizedEngineeringStatus(rec);
+      const matchesStatus = statusFilter === 'ALL' || engStatus === statusFilter;
       return matchesSearch && matchesStatus;
     });
   }, [records, searchTerm, statusFilter]);
@@ -27,9 +29,9 @@ export default function ComponentTable({ records, onSelectComponent }) {
   const counts = useMemo(() => {
     return {
       ALL: records.length,
-      NORMAL: records.filter((r) => r.status === 'NORMAL' || r.status === 'PASS').length,
-      SUSPECT: records.filter((r) => r.status === 'SUSPECT' || r.status === 'HOLD').length,
-      CRITICAL: records.filter((r) => r.status === 'CRITICAL' || r.status === 'REJECT').length,
+      NORMAL: records.filter((r) => getNormalizedEngineeringStatus(r) === 'NORMAL').length,
+      SUSPECT: records.filter((r) => getNormalizedEngineeringStatus(r) === 'SUSPECT').length,
+      CRITICAL: records.filter((r) => getNormalizedEngineeringStatus(r) === 'CRITICAL').length,
     };
   }, [records]);
 
@@ -98,10 +100,10 @@ export default function ComponentTable({ records, onSelectComponent }) {
               </tr>
             ) : (
               filteredRecords.map((item) => {
-                const normalizedStatus = item.status === 'PASS' ? 'NORMAL' : item.status === 'HOLD' ? 'SUSPECT' : item.status === 'REJECT' ? 'CRITICAL' : item.status;
-                const isNormal = normalizedStatus === 'NORMAL';
-                const isSuspect = normalizedStatus === 'SUSPECT';
-                const isCritical = normalizedStatus === 'CRITICAL';
+                const engStatus = getNormalizedEngineeringStatus(item);
+                const isNormal = engStatus === 'NORMAL';
+                const isSuspect = engStatus === 'SUSPECT';
+                const isCritical = engStatus === 'CRITICAL';
 
                 let statusBadgeClass = 'badge-status-normal';
                 if (isSuspect) statusBadgeClass = 'badge-status-suspect';
@@ -139,7 +141,7 @@ export default function ComponentTable({ records, onSelectComponent }) {
                     </td>
                     <td>
                       <span className={`spad-status-pill ${statusBadgeClass}`}>
-                        {normalizedStatus}
+                        {engStatus}
                       </span>
                     </td>
                   </tr>

@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { mockParameterSpecs, mockComponents } from '../../data/mockData';
+import { mockParameterSpecs } from '../../data/mockData';
 
 // Helper for status colors
 function getStatusBadgeStyle(status) {
@@ -89,7 +89,7 @@ export default function ComponentDetailModal({
   component,
   isOpen,
   onClose,
-  components = mockComponents,
+  components = [],
   onSelectComponent,
   parameterSpecs = mockParameterSpecs,
 }) {
@@ -113,33 +113,27 @@ export default function ComponentDetailModal({
   );
   const decisionBadgeStyle = getStatusBadgeStyle(engineeringResult.decision);
 
-  // 2. AI Model SHAP Explanation Retrieval from centralized data
-  const explanation = component.modelExplanation || {
-    framework: 'SHAP (TreeExplainer)',
+  // 2. AI Multi-Method Data Extraction
+  const aiAssessment = component.aiAssessment || {};
+  const prediction = aiAssessment.prediction || (component.predictions ? { status: 'PREDICTED', parameters: component.predictions } : null);
+  const lotAnomaly = aiAssessment.lotAnomaly || null;
+
+  // 3. AI Model Explanation
+  const explanation = aiAssessment.explanation || component.modelExplanation || {
+    framework: 'Model Explainability Engine',
     targetPrediction: 'Predicted 168h Limit Risk',
-    predictedRiskPercent: component.aiRisk || 15,
     baseValue: 0.15,
     features: [],
-    summaryText: 'Model explanation data synchronized with centralized inference store.',
+    summaryText: 'Model explanation data synchronized with screening telemetry.',
   };
 
-  const predictedRisk = typeof explanation.predictedRiskPercent === 'number'
-    ? explanation.predictedRiskPercent
-    : component.aiRisk || 15;
-
-  let riskCategory = 'NORMAL';
-  let riskColor = '#10b981';
-  if (predictedRisk > 40) {
-    riskCategory = 'SUSPECT';
-    riskColor = '#f59e0b';
-  }
-  if (predictedRisk > 75) {
-    riskCategory = 'CRITICAL';
-    riskColor = '#ef4444';
-  }
+  const aiStatus = component.aiStatus || aiAssessment.overallStatus || 'NOT_EVALUATED';
+  const isAiFlagged = aiStatus === 'FLAGGED';
+  const riskScore = typeof component.riskScore === 'number' ? component.riskScore : 0.15;
+  const aiRisk = Math.round(riskScore * 100);
 
   // Find maximum absolute SHAP value for scaling bars
-  const maxAbsShap = explanation.features.reduce((max, f) => Math.max(max, Math.abs(f.shapValue || 0)), 0.1);
+  const maxAbsShap = explanation.features?.reduce((max, f) => Math.max(max, Math.abs(f.shapValue || 0)), 0.1) || 0.1;
 
   return (
     <div
@@ -159,7 +153,7 @@ export default function ComponentDetailModal({
             <div className="spad-modal-label-row">
               <span className="spad-card-section-label">SPACE-GRADE TELEMETRY AUDIT</span>
               <span className="spad-modal-lot-tag">LOT: {component.lotId}</span>
-              <span className="spad-modal-stage-tag">PHYSICAL STAGE: {component.stage || '96h'}</span>
+              <span className="spad-modal-stage-tag">STAGE: {component.stage || '24h'}</span>
             </div>
             <h2 id="modal-component-title" className="spad-modal-title">
               Detailed Component Analysis: <span className="text-cyan">{component.id}</span>
@@ -218,12 +212,12 @@ export default function ComponentDetailModal({
               <span className="spad-meta-v font-mono">{component.lotId}</span>
             </div>
             <div className="spad-modal-meta-item">
-              <span className="spad-meta-k">Observed Physical Stage:</span>
-              <span className="spad-meta-v highlight">{component.stage || '96h'} Checkpoint</span>
+              <span className="spad-meta-k">Engineering Status:</span>
+              <span className="spad-meta-v highlight">{engineeringResult.decision}</span>
             </div>
             <div className="spad-modal-meta-item">
-              <span className="spad-meta-k">168h Physical Gate:</span>
-              <span className="spad-meta-v text-slate">PENDING (Physical Validation)</span>
+              <span className="spad-meta-k">AI Assistive Status:</span>
+              <span className="spad-meta-v text-slate">{aiStatus}</span>
             </div>
           </div>
 
@@ -233,7 +227,7 @@ export default function ComponentDetailModal({
           <section className="spad-modal-section spad-decision-section" aria-labelledby="heading-eng-decision">
             <div className="spad-section-header">
               <div className="spad-section-title-wrap">
-                <span className="spad-section-pill eng-pill">MIL-STD SPECIFICATION RULE</span>
+                <span className="spad-section-pill eng-pill">ENGINEERING SPECIFICATION RULE</span>
                 <h3 id="heading-eng-decision" className="spad-section-title">
                   Engineering Screening Decision &amp; Specification Limits
                 </h3>
@@ -255,7 +249,7 @@ export default function ComponentDetailModal({
                 <strong>Decision Reason:</strong> {engineeringResult.reasonText}
               </div>
               <p className="spad-decision-rule-sub">
-                Evaluated deterministically across all {engineeringResult.totalParametersCount} parameters against engineering maximum specifications.
+                Evaluated deterministically across all {engineeringResult.totalParametersCount} parameters against official engineering specifications.
                 Rule: 0 limit breaches &rarr; NORMAL, 1 breach &rarr; SUSPECT, 2+ breaches &rarr; CRITICAL.
               </p>
             </div>
@@ -266,7 +260,7 @@ export default function ComponentDetailModal({
                 <thead>
                   <tr>
                     <th>PARAMETER</th>
-                    <th>CURRENT OBSERVED (0h–96h)</th>
+                    <th>CURRENT OBSERVED</th>
                     <th>ENGINEERING SPEC LIMIT</th>
                     <th>LIMIT EVALUATION</th>
                   </tr>
@@ -306,7 +300,7 @@ export default function ComponentDetailModal({
           </section>
 
           {/* ============================================================ */}
-          {/* SECTION 2: AI EVIDENCE & MULTI-MODAL DIAGNOSTICS             */}
+          {/* SECTION 2: AI DUAL METHOD EVIDENCE                           */}
           {/* ============================================================ */}
           <section className="spad-modal-section spad-ai-evidence-section" aria-labelledby="heading-ai-evidence">
             <div className="spad-section-header">
@@ -322,102 +316,94 @@ export default function ComponentDetailModal({
             </div>
 
             <p className="spad-shap-intro-desc">
-              Multi-modal AI models detect statistical distribution anomalies, drift trajectories, and future parametric risk to assist screening engineers.
+              Dual AI methods: Method 1 (168h trajectory forecast from 0h+24h) and Method 2 (intra-lot statistical peer comparison) assist screening engineers.
             </p>
 
             <div className="spad-ai-evidence-grid">
               <div className="spad-ai-evidence-card">
                 <div className="spad-ai-evidence-title-row">
-                  <span className="spad-ai-evidence-k">Population Abnormality</span>
-                  <span className={`spad-ai-status-tag ${component.populationAbnormality ? 'tag-warning' : 'tag-nominal'}`}>
-                    {component.populationAbnormality ? 'SUSPECT' : 'NORMAL'}
+                  <span className="spad-ai-evidence-k">Method 1: 168h Trajectory</span>
+                  <span className={`spad-ai-status-tag ${prediction?.status === 'PREDICTED' ? (isAiFlagged ? 'tag-warning' : 'tag-nominal') : 'tag-nominal'}`}>
+                    {isAiFlagged ? 'FLAGGED' : 'NOT FLAGGED'}
                   </span>
                 </div>
                 <p className="spad-ai-evidence-desc">
-                  {component.populationAbnormality
-                    ? 'Multivariate Mahalanobis distance exceeds Gaussian lot baseline cluster.'
-                    : 'Parametric distribution aligns tightly with nominal peer cohort cluster.'}
+                  {isAiFlagged
+                    ? '168h forecast indicates accelerated degradation gradient approaching specification boundaries.'
+                    : '168h forecasted parameters remain safely within designated engineering margins.'}
                 </p>
               </div>
 
               <div className="spad-ai-evidence-card">
                 <div className="spad-ai-evidence-title-row">
-                  <span className="spad-ai-evidence-k">Trajectory Abnormality</span>
-                  <span className={`spad-ai-status-tag ${component.trajectoryAbnormality ? 'tag-warning' : 'tag-nominal'}`}>
-                    {component.trajectoryAbnormality ? 'SUSPECT' : 'NORMAL'}
+                  <span className="spad-ai-evidence-k">Method 2: Lot Peer Comparison</span>
+                  <span className={`spad-ai-status-tag ${lotAnomaly?.status === 'ANALYZED' ? (lotAnomaly.overallStatus === 'FLAGGED' ? 'tag-warning' : 'tag-nominal') : 'tag-nominal'}`}>
+                    {lotAnomaly?.overallStatus === 'FLAGGED' ? 'FLAGGED' : 'NOT FLAGGED'}
                   </span>
                 </div>
                 <p className="spad-ai-evidence-desc">
-                  {component.trajectoryAbnormality
-                    ? 'Non-linear rate of change observed across early burn-in intervals.'
-                    : 'Steady degradation gradient conforming to standard physics-of-failure curve.'}
+                  {lotAnomaly?.overallStatus === 'FLAGGED'
+                    ? 'Statistical divergence observed relative to same-lot peer cohort cluster.'
+                    : 'Parametric measurements tightly track nominal same-lot peer distribution.'}
                 </p>
               </div>
 
               <div className="spad-ai-evidence-card">
                 <div className="spad-ai-evidence-title-row">
-                  <span className="spad-ai-evidence-k">Future-Risk Prediction</span>
-                  <span className={`spad-ai-status-tag ${predictedRisk > 75 ? 'tag-critical' : predictedRisk > 40 ? 'tag-warning' : 'tag-nominal'}`}>
-                    {predictedRisk > 75 ? 'CRITICAL' : predictedRisk > 40 ? 'SUSPECT' : 'NORMAL'}
+                  <span className="spad-ai-evidence-k">AI Model Risk Score</span>
+                  <span className={`spad-ai-status-tag ${riskScore > 0.6 ? 'tag-warning' : 'tag-nominal'}`}>
+                    {riskScore > 0.6 ? 'ELEVATED' : 'NOMINAL'}
                   </span>
                 </div>
                 <p className="spad-ai-evidence-desc">
-                  {predictedRisk > 75
-                    ? `High probability (${predictedRisk}%) of exceeding engineering limit at 168h.`
-                    : predictedRisk > 40
-                    ? `Moderate probability (${predictedRisk}%) of parameter drift toward specification boundary.`
-                    : `Nominal 168h projection (${predictedRisk}%) well within safety margin.`}
+                  Model risk score: <strong>{riskScore.toFixed(2)}</strong> index. AI outputs provide assistive telemetry insights without overriding deterministic screening rules.
                 </p>
               </div>
             </div>
           </section>
 
           {/* ============================================================ */}
-          {/* SECTION 3: AI EXPLAINABILITY — SHAP (MACHINE LEARNING MODEL) */}
+          {/* SECTION 3: AI EXPLAINABILITY — MODEL ATTRIBUTION             */}
           {/* ============================================================ */}
           <section className="spad-modal-section spad-shap-section" aria-labelledby="heading-ai-shap">
             <div className="spad-section-header">
               <div className="spad-section-title-wrap">
                 <span className="spad-section-pill ai-pill">MACHINE LEARNING EXPLAINABILITY</span>
                 <h3 id="heading-ai-shap" className="spad-section-title">
-                  AI Explainability — SHAP (SHapley Additive exPlanations)
+                  AI Explainability &amp; Feature Attribution
                 </h3>
               </div>
               <div className="spad-shap-framework-badge">
-                FRAMEWORK: <strong>{explanation.framework || 'SHAP TreeExplainer'}</strong>
+                FRAMEWORK: <strong>{explanation.framework || 'Feature Attribution'}</strong>
               </div>
             </div>
 
             <p className="spad-shap-intro-desc">
-              SHAP attribution identifies how individual measurement features mathematically contributed to the AI model's predicted 168h failure risk.
-              <strong> Positive values (+)</strong> increased predicted risk, while <strong>negative values (-)</strong> reduced risk toward the baseline.
+              Feature attribution identifies how individual parameter telemetry points contributed to the model evaluation.
             </p>
 
             {/* Model Prediction Header Box */}
             <div className="spad-shap-prediction-banner">
               <div className="spad-shap-pred-item">
-                <span className="spad-pred-label">AI PREDICTED 168h RISK:</span>
+                <span className="spad-pred-label">AI ASSISTIVE STATUS:</span>
                 <div className="spad-pred-val-wrap">
-                  <span className="spad-pred-percent" style={{ color: riskColor }}>
-                    {predictedRisk}%
-                  </span>
-                  <span className="spad-pred-category" style={{ color: riskColor, borderColor: riskColor }}>
-                    {riskCategory}
+                  <span className="spad-pred-percent" style={{ color: isAiFlagged ? '#f59e0b' : '#10b981' }}>
+                    {aiStatus}
                   </span>
                 </div>
               </div>
 
               <div className="spad-shap-pred-item">
-                <span className="spad-pred-label">LOT BASELINE EXPECTED RISK (E[f(x)]):</span>
+                <span className="spad-pred-label">MODEL RISK SCORE:</span>
                 <span className="spad-pred-base font-mono">
-                  {((explanation.baseValue || 0.15) * 100).toFixed(1)}%
+                  {riskScore.toFixed(2)}
                 </span>
               </div>
 
               <div className="spad-shap-pred-item spad-shap-pred-span">
                 <span className="spad-pred-label">MODEL DIAGNOSTIC SUMMARY:</span>
                 <p className="spad-pred-summary-text">
-                  {explanation.summaryText}
+                  {explanation.summaryText || 'Nominal telemetry tracking across 0h and 24h intervals.'}
                 </p>
               </div>
             </div>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { mockParameterSpecs, mockComponents, mockScreeningContext } from '../../data/mockData';
+import { mockParameterSpecs, mockScreeningContext } from '../../data/mockData';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://sih26-spad.onrender.com';
 
@@ -28,7 +28,7 @@ function extractTrajectory(data, predictionVal) {
 
 export default function ParameterTrends({
   parameterSpecs = mockParameterSpecs,
-  components = mockComponents,
+  components = [],
   context = mockScreeningContext,
 }) {
   // 1. Interactive State Management
@@ -159,18 +159,29 @@ export default function ParameterTrends({
 
   // 5. Dynamic Limit and Prediction retrieval for the active parameter
   const dynamicLimit = useMemo(() => {
-    if (typeof activeComponent.engineeringLimits?.[activeSpec.key] === 'number') {
-      return activeComponent.engineeringLimits[activeSpec.key];
+    const rawLimit = activeComponent.engineeringLimits?.[activeSpec.key] ?? activeComponent.engineeringLimits?.[activeSpec.id];
+    if (rawLimit && typeof rawLimit === 'object' && typeof rawLimit.limitValue === 'number') {
+      return rawLimit.limitValue;
     }
-    if (typeof activeComponent.engineeringLimits?.[activeSpec.id] === 'number') {
-      return activeComponent.engineeringLimits[activeSpec.id];
+    if (typeof rawLimit === 'number') {
+      return rawLimit;
     }
     return activeSpec.specLimitMax;
   }, [activeComponent.engineeringLimits, activeSpec]);
 
   const dynamicPrediction = useMemo(() => {
+    // 1. Canonical Method 1 prediction location
+    const canonicalPred1 = activeComponent.aiAssessment?.prediction?.parameters?.[activeSpec.key]?.predicted168h;
+    const canonicalPred2 = activeComponent.aiAssessment?.prediction?.parameters?.[activeSpec.id]?.predicted168h;
+    if (typeof canonicalPred1 === 'number') return canonicalPred1;
+    if (typeof canonicalPred2 === 'number') return canonicalPred2;
+
+    // 2. Legacy fallback locations
     const key1 = `${activeSpec.key}_168h`;
     const key2 = `${activeSpec.id}_168h`;
+    if (typeof activeComponent.predictions?.[activeSpec.key] === 'number') {
+      return activeComponent.predictions[activeSpec.key];
+    }
     if (typeof activeComponent.predictions?.[key1] === 'number') {
       return activeComponent.predictions[key1];
     }
@@ -178,7 +189,7 @@ export default function ParameterTrends({
       return activeComponent.predictions[key2];
     }
     return undefined;
-  }, [activeComponent.predictions, activeSpec]);
+  }, [activeComponent.aiAssessment, activeComponent.predictions, activeSpec]);
 
   // 6. Selected Component Status
   const selectedStatus = activeComponent.status || 'NORMAL';

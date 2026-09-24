@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import ScreeningPipelineCard from '../components/dashboard/ScreeningPipeline';
 import { mockPipelineStages, mockScreeningContext } from '../data/mockData';
+import { getNormalizedEngineeringStatus } from '../utils/recordMapping';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://sih26-spad.onrender.com';
 
@@ -82,13 +83,13 @@ export default function ScreeningPipeline() {
     if (dataSource === 'api' && currentLotRecords.length > 0) {
       const totalUnits = currentLotRecords.length;
       const normalCount = currentLotRecords.filter(
-        (r) => r.status === 'NORMAL' || r.status === 'PASS'
+        (r) => getNormalizedEngineeringStatus(r) === 'NORMAL'
       ).length;
       const anomaliesCount = currentLotRecords.filter(
-        (r) => r.status === 'SUSPECT' || r.status === 'CRITICAL' || r.status === 'HOLD' || r.status === 'REJECT'
+        (r) => getNormalizedEngineeringStatus(r) !== 'NORMAL'
       ).length;
       const currentYieldPct = totalUnits > 0 ? `${((normalCount / totalUnits) * 100).toFixed(1)}%` : '100.0%';
-      const activeStage = currentLotRecords[0].stage || '96h';
+      const activeStage = currentLotRecords[0].stage || '24h';
 
       return {
         lotId: activeLotId,
@@ -114,9 +115,9 @@ export default function ScreeningPipeline() {
   const pipelineStages = useMemo(() => {
     if (dataSource === 'api' && currentLotRecords.length > 0) {
       const sample = currentLotRecords[0];
-      const hasBaseline = Boolean(sample.measurements?.iddq && sample.measurements.iddq.length >= 1);
-      const has24h = Boolean(sample.measurements?.iddq && sample.measurements.iddq.length >= 2);
-      const hasPrediction = Boolean(sample.predictions && Object.keys(sample.predictions).length > 0);
+      const hasBaseline = Boolean(sample.measurements && Object.keys(sample.measurements).length > 0);
+      const has24h = Boolean(sample.measurements && Object.keys(sample.measurements).length > 0);
+      const hasPrediction = Boolean(sample.aiAssessment?.prediction || (sample.predictions && Object.keys(sample.predictions).length > 0));
 
       return [
         {
