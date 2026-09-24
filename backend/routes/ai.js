@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const aiService = require('../services/aiService');
 const {
   rateOfChangePerHour,
   projectedMargin,
@@ -7,11 +8,7 @@ const {
 } = require('../utils/contractCalculations');
 
 /**
- * Extracts 0h and 24h observations from a parameter object.
- * Supports:
- * - { observed: { "0h": 2.0, "24h": 2.8 } }
- * - { history: { "0h": 2.0, "24h": 2.8 } }
- * - { "0h": 2.0, "24h": 2.8 }
+ * Extracts 0h and 24h observations and unit from a parameter object.
  *
  * @param {Object} paramObj
  * @returns {{ val0h: number|null, val24h: number|null, unit: string }}
@@ -49,72 +46,15 @@ function createErrorResponse(res, statusCode, code, message, componentId = null,
   });
 }
 
-/**
- * Temporary Isolated AI Prediction Engine (Method 1)
- * Projects 168h trajectory deterministically: val24h + (roc * 144)
- * Will be replaced by real AI microservice without modifying the API contract.
- */
-function computeTemporaryPrediction(val0h, val24h, limitObj) {
-  const roc = rateOfChangePerHour(val0h, val24h);
-  if (roc === null) {
-    return {
-      predicted168h: null,
-      rateOfChange: null,
-      margin: null,
-      riskScore: 0.0,
-      aiFlag: 'NOT_EVALUATED',
-    };
-  }
-
-  // Linear projection from 24h to 168h (144h delta)
-  const predicted168h = Number((val24h + roc * 144).toFixed(4));
-
-  let margin = null;
-  let limitValue = null;
-  let direction = null;
-
-  if (limitObj && typeof limitObj === 'object') {
-    limitValue = typeof limitObj.limitValue === 'number' ? limitObj.limitValue : (limitObj.upper ?? limitObj.lower);
-    direction = limitObj.direction || (limitObj.upper !== undefined ? 'UPPER' : 'LOWER');
-
-    if (typeof limitValue === 'number' && direction) {
-      margin = projectedMargin(predicted168h, limitValue, direction);
-      if (margin !== null) {
-        margin = Number(margin.toFixed(4));
-      }
-    }
-  }
-
-  // Temporary flag determination: breach predicted or excessive degradation
-  let aiFlag = 'NOT FLAGGED';
-  let riskScore = 0.15;
-
-  if (margin !== null && margin < 0) {
-    aiFlag = 'FLAGGED';
-    riskScore = 0.85;
-  } else if (Math.abs(roc) > 0.05) {
-    aiFlag = 'FLAGGED';
-    riskScore = 0.70;
-  }
-
-  return {
-    predicted168h,
-    rateOfChange: roc,
-    margin,
-    riskScore,
-    aiFlag,
-  };
-}
-
 // ============================================================================
 // METHOD 1: Component-Level 168h Future Trajectory Prediction
 // POST /api/ai/predict-168h
 // ============================================================================
-router.post('/predict-168h', (req, res) => {
+router.post('/predict-168h', async (req, res) => {
   try {
-    const { componentId, lotId, parameters, engineeringLimits } = req.body || {};
+    const { componentId, lotId, parameters, engineeringLimits, context } = req.body || {};
 
-    // 1. Validate componentId & lotId
+    // 1. Validate required componentId & lotId
     if (!componentId || typeof componentId !== 'string' || !componentId.trim()) {
       return createErrorResponse(
         res,
@@ -137,7 +77,7 @@ router.post('/predict-168h', (req, res) => {
       );
     }
 
-    // 2. Validate parameters object
+    // 2. Validate parameters dictionary
     if (!parameters || typeof parameters !== 'object' || Array.isArray(parameters) || Object.keys(parameters).length === 0) {
       return createErrorResponse(
         res,
@@ -149,14 +89,9 @@ router.post('/predict-168h', (req, res) => {
       );
     }
 
-    const responseParameters = {};
-    const paramFlags = [];
-
-    // 3. Process each dynamic parameter
+    // Validate 0h and 24h observations
     for (const [paramName, paramData] of Object.entries(parameters)) {
-      const { val0h, val24h, unit } = extractObservations(paramData);
-
-      // Check required observations (0h and 24h)
+      const { val0h, val24h } = extractObservations(paramData);
       if (val0h === null || val24h === null) {
         return createErrorResponse(
           res,
@@ -167,10 +102,32 @@ router.post('/predict-168h', (req, res) => {
           lotId
         );
       }
+    }
 
-      // Extract engineering limit if supplied in root engineeringLimits or parameter object
+    // 3. Delegate model prediction to AI Service Interface
+    const aiResult = await aiService.predict168h({
+      componentId: componentId.trim(),
+      lotId: lotId.trim(),
+      parameters,
+      engineeringLimits,
+      context,
+    });
+
+    const responseParameters = {};
+    const paramFlags = [];
+
+    // 4. Combine AI model outputs with deterministic Backend-Derived Calculations
+    for (const [paramName, paramData] of Object.entries(parameters)) {
+      const { val0h, val24h, unit } = extractObservations(paramData);
+      const aiPred = aiResult.predictions[paramName] || {};
+
+      // Backend-derived: rateOfChangePerHour
+      const roc = rateOfChangePerHour(val0h, val24h);
+
+      // Extract official engineering limit if supplied
       const rawLimit = (engineeringLimits && engineeringLimits[paramName]) || paramData.engineeringLimit || null;
       let limitOutput = null;
+      let calculatedMargin = null;
 
       if (rawLimit && typeof rawLimit === 'object') {
         const limitVal = typeof rawLimit.limitValue === 'number' ? rawLimit.limitValue : (rawLimit.upper ?? rawLimit.lower);
@@ -183,37 +140,39 @@ router.post('/predict-168h', (req, res) => {
             direction: String(dir).toUpperCase(),
             source: src,
           };
+
+          // Backend-derived: projectedMargin (direction-aware)
+          if (aiPred.predicted168h !== null && typeof aiPred.predicted168h === 'number') {
+            calculatedMargin = projectedMargin(aiPred.predicted168h, limitVal, dir);
+            if (calculatedMargin !== null) {
+              calculatedMargin = Number(calculatedMargin.toFixed(4));
+            }
+          }
         }
       }
 
-      // Compute temporary deterministic prediction
-      const { predicted168h, rateOfChange, margin, riskScore, aiFlag } = computeTemporaryPrediction(
-        val0h,
-        val24h,
-        limitOutput
-      );
-
-      paramFlags.push(aiFlag);
+      const flag = aiPred.aiFlag || 'NOT_EVALUATED';
+      paramFlags.push(flag);
 
       responseParameters[paramName] = {
-        status: 'PREDICTED',
+        status: aiPred.status || 'PREDICTED',
         unit: unit || paramData.unit || '',
         observed: {
           '0h': val0h,
           '24h': val24h,
         },
-        predicted168h,
-        rateOfChangePerHour: rateOfChange,
+        predicted168h: aiPred.predicted168h,
+        rateOfChangePerHour: roc,
         engineeringLimit: limitOutput,
-        limitBreachProbability: null, // Omitted/null as per contract until calibrated
-        projectedMargin: margin,
-        futureRiskScore: riskScore,
-        futureRiskPercent: null, // Omitted/null as per contract until calibrated
-        aiFlag,
+        limitBreachProbability: aiPred.limitBreachProbability ?? null,
+        projectedMargin: calculatedMargin,
+        futureRiskScore: aiPred.futureRiskScore ?? 0.0,
+        futureRiskPercent: aiPred.futureRiskPercent ?? null,
+        aiFlag: flag,
       };
     }
 
-    // Aggregate overall status using Step 1 deterministic utility
+    // Backend-derived: overallStatus aggregation
     const calculatedOverallStatus = overallStatus(paramFlags);
 
     return res.status(200).json({
@@ -241,9 +200,9 @@ router.post('/predict-168h', (req, res) => {
 // METHOD 2: Intra-Lot Statistical Peer Comparison
 // POST /api/ai/detect-lot-anomalies
 // ============================================================================
-router.post('/detect-lot-anomalies', (req, res) => {
+router.post('/detect-lot-anomalies', async (req, res) => {
   try {
-    const { componentId, lotId, components } = req.body || {};
+    const { componentId, lotId, components, context } = req.body || {};
 
     // 1. Validate lotId
     if (!lotId || typeof lotId !== 'string' || !lotId.trim()) {
@@ -259,7 +218,7 @@ router.post('/detect-lot-anomalies', (req, res) => {
 
     const cleanLotId = lotId.trim();
 
-    // 2. Validate components array
+    // 2. Validate components cohort
     if (!Array.isArray(components) || components.length === 0) {
       return createErrorResponse(
         res,
@@ -271,7 +230,6 @@ router.post('/detect-lot-anomalies', (req, res) => {
       );
     }
 
-    // Determine target component ID
     const targetId = (typeof componentId === 'string' && componentId.trim())
       ? componentId.trim()
       : (components[0]?.componentId || '');
@@ -287,7 +245,7 @@ router.post('/detect-lot-anomalies', (req, res) => {
       );
     }
 
-    // 3. Filter strictly for SAME LOT components
+    // 3. Enforce SAME-LOT peer isolation
     const sameLotComponents = components.filter(
       (c) => c && typeof c === 'object' && (c.lotId === cleanLotId || !c.lotId)
     );
@@ -295,8 +253,7 @@ router.post('/detect-lot-anomalies', (req, res) => {
     const componentsAnalyzed = sameLotComponents.length;
     const eligiblePeersCount = Math.max(0, componentsAnalyzed - 1);
 
-    // Locate target component data in the cohort
-    const targetCompData = sameLotComponents.find((c) => c.componentId === targetId) || components[0];
+    const targetCompData = sameLotComponents.find((c) => (c.componentId || c.id) === targetId) || components[0];
     const targetParams = targetCompData?.parameters || targetCompData?.measurements || {};
 
     // 4. Minimum Cohort Rule (< 3 comparable components)
@@ -335,83 +292,38 @@ router.post('/detect-lot-anomalies', (req, res) => {
       });
     }
 
-    // 5. Sufficient Cohort (>= 3): Run temporary isolated peer comparison
+    // 5. Delegate anomaly detection to AI Service Interface
+    const aiResult = await aiService.detectLotAnomalies({
+      targetComponentId: targetId,
+      lotId: cleanLotId,
+      cohort: sameLotComponents,
+      context,
+    });
+
     const responseParameters = {};
     const paramFlags = [];
-    const peers = sameLotComponents.filter((c) => c.componentId !== targetId);
 
     for (const [paramName, paramData] of Object.entries(targetParams)) {
       const { val0h, val24h } = extractObservations(paramData);
+      const aiEval = aiResult.anomalyResults[paramName] || {};
 
-      if (val24h === null) {
-        responseParameters[paramName] = {
-          status: 'UNSUPPORTED_PARAMETER',
-          observed: { '0h': val0h, '24h': val24h },
-          lotAnomalyScore: null,
-          peerComparisonEvidence: { reason: 'Missing 24h observation on target component' },
-          divergenceType: null,
-          aiFlag: 'NOT_EVALUATED',
-        };
-        paramFlags.push('NOT_EVALUATED');
-        continue;
-      }
-
-      // Collect 24h values across peers
-      const peerValues = [];
-      for (const peer of peers) {
-        const peerParam = peer.parameters?.[paramName] || peer.measurements?.[paramName];
-        if (peerParam) {
-          const obs = extractObservations(peerParam);
-          if (obs.val24h !== null) {
-            peerValues.push(obs.val24h);
-          }
-        }
-      }
-
-      if (peerValues.length < 2) {
-        responseParameters[paramName] = {
-          status: 'UNSUPPORTED_PARAMETER',
-          observed: { '0h': val0h, '24h': val24h },
-          lotAnomalyScore: null,
-          peerComparisonEvidence: { reason: 'Insufficient peer observations for this parameter' },
-          divergenceType: null,
-          aiFlag: 'NOT_EVALUATED',
-        };
-        paramFlags.push('NOT_EVALUATED');
-        continue;
-      }
-
-      // Calculate peer cohort statistics
-      const sum = peerValues.reduce((a, b) => a + b, 0);
-      const mean = sum / peerValues.length;
-      const variance = peerValues.reduce((acc, v) => acc + Math.pow(v - mean, 2), 0) / peerValues.length;
-      const std = Math.sqrt(variance);
-
-      const diff = val24h - mean;
-      const zScore = std > 0.0001 ? diff / std : (diff !== 0 ? diff * 5 : 0);
-      const isOutlier = Math.abs(zScore) > 2.0;
-
-      const aiFlag = isOutlier ? 'FLAGGED' : 'NOT FLAGGED';
-      paramFlags.push(aiFlag);
+      const flag = aiEval.aiFlag || 'NOT_EVALUATED';
+      paramFlags.push(flag);
 
       responseParameters[paramName] = {
-        status: 'ANALYZED',
+        status: aiEval.status || 'ANALYZED',
         observed: {
           '0h': val0h,
           '24h': val24h,
         },
-        lotAnomalyScore: Number(Math.min(1.0, Math.max(0.0, Math.abs(zScore) / 4.0)).toFixed(3)),
-        peerComparisonEvidence: {
-          peerMean: Number(mean.toFixed(3)),
-          peerStd: Number(std.toFixed(3)),
-          peerCount: peerValues.length,
-          zScore: Number(zScore.toFixed(3)),
-        },
-        divergenceType: isOutlier ? (diff > 0 ? 'ELEVATED_OUTLIER' : 'DEPRESSED_OUTLIER') : 'NOMINAL',
-        aiFlag,
+        lotAnomalyScore: aiEval.lotAnomalyScore ?? null,
+        peerComparisonEvidence: aiEval.peerComparisonEvidence || {},
+        divergenceType: aiEval.divergenceType ?? null,
+        aiFlag: flag,
       };
     }
 
+    // Backend-derived: overallStatus aggregation
     const calculatedOverallStatus = overallStatus(paramFlags);
 
     return res.status(200).json({

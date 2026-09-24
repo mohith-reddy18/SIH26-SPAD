@@ -1,11 +1,20 @@
 const mongoose = require('mongoose');
 
 /**
- * SPAD Screening Record Schema
- * Supports dynamic parameter measurements, engineering limits, and AI assessment outputs.
+ * SPAD Screening Record Schema — Aligned with Final AI Output Contract
+ *
+ * Canonical Structure:
+ * - componentId: Unique component identifier
+ * - lotId: Lot / batch identifier
+ * - stage: Current screening burn-in stage (e.g., '0h', '24h', '96h', '168h')
+ * - measurements: Dynamic physical parameter measurements across timepoints
+ * - engineeringLimits: Official engineering specification limits with direction & source
+ * - engineeringStatus: Deterministic screening decision ('NORMAL' | 'SUSPECT' | 'CRITICAL')
+ * - aiAssessment: Multi-method AI evaluation (overallStatus, prediction, lotAnomaly, explanation)
  */
 const screeningRecordSchema = new mongoose.Schema(
   {
+    // --- Canonical Identifiers ---
     componentId: {
       type: String,
       required: [true, 'Component ID is required'],
@@ -21,50 +30,43 @@ const screeningRecordSchema = new mongoose.Schema(
     stage: {
       type: String,
       trim: true,
-      default: '96h',
+      default: '24h',
     },
-    // Dynamic parameter measurements (e.g., { iddq: [2.0, 2.1, 2.2], leakage: [0.38, 0.40], ... })
+
+    // --- Dynamic Parameter Measurements ---
+    // Example: { iddq: { unit: 'mA', '0h': 2.0, '24h': 2.1 }, leakage: { unit: 'uA', '0h': 0.4, '24h': 0.5 } }
     measurements: {
       type: mongoose.Schema.Types.Mixed,
       default: {},
     },
-    // Parameter metadata or specifications
-    parameters: {
-      type: mongoose.Schema.Types.Mixed,
-      default: {},
-    },
-    // Predicted/forecasted values from AI analysis (e.g., predicted 168h values)
-    predictions: {
-      type: mongoose.Schema.Types.Mixed,
-      default: {},
-    },
-    // Engineering limit definitions & compliance status
+
+    // --- Official Engineering Specification Limits ---
+    // Example: { iddq: { limitValue: 4.0, direction: 'UPPER', source: 'DATABASE_CATALOG' } }
+    // Sources: 'SUPPLIED' | 'DATABASE_CATALOG' | 'AI_ESTIMATED_BOUNDARY' | 'NONE_AVAILABLE'
     engineeringLimits: {
       type: mongoose.Schema.Types.Mixed,
       default: {},
     },
-    engineeringLimitStatus: {
+
+    // --- Deterministic Engineering Status ---
+    // Strictly computed from physical measurements + official limits: 'NORMAL' | 'SUSPECT' | 'CRITICAL'
+    engineeringStatus: {
       type: String,
       trim: true,
+      default: 'NORMAL',
     },
-    // AI screening assessment & risk scoring
+
+    // --- Canonical AI Assessment Object ---
+    // Supports { overallStatus, prediction, lotAnomaly, explanation }
     aiAssessment: {
-      type: String,
-      trim: true,
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
     },
-    aiRisk: {
-      type: Number,
-    },
-    riskScore: {
-      type: Number,
-    },
-    // Multi-modal evidence pathways
-    anomalies: {
-      populationAbnormality: { type: Boolean, default: false },
-      trajectoryAbnormality: { type: Boolean, default: false },
-      futureRiskPrediction: { type: String },
-    },
-    evidence: {
+
+    // ========================================================================
+    // Legacy Fields (Retained strictly for backward compatibility with existing documents)
+    // ========================================================================
+    status: {
       type: String,
       trim: true,
     },
@@ -72,11 +74,32 @@ const screeningRecordSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
-    status: {
+    riskScore: {
+      type: Number,
+    },
+    aiRisk: {
+      type: Number,
+    },
+    engineeringLimitStatus: {
       type: String,
       trim: true,
     },
-    // Explainability information (e.g., SHAP feature attributions, summary text)
+    anomalies: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
+    },
+    predictions: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
+    },
+    parameters: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
+    },
+    evidence: {
+      type: String,
+      trim: true,
+    },
     modelExplanation: {
       type: mongoose.Schema.Types.Mixed,
       default: {},
@@ -84,7 +107,7 @@ const screeningRecordSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-    strict: false, // Allows additional dynamic fields without schema alteration
+    strict: false, // Allows additional dynamic fields without schema errors
   }
 );
 
