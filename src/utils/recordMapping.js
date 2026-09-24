@@ -130,34 +130,90 @@ export const PARAMETER_DISPLAY_MAP = {
   propDelay: { name: 'Propagation Delay (t_pd)', shortName: 't_pd', unit: 'ns', defaultRef: [8.10, 8.14, 8.18, 8.22] },
   propagationDelay: { name: 'Propagation Delay (t_pd)', shortName: 't_pd', unit: 'ns', defaultRef: [8.10, 8.14, 8.18, 8.22] },
   v_th: { name: 'Threshold Voltage (V_th)', shortName: 'V_th', unit: 'V', defaultRef: [1.20, 1.20, 1.20, 1.20] },
-  rdson: { name: 'On-Resistance (R_dson)', shortName: 'R_dson', unit: 'mΩ', defaultRef: [15.0, 15.2, 15.4, 15.6] },
+  vth: { name: 'Threshold Voltage (V_th)', shortName: 'V_th', unit: 'V', defaultRef: [1.20, 1.20, 1.20, 1.20] },
+  rdson: { name: 'On-Resistance (RDS(on))', shortName: 'RDS(on)', unit: 'Ω', defaultRef: [0.50, 0.52, 0.54, 0.56] },
+  rdson_ohm: { name: 'On-Resistance (RDS(on))', shortName: 'RDS(on)', unit: 'Ω', defaultRef: [0.50, 0.52, 0.54, 0.56] },
+  rds_on: { name: 'On-Resistance (RDS(on))', shortName: 'RDS(on)', unit: 'Ω', defaultRef: [0.50, 0.52, 0.54, 0.56] },
   freq: { name: 'Frequency (Freq)', shortName: 'Freq', unit: 'MHz', defaultRef: [100.0, 100.0, 100.0, 100.0] },
   gain: { name: 'Open Loop Gain (Gain)', shortName: 'Gain', unit: 'dB', defaultRef: [80.0, 80.0, 79.9, 79.8] },
 };
 
 /**
- * Derives rich display metadata for any parameter key from backend telemetry & limits.
+ * Derives rich display metadata dynamically for any parameter key from backend telemetry & limits.
  *
- * @param {string} key - Machine-readable parameter key (e.g. 'iddq', 'leakage')
+ * @param {string} key - Machine-readable parameter key (e.g. 'iddq', 'leakage', 'rdson')
  * @param {number|Object} limit - Engineering limit value or object
  * @returns {Object} Parameter metadata with id, name, shortName, unit, specLimitMax, healthyRef
  */
 export function getParameterMeta(key, limit) {
-  const matched = PARAMETER_DISPLAY_MAP[key] || {};
-  let limitValue = undefined;
+  if (!key) {
+    return { id: '', key: '', name: '', shortName: '', unit: '', specLimitMax: undefined, healthyRef: [0, 0, 0, 0] };
+  }
 
-  if (typeof limit === 'number') {
+  const cleanKey = String(key).trim();
+  const lowerKey = cleanKey.toLowerCase();
+  const matched = PARAMETER_DISPLAY_MAP[cleanKey] || PARAMETER_DISPLAY_MAP[lowerKey] || {};
+
+  let limitValue = undefined;
+  let limitUnit = '';
+
+  if (typeof limit === 'number' && !isNaN(limit)) {
     limitValue = limit;
-  } else if (limit && typeof limit === 'object' && typeof limit.limitValue === 'number') {
-    limitValue = limit.limitValue;
+  } else if (limit && typeof limit === 'object') {
+    if (typeof limit.limitValue === 'number') limitValue = limit.limitValue;
+    else if (typeof limit.max === 'number') limitValue = limit.max;
+    else if (typeof limit.value === 'number') limitValue = limit.value;
+
+    if (typeof limit.unit === 'string') limitUnit = limit.unit;
+  }
+
+  // Derive human-friendly display name if not in static mapping
+  let derivedName = matched.name;
+  if (!derivedName) {
+    if (lowerKey.includes('rdson') || lowerKey.includes('rds')) {
+      derivedName = 'On-Resistance (RDS(on))';
+    } else if (lowerKey === 'vth' || lowerKey.includes('v_th') || lowerKey.includes('threshold')) {
+      derivedName = 'Threshold Voltage (V_th)';
+    } else if (lowerKey.includes('leakage')) {
+      derivedName = 'Leakage Current (I_leak)';
+    } else if (lowerKey.includes('delay')) {
+      derivedName = 'Propagation Delay (t_pd)';
+    } else if (lowerKey.includes('iddq')) {
+      derivedName = 'Standby Current (Iddq)';
+    } else {
+      derivedName = cleanKey
+        .replace(/_/g, ' ')
+        .replace(/([A-Z])/g, ' $1')
+        .replace(/^./, (str) => str.toUpperCase())
+        .trim();
+    }
+  }
+
+  // Derive short name
+  const derivedShortName = matched.shortName || cleanKey;
+
+  // Derive unit
+  let derivedUnit = matched.unit || limitUnit;
+  if (!derivedUnit) {
+    if (lowerKey.includes('rdson') || lowerKey.includes('rds') || lowerKey.includes('resist')) {
+      derivedUnit = 'Ω';
+    } else if (lowerKey.includes('volt') || lowerKey.startsWith('v_') || lowerKey.startsWith('vth')) {
+      derivedUnit = 'V';
+    } else if (lowerKey.includes('curr') || lowerKey.includes('leak') || lowerKey.includes('iddq')) {
+      derivedUnit = 'mA';
+    } else if (lowerKey.includes('delay') || lowerKey.includes('time')) {
+      derivedUnit = 'ns';
+    } else if (lowerKey.includes('freq')) {
+      derivedUnit = 'Hz';
+    }
   }
 
   return {
-    id: key,
-    key: key,
-    name: matched.name || key,
-    shortName: matched.shortName || key,
-    unit: matched.unit || (limit?.unit || ''),
+    id: cleanKey,
+    key: cleanKey,
+    name: derivedName,
+    shortName: derivedShortName,
+    unit: derivedUnit,
     specLimitMax: limitValue,
     healthyRef: matched.defaultRef || [0, 0, 0, 0],
   };
