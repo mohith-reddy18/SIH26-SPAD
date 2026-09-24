@@ -73,7 +73,7 @@ export default function ScreeningPipeline() {
 
   const availableLotIds = useMemo(() => Object.keys(lotsMap), [lotsMap]);
   const activeLotId = selectedLotId || availableLotIds[0] || '—';
-  const currentLotRecords = lotsMap[activeLotId] || [];
+  const currentLotRecords = useMemo(() => lotsMap[activeLotId] || [], [lotsMap, activeLotId]);
 
   // Derive lot-level screening context from real database data
   const lotContext = useMemo(() => {

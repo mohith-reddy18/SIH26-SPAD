@@ -146,7 +146,6 @@ export default function ComponentDetailModal({
   const aiStatus = component.aiStatus || aiAssessment.overallStatus || 'NOT_EVALUATED';
   const isAiFlagged = aiStatus === 'FLAGGED';
   const riskScore = typeof component.riskScore === 'number' ? component.riskScore : 0.15;
-  const aiRisk = Math.round(riskScore * 100);
 
   // Find maximum absolute SHAP value for scaling bars
   const maxAbsShap = explanation.features?.reduce((max, f) => Math.max(max, Math.abs(f.shapValue || 0)), 0.1) || 0.1;

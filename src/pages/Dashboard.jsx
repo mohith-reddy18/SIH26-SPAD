@@ -7,6 +7,7 @@ import ParameterTrends from '../components/dashboard/ParameterTrends';
 import ComponentTable from '../components/dashboard/ComponentTable';
 import SystemStatus from '../components/dashboard/SystemStatus';
 import RecentAlerts from '../components/dashboard/RecentAlerts';
+import LotAnomalyDetection from '../components/dashboard/LotAnomalyDetection';
 import ComponentDetailModal from '../components/dashboard/ComponentDetailModal';
 import './Dashboard.css';
 
@@ -196,7 +197,15 @@ export default function Dashboard({ onNavigateToComponent }) {
         />
       </section>
 
-      {/* 5. Detailed Component View (Full-Width Table) */}
+      {/* 5. Dedicated Lot-Level Anomaly Detection (Method 2: Intra-Lot Statistical Peer Comparison) */}
+      <section aria-label="Lot-Level Anomaly Detection">
+        <LotAnomalyDetection
+          records={componentRecords}
+          onSelectComponent={handleSelectComponent}
+        />
+      </section>
+
+      {/* 6. Detailed Component View (Full-Width Table) */}
       <section aria-label="Component Screening Records">
         <ComponentTable records={componentRecords} onSelectComponent={handleSelectComponent} />
       </section>

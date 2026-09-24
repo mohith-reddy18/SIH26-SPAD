@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { getNormalizedEngineeringStatus, getNormalizedAiStatus, getParameterMeta, extractLatestValue } from '../../utils/recordMapping';
+import { getNormalizedEngineeringStatus, getParameterMeta, extractLatestValue } from '../../utils/recordMapping';
 
 function SearchIcon() {
   return (
@@ -121,7 +121,6 @@ export default function ComponentTable({ records = [], onSelectComponent }) {
             ) : (
               filteredRecords.map((item) => {
                 const engStatus = getNormalizedEngineeringStatus(item);
-                const isNormal = engStatus === 'NORMAL';
                 const isSuspect = engStatus === 'SUSPECT';
                 const isCritical = engStatus === 'CRITICAL';
 
