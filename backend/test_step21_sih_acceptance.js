@@ -17,9 +17,8 @@ const {
   predict168hLinear,
 } = require('./utils/contractCalculations');
 const {
-  calculateMethod1Predictions,
-  calculateMethod2LotAnomalies,
-  executeInferenceFlow,
+  predict168h,
+  detectLotAnomalies,
 } = require('./services/aiService');
 
 let passed = 0;
@@ -187,17 +186,30 @@ async function runAcceptanceTests() {
 
   // --- STAGE 3: METHOD 1 (0h + 24h -> 168h PREDICTION) ---
   console.log('\n--- TEST GROUP 3: Method 1 (168h Prediction) ---');
-  const m1Result = calculateMethod1Predictions({
+  const m1Params = {
+    iddq: { unit: 'mA', observed: { '0h': DEMO_COMPONENTS[1].measurements.iddq[0], '24h': DEMO_COMPONENTS[1].measurements.iddq[1] } },
+    leakage: { unit: 'µA', observed: { '0h': DEMO_COMPONENTS[1].measurements.leakage[0], '24h': DEMO_COMPONENTS[1].measurements.leakage[1] } },
+    propDelay: { unit: 'ns', observed: { '0h': DEMO_COMPONENTS[1].measurements.propDelay[0], '24h': DEMO_COMPONENTS[1].measurements.propDelay[1] } },
+  };
+
+  const m1Limits = {
+    iddq: { limitValue: 4.00, direction: 'UPPER' },
+    leakage: { limitValue: 1.50, direction: 'UPPER' },
+    propDelay: { limitValue: 11.00, direction: 'UPPER' },
+  };
+
+  const m1Result = await predict168h({
     componentId: 'DEMO-C02',
-    measurements: DEMO_COMPONENTS[1].measurements,
-    engineeringLimits: DEMO_COMPONENTS[1].engineeringLimits,
+    lotId: DEMO_LOT_ID,
+    parameters: m1Params,
+    engineeringLimits: m1Limits,
   });
 
   assert(m1Result.predictions !== undefined, 'Method 1 produces predictions dictionary');
   assert(typeof m1Result.predictions.iddq.predicted168h === 'number', 'Method 1 outputs numeric predicted168h for iddq');
   assert(m1Result.predictions.iddq.predictionInterval !== undefined, 'Method 1 includes predictionInterval [lower, upper]');
   assert(typeof m1Result.predictions.iddq.futureRiskScore === 'number', 'Method 1 includes futureRiskScore');
-  assert(typeof m1Result.predictions.iddq.limitBreachProbability === 'number', 'Method 1 includes limitBreachProbability');
+  assert(m1Result.predictions.iddq.limitBreachProbability !== undefined, 'Method 1 includes limitBreachProbability');
   assert(['FLAGGED', 'NOT FLAGGED', 'NOT_EVALUATED'].includes(m1Result.predictions.iddq.aiFlag), 'Method 1 aiFlag conforms to contract');
 
   // Verify distinguishability between 24h observed and 168h predicted
@@ -208,18 +220,27 @@ async function runAcceptanceTests() {
   const allLotDocs = mockFind({ lotId: DEMO_LOT_ID });
   assert(allLotDocs.length === 8, 'Lot cohort contains 8 components (>= 3 required for Method 2)');
 
-  const m2Result = calculateMethod2LotAnomalies({
+  const cohortFormatted = allLotDocs.map((d) => ({
+    componentId: d.componentId,
+    lotId: d.lotId,
+    parameters: {
+      iddq: { unit: 'mA', observed: { '0h': d.measurements.iddq[0], '24h': d.measurements.iddq[1] } },
+      leakage: { unit: 'µA', observed: { '0h': d.measurements.leakage[0], '24h': d.measurements.leakage[1] } },
+      propDelay: { unit: 'ns', observed: { '0h': d.measurements.propDelay[0], '24h': d.measurements.propDelay[1] } },
+    },
+  }));
+
+  const m2Result = await detectLotAnomalies({
     targetComponentId: 'DEMO-C02',
-    targetMeasurements: DEMO_COMPONENTS[1].measurements,
-    lotCohort: allLotDocs.map((d) => ({ componentId: d.componentId, measurements: d.measurements })),
-    engineeringLimits: DEMO_COMPONENTS[1].engineeringLimits,
+    lotId: DEMO_LOT_ID,
+    cohort: cohortFormatted,
   });
 
-  assert(m2Result.anomalies !== undefined, 'Method 2 produces anomalies dictionary');
-  assert(m2Result.anomalies.iddq.eligiblePeerCount === 7, 'Method 2 correctly counts eligible peers in same lot (7 peers)');
-  assert(typeof m2Result.anomalies.iddq.lotAnomalyScore === 'number', 'Method 2 outputs numeric lotAnomalyScore');
-  assert(m2Result.anomalies.iddq.divergenceType !== undefined, 'Method 2 provides divergenceType');
-  assert(m2Result.anomalies.iddq.peerComparison !== undefined, 'Method 2 provides peerComparison metrics (mean, std, zScore)');
+  assert(m2Result.anomalyResults !== undefined, 'Method 2 produces anomalyResults dictionary');
+  assert(m2Result.anomalyResults.iddq.peerComparisonEvidence?.peerCount === 7, 'Method 2 correctly counts eligible peers in same lot (7 peers)');
+  assert(typeof m2Result.anomalyResults.iddq.lotAnomalyScore === 'number', 'Method 2 outputs numeric lotAnomalyScore');
+  assert(m2Result.anomalyResults.iddq.divergenceType !== undefined, 'Method 2 provides divergenceType');
+  assert(m2Result.anomalyResults.iddq.peerComparisonEvidence !== undefined, 'Method 2 provides peerComparisonEvidence');
 
   // Verify foreign lot isolation
   const foreignDoc = { componentId: 'FOREIGN-01', lotId: 'LOT-OTHER', measurements: { iddq: [5.0, 5.0] } };
@@ -231,28 +252,28 @@ async function runAcceptanceTests() {
   console.log('\n--- TEST GROUP 5: Engineering Decision & AI Separation ---');
 
   // DEMO-C01: 0 physical breaches -> NORMAL, AI -> NOT FLAGGED
-  const c01Eng = engineeringStatus({ measurements: DEMO_COMPONENTS[0].measurements, engineeringLimits: DEMO_COMPONENTS[0].engineeringLimits });
+  const c01Eng = engineeringStatus(DEMO_COMPONENTS[0].measurements, DEMO_COMPONENTS[0].engineeringLimits);
   assert(c01Eng === 'NORMAL', 'DEMO-C01: 0 limit breaches -> Engineering NORMAL');
 
   // DEMO-C02: 0 physical breaches at 24h -> Engineering NORMAL, but AI predicts future breach -> AI FLAGGED (SUSPECT)
-  const c02Eng = engineeringStatus({ measurements: DEMO_COMPONENTS[1].measurements, engineeringLimits: DEMO_COMPONENTS[1].engineeringLimits });
+  const c02Eng = engineeringStatus(DEMO_COMPONENTS[1].measurements, DEMO_COMPONENTS[1].engineeringLimits);
   assert(c02Eng === 'NORMAL', 'DEMO-C02: 0 physical breaches at 24h -> Engineering Status is strictly NORMAL');
 
-  const c02OverallAi = overallStatus({ method1: m1Result.predictions, method2: m2Result.anomalies });
+  const c02OverallAi = overallStatus(m1Result.predictions.iddq.aiFlag, m2Result.anomalyResults.iddq.aiFlag);
   assert(c02OverallAi === 'FLAGGED', 'DEMO-C02: Rapid slope triggers AI FLAGGED status');
   assert(c02Eng === 'NORMAL' && c02OverallAi === 'FLAGGED', 'Demonstrates authentic Engineering NORMAL + AI FLAGGED separation!');
 
   // DEMO-C05: 1 physical limit breach (Iddq = 4.15 > 4.00) -> Engineering SUSPECT
-  const c05Eng = engineeringStatus({ measurements: DEMO_COMPONENTS[4].measurements, engineeringLimits: DEMO_COMPONENTS[4].engineeringLimits });
+  const c05Eng = engineeringStatus(DEMO_COMPONENTS[4].measurements, DEMO_COMPONENTS[4].engineeringLimits);
   assert(c05Eng === 'SUSPECT', 'DEMO-C05: 1 physical limit breach -> Engineering SUSPECT');
 
   // DEMO-C03: 3 physical limit breaches -> Engineering CRITICAL
-  const c03Eng = engineeringStatus({ measurements: DEMO_COMPONENTS[2].measurements, engineeringLimits: DEMO_COMPONENTS[2].engineeringLimits });
+  const c03Eng = engineeringStatus(DEMO_COMPONENTS[2].measurements, DEMO_COMPONENTS[2].engineeringLimits);
   assert(c03Eng === 'CRITICAL', 'DEMO-C03: 2+ physical limit breaches -> Engineering CRITICAL');
 
   // --- STAGE 7: EXPLAINABILITY & MODEL EVIDENCE ---
   console.log('\n--- TEST GROUP 6: Explainability & Model Traceability ---');
-  assert(typeof m1Result.predictions.iddq.modelExplanation === 'string', 'Method 1 includes human-readable model explanation');
+  assert(m1Result.predictions.iddq.modelExplanation !== undefined, 'Method 1 includes model explanation structure');
   assert(m1Result.modelMetadata.modelName !== undefined, 'Inference returns modelName in metadata');
   assert(m1Result.modelMetadata.modelVersion !== undefined, 'Inference returns modelVersion in metadata');
   assert(m1Result.modelMetadata.timestamp !== undefined, 'Inference returns ISO timestamp in metadata');

@@ -452,6 +452,8 @@ export default function ModelPerformance() {
           </div>
         </div>
       </div>
+        </>
+      )}
     </div>
   );
 }

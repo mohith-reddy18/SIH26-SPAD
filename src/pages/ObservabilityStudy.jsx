@@ -44,13 +44,13 @@ export default function ObservabilityStudy() {
           }
         }
         if (isMounted) {
-          setDataSource('fallback');
+          setDataSource('empty');
         }
       } catch (err) {
         if (isMounted) {
           console.warn('[SPAD] Failed to fetch screening records from backend:', err.message);
           setFetchError(err.message);
-          setDataSource('fallback');
+          setDataSource('offline');
         }
       } finally {
         if (isMounted) {
@@ -75,17 +75,17 @@ export default function ObservabilityStudy() {
       if (match) return mapScreeningRecord(match);
       return mapScreeningRecord(screeningRecords[0]);
     }
-    return mapScreeningRecord({ id: selectedComponentId || 'C-0001', lotId: 'LOT-2026-001' });
+    return null;
   }, [screeningRecords, selectedComponentId]);
 
-  const componentId = activeRecord.componentId || 'C-0001';
-  const lotId = activeRecord.lotId || 'LOT-2026-001';
-  const stage = activeRecord.stage || '24h';
-  const engineeringStatus = activeRecord.engineeringStatus || 'NORMAL';
-  const measurements = activeRecord.measurements || {};
-  const predictions = activeRecord.predictions || {};
-  const engineeringLimits = activeRecord.engineeringLimits || {};
-  const lotAnomaly = activeRecord.aiAssessment?.lotAnomaly || null;
+  const componentId = activeRecord?.componentId || activeRecord?.id || '—';
+  const lotId = activeRecord?.lotId || '—';
+  const stage = activeRecord?.stage || '—';
+  const engineeringStatus = activeRecord?.engineeringStatus || 'NORMAL';
+  const measurements = activeRecord?.measurements || {};
+  const predictions = activeRecord?.predictions || {};
+  const engineeringLimits = activeRecord?.engineeringLimits || {};
+  const lotAnomaly = activeRecord?.aiAssessment?.lotAnomaly || null;
 
   // 3. Dynamic parameter keys extraction from backend measurements
   const availableParamKeys = useMemo(() => {
@@ -170,6 +170,13 @@ export default function ObservabilityStudy() {
         </p>
       </header>
 
+      {/* Backend API Connection Error Banner */}
+      {fetchError && (
+        <div style={{ padding: '12px 16px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '6px', color: '#fca5a5', fontSize: '13px', marginBottom: '16px' }}>
+          <strong>Backend Connection Notice:</strong> Unable to load live screening records from API ({fetchError}).
+        </div>
+      )}
+
       {/* 2. Control and Selection Bar */}
       <div className="spad-card" style={{ padding: '16px 20px', marginBottom: '20px' }}>
         <div className="spad-trends-component-controls" style={{ flexWrap: 'wrap', gap: '16px' }}>
@@ -182,6 +189,7 @@ export default function ObservabilityStudy() {
               className="spad-comp-select-input"
               value={componentId}
               onChange={(e) => setSelectedComponentId(e.target.value)}
+              disabled={screeningRecords.length === 0}
             >
               {screeningRecords.map((c) => {
                 const id = c.componentId || c.id;
@@ -204,6 +212,7 @@ export default function ObservabilityStudy() {
               className="spad-comp-select-input"
               value={selectedParamKey}
               onChange={(e) => setSelectedParamKey(e.target.value)}
+              disabled={screeningRecords.length === 0}
             >
               <option value="ALL">All Parameters ({availableParamKeys.length})</option>
               {availableParamKeys.map((pKey) => (
@@ -219,28 +228,37 @@ export default function ObservabilityStudy() {
             <span className="spad-summary-pill-lot">Lot: {lotId}</span>
             <span className="spad-summary-pill-lot">Stage: {stage}</span>
             <span
-              className={`spad-summary-pill-status status-${status.toLowerCase()}`}
+              className={`spad-summary-pill-status status-${engineeringStatus.toLowerCase()}`}
             >
-              Status: {status}
+              Engineering: {engineeringStatus}
             </span>
             <span className="spad-spec-badge" style={{ marginLeft: 'auto' }}>
-              SOURCE: <strong>{dataSource === 'api' ? 'MONGODB ATLAS' : 'LOCAL FALLBACK'}</strong>
+              SOURCE: <strong>{dataSource === 'api' ? 'MONGODB ATLAS' : dataSource === 'offline' ? 'OFFLINE' : 'EMPTY'}</strong>
             </span>
           </div>
         </div>
       </div>
 
       {/* 3. Parametric Checkpoint Telemetry Table */}
-      <div className="spad-card" style={{ padding: '20px', marginBottom: '20px' }}>
-        <div className="spad-card-header">
-          <div className="spad-card-title-group">
-            <span className="spad-card-section-label">OBSERVED CHECKPOINTS &amp; FORECASTS</span>
-            <h2 className="spad-card-title">Parametric Drift vs. Engineering Limits</h2>
-          </div>
-          <span className="spad-status-pill badge-status-normal">
-            DATA LOADED ({dataSource === 'api' ? 'MONGODB' : 'FALLBACK'})
-          </span>
+      {isLoading ? (
+        <div className="spad-card" style={{ padding: '30px', textAlign: 'center', color: '#94a3b8' }}>
+          Loading observability data from MongoDB Atlas...
         </div>
+      ) : !activeRecord ? (
+        <div className="spad-card" style={{ padding: '30px', textAlign: 'center', color: '#94a3b8' }}>
+          {fetchError ? `Backend API connection error: ${fetchError}` : 'No screening records found in database.'}
+        </div>
+      ) : (
+        <div className="spad-card" style={{ padding: '20px', marginBottom: '20px' }}>
+          <div className="spad-card-header">
+            <div className="spad-card-title-group">
+              <span className="spad-card-section-label">OBSERVED CHECKPOINTS &amp; FORECASTS</span>
+              <h2 className="spad-card-title">Parametric Drift vs. Engineering Limits</h2>
+            </div>
+            <span className="spad-status-pill badge-status-normal">
+              DATA LOADED ({dataSource === 'api' ? 'MONGODB ATLAS' : 'API'})
+            </span>
+          </div>
 
         <div className="spad-table-container" style={{ marginTop: '14px' }}>
           <table className="spad-data-table" aria-label="Parametric Checkpoint Table">
@@ -307,6 +325,7 @@ export default function ObservabilityStudy() {
           </table>
         </div>
       </div>
+      )}
 
       {/* 4. Telemetry Distribution & Population Observability Notes */}
       <div className="spad-two-col-grid" style={{ marginBottom: '20px' }}>

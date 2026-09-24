@@ -325,6 +325,7 @@ export default function FailureAnalysis() {
             </div>
           )}
         </div>
+      </div>
       )}
     </div>
   );

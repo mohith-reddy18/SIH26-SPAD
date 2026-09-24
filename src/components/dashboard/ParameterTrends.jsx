@@ -204,24 +204,27 @@ export default function ParameterTrends({
     const rawCompData =
       activeComponent.measurements?.[activeSpec.key] ||
       activeComponent.measurements?.[activeSpec.id] ||
-      activeSpec.healthyRef ||
-      [0, 0, 0, 0];
+      [];
 
-    const compData = extractTrajectory(rawCompData, dynamicPrediction);
+    const compData = rawCompData.length > 0 ? extractTrajectory(rawCompData, dynamicPrediction) : [];
 
     activeSeries = [
-      {
-        id: activeComponent.id,
-        label: `${activeComponent.id} — ${selectedStatus}`,
-        componentId: activeComponent.id,
-        data: compData,
-        color: getStatusColor(selectedStatus),
-        strokeWidth: 2.8,
-        opacity: 1.0,
-        dashed: false,
-        status: selectedStatus,
-        isComponent: true,
-      },
+      ...(activeComponent.id && compData.length > 0
+        ? [
+            {
+              id: activeComponent.id,
+              label: `${activeComponent.id} — ${selectedStatus}`,
+              componentId: activeComponent.id,
+              data: compData,
+              color: getStatusColor(selectedStatus),
+              strokeWidth: 2.8,
+              opacity: 1.0,
+              dashed: false,
+              status: selectedStatus,
+              isComponent: true,
+            },
+          ]
+        : []),
       {
         id: 'healthy-ref',
         label: 'Healthy Reference',
@@ -246,11 +249,10 @@ export default function ParameterTrends({
       const rawCompData =
         measurementsObj?.[activeSpec.key] ||
         measurementsObj?.[activeSpec.id] ||
-        activeSpec.healthyRef ||
-        [0, 0, 0, 0];
+        [];
 
       const pred = predictionsObj?.[`${activeSpec.key}_168h`] ?? predictionsObj?.[`${activeSpec.id}_168h`];
-      const compData = extractTrajectory(rawCompData, pred);
+      const compData = rawCompData.length > 0 ? extractTrajectory(rawCompData, pred) : [];
       const cStatus = isSelected ? selectedStatus : (comp.status || 'NORMAL');
       const isHovered = hoveredCompId === comp.id;
 
