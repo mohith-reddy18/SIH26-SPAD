@@ -25,6 +25,10 @@ if (MONGODB_URI) {
   console.warn('Warning: MONGODB_URI is not defined in environment variables');
 }
 
+// AI endpoints (Method 1: Future Prediction, Method 2: Lot Anomaly Detection)
+const aiRouter = require('./routes/ai');
+app.use('/api/ai', aiRouter);
+
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
