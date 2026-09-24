@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { mockParameterSpecs } from '../../data/mockData';
+import { getParameterMeta, getNormalizedEngineeringStatus } from '../../utils/recordMapping';
 
 // Helper for status colors
 function getStatusBadgeStyle(status) {
@@ -16,17 +16,16 @@ function getStatusBadgeStyle(status) {
 }
 
 // Deterministic Engineering Screening Decision Evaluation
-// Rule:
-// 0 distinct violating parameters -> NORMAL
-// 1 distinct violating parameter -> SUSPECT
-// 2 or more distinct violating parameters -> CRITICAL
-export function evaluateComponentEngineeringDecision(measurements, parameterSpecs) {
-  if (!measurements || !parameterSpecs) {
+export function evaluateComponentEngineeringDecision(measurements = {}, engineeringLimits = {}, explicitStatus = null) {
+  const keys = Object.keys(measurements);
+  const paramKeys = keys.length > 0 ? keys : Object.keys(engineeringLimits);
+
+  if (paramKeys.length === 0) {
     return {
-      decision: 'NORMAL',
+      decision: explicitStatus ? getNormalizedEngineeringStatus(explicitStatus) : 'NORMAL',
       violatingParametersCount: 0,
-      totalParametersCount: 3,
-      reasonText: '0 of 3 parameters exceed the engineering limit.',
+      totalParametersCount: 0,
+      reasonText: 'No parameter telemetry available.',
       parameters: [],
     };
   }
@@ -34,16 +33,31 @@ export function evaluateComponentEngineeringDecision(measurements, parameterSpec
   const paramResults = [];
   let violatingCount = 0;
 
-  Object.values(parameterSpecs).forEach((spec) => {
-    const data = Array.isArray(measurements) ? measurements : measurements[spec.key];
-    const specLimit = spec.specLimitMax;
+  paramKeys.forEach((key) => {
+    const rawLimit = engineeringLimits[key];
+    const meta = getParameterMeta(key, rawLimit);
+    const data = measurements[key];
+    const specLimit = meta.specLimitMax;
     let maxObserved = null;
     let isViolated = false;
 
     if (Array.isArray(data) && data.length > 0) {
-      maxObserved = Math.max(...data);
+      maxObserved = Math.max(...data.filter((v) => typeof v === 'number'));
       if (typeof specLimit === 'number') {
         isViolated = data.some((val) => typeof val === 'number' && val > specLimit);
+      }
+    } else if (typeof data === 'number') {
+      maxObserved = data;
+      if (typeof specLimit === 'number') {
+        isViolated = data > specLimit;
+      }
+    } else if (data && typeof data === 'object') {
+      const vals = Object.values(data).filter((v) => typeof v === 'number');
+      if (vals.length > 0) {
+        maxObserved = Math.max(...vals);
+        if (typeof specLimit === 'number') {
+          isViolated = vals.some((v) => v > specLimit);
+        }
       }
     }
 
@@ -52,11 +66,11 @@ export function evaluateComponentEngineeringDecision(measurements, parameterSpec
     }
 
     paramResults.push({
-      id: spec.id,
-      key: spec.key,
-      name: spec.name,
-      shortName: spec.shortName || spec.name,
-      unit: spec.unit,
+      id: meta.id,
+      key: meta.key,
+      name: meta.name,
+      shortName: meta.shortName,
+      unit: meta.unit,
       limit: specLimit,
       currentValue: maxObserved,
       isViolated,
@@ -64,16 +78,18 @@ export function evaluateComponentEngineeringDecision(measurements, parameterSpec
     });
   });
 
-  let decision = 'NORMAL';
-  let reasonText = '0 of 3 parameters exceed the engineering limit.';
+  let decision = explicitStatus ? getNormalizedEngineeringStatus(explicitStatus) : 'NORMAL';
+  if (!explicitStatus) {
+    if (violatingCount === 1) decision = 'SUSPECT';
+    else if (violatingCount >= 2) decision = 'CRITICAL';
+  }
 
-  if (violatingCount === 1) {
-    decision = 'SUSPECT';
+  let reasonText = `${violatingCount} of ${paramResults.length} parameters exceed their engineering limits.`;
+  if (violatingCount === 0) {
+    reasonText = `0 of ${paramResults.length} parameters exceed the engineering limit.`;
+  } else if (violatingCount === 1) {
     const violatedParam = paramResults.find((p) => p.isViolated);
     reasonText = `1 of ${paramResults.length} parameters (${violatedParam ? violatedParam.shortName : 'parameter'}) exceeds the engineering limit.`;
-  } else if (violatingCount >= 2) {
-    decision = 'CRITICAL';
-    reasonText = `${violatingCount} of ${paramResults.length} parameters exceed their engineering limits.`;
   }
 
   return {
@@ -91,7 +107,6 @@ export default function ComponentDetailModal({
   onClose,
   components = [],
   onSelectComponent,
-  parameterSpecs = mockParameterSpecs,
 }) {
   // Close on Escape key
   useEffect(() => {
@@ -109,7 +124,8 @@ export default function ComponentDetailModal({
   // 1. Deterministic Engineering Screening Decision Logic
   const engineeringResult = evaluateComponentEngineeringDecision(
     component.measurements,
-    parameterSpecs
+    component.engineeringLimits,
+    component.engineeringStatus
   );
   const decisionBadgeStyle = getStatusBadgeStyle(engineeringResult.decision);
 
@@ -177,7 +193,7 @@ export default function ComponentDetailModal({
                   }}
                 >
                   {components.map((c) => {
-                    const evalRes = evaluateComponentEngineeringDecision(c.measurements, parameterSpecs);
+                    const evalRes = evaluateComponentEngineeringDecision(c.measurements, c.engineeringLimits, c.engineeringStatus);
                     return (
                       <option key={c.id} value={c.id}>
                         {c.id} ({evalRes.decision})

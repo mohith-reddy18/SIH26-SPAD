@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { getNormalizedEngineeringStatus, getNormalizedAiStatus } from '../../utils/recordMapping';
+import { getNormalizedEngineeringStatus, getNormalizedAiStatus, getParameterMeta, extractLatestValue } from '../../utils/recordMapping';
 
 function SearchIcon() {
   return (
@@ -10,9 +10,27 @@ function SearchIcon() {
   );
 }
 
-export default function ComponentTable({ records, onSelectComponent }) {
+export default function ComponentTable({ records = [], onSelectComponent }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
+
+  // Dynamically derive parameter columns from records telemetry
+  const paramColumns = useMemo(() => {
+    const keysSet = new Set();
+    records.forEach((r) => {
+      if (r.measurements && typeof r.measurements === 'object') {
+        Object.keys(r.measurements).forEach((k) => keysSet.add(k));
+      }
+    });
+    if (keysSet.size === 0) {
+      return [
+        getParameterMeta('iddq'),
+        getParameterMeta('leakage'),
+        getParameterMeta('propDelay'),
+      ];
+    }
+    return Array.from(keysSet).map((k) => getParameterMeta(k));
+  }, [records]);
 
   const filteredRecords = useMemo(() => {
     return records.filter((rec) => {
@@ -34,6 +52,8 @@ export default function ComponentTable({ records, onSelectComponent }) {
       CRITICAL: records.filter((r) => getNormalizedEngineeringStatus(r) === 'CRITICAL').length,
     };
   }, [records]);
+
+  const totalCols = 6 + paramColumns.length;
 
   return (
     <div className="spad-card spad-table-card">
@@ -83,9 +103,9 @@ export default function ComponentTable({ records, onSelectComponent }) {
               <th>COMPONENT ID</th>
               <th>LOT ID</th>
               <th>PHYSICAL STAGE</th>
-              <th>STANDBY (Iddq)</th>
-              <th>LEAKAGE (I_leak)</th>
-              <th>PROP DELAY (t_pd)</th>
+              {paramColumns.map((col) => (
+                <th key={col.key}>{col.shortName.toUpperCase()} {col.unit ? `(${col.unit})` : ''}</th>
+              ))}
               <th>AI RISK (168h FORECAST)</th>
               <th>AI EVIDENCE</th>
               <th>ENGINEERING STATUS</th>
@@ -94,7 +114,7 @@ export default function ComponentTable({ records, onSelectComponent }) {
           <tbody>
             {filteredRecords.length === 0 ? (
               <tr>
-                <td colSpan="9" className="spad-table-empty">
+                <td colSpan={totalCols} className="spad-table-empty">
                   No component records matching criteria.
                 </td>
               </tr>
@@ -122,9 +142,14 @@ export default function ComponentTable({ records, onSelectComponent }) {
                     <td className="spad-td-mono font-bold text-cyan">{item.id}</td>
                     <td className="spad-td-mono text-muted">{item.lotId}</td>
                     <td className="spad-td-mono text-slate">{item.stage}</td>
-                    <td className="spad-td-mono">{item.standbyCurrent}</td>
-                    <td className="spad-td-mono">{item.leakageCurrent}</td>
-                    <td className="spad-td-mono">{item.propagationDelay}</td>
+                    {paramColumns.map((col) => {
+                      const val = extractLatestValue(item.measurements?.[col.key]);
+                      return (
+                        <td key={col.key} className="spad-td-mono">
+                          {val !== null ? `${val.toFixed(2)} ${col.unit}` : '—'}
+                        </td>
+                      );
+                    })}
                     <td>
                       <div className="spad-risk-cell">
                         <span className={`spad-risk-val ${riskClass}`}>{item.aiRisk}%</span>

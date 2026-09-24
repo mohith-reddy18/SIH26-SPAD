@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import ComponentDetailModal from '../components/dashboard/ComponentDetailModal';
-import { mockParameterSpecs } from '../data/mockData';
-import { mapScreeningRecord, getNormalizedEngineeringStatus } from '../utils/recordMapping';
+import { mapScreeningRecord, getNormalizedEngineeringStatus, getParameterMeta, extractLatestValue } from '../utils/recordMapping';
 
 function SearchIcon() {
   return (
@@ -123,6 +122,26 @@ export default function ComponentSearch({ onNavigateToComponent, initialComponen
     fetchComponentDetail(item);
   };
 
+  // Dynamically derive parameter columns from records telemetry
+  const paramColumns = useMemo(() => {
+    const keysSet = new Set();
+    components.forEach((r) => {
+      if (r.measurements && typeof r.measurements === 'object') {
+        Object.keys(r.measurements).forEach((k) => keysSet.add(k));
+      }
+    });
+    if (keysSet.size === 0) {
+      return [
+        getParameterMeta('iddq'),
+        getParameterMeta('leakage'),
+        getParameterMeta('propDelay'),
+      ];
+    }
+    return Array.from(keysSet).map((k) => getParameterMeta(k));
+  }, [components]);
+
+  const totalCols = 6 + paramColumns.length;
+
   return (
     <div className="spad-page-container" role="main" aria-label="Component Search">
       <header className="spad-page-header">
@@ -174,9 +193,9 @@ export default function ComponentSearch({ onNavigateToComponent, initialComponen
                 <th>COMPONENT ID</th>
                 <th>LOT ID</th>
                 <th>PHYSICAL STAGE</th>
-                <th>STANDBY (Iddq)</th>
-                <th>LEAKAGE (I_leak)</th>
-                <th>PROP DELAY (t_pd)</th>
+                {paramColumns.map((col) => (
+                  <th key={col.key}>{col.shortName.toUpperCase()} {col.unit ? `(${col.unit})` : ''}</th>
+                ))}
                 <th>ENGINEERING LIMIT STATUS</th>
                 <th>AI RISK (168h FORECAST)</th>
                 <th>ENGINEERING STATUS</th>
@@ -185,13 +204,13 @@ export default function ComponentSearch({ onNavigateToComponent, initialComponen
             <tbody>
               {isLoading ? (
                 <tr>
-                  <td colSpan="9" className="spad-table-empty">
+                  <td colSpan={totalCols} className="spad-table-empty">
                     Loading components from database...
                   </td>
                 </tr>
               ) : filteredComponents.length === 0 ? (
                 <tr>
-                  <td colSpan="9" className="spad-table-empty">
+                  <td colSpan={totalCols} className="spad-table-empty">
                     {searchTerm ? `No components matching "${searchTerm}".` : 'No component records found in database.'}
                   </td>
                 </tr>
@@ -215,11 +234,16 @@ export default function ComponentSearch({ onNavigateToComponent, initialComponen
                       <td className="spad-td-mono font-bold text-cyan">{item.id || item.componentId}</td>
                       <td className="spad-td-mono text-muted">{item.lotId}</td>
                       <td className="spad-td-mono text-slate">{item.stage}</td>
-                      <td className="spad-td-mono">{item.standbyCurrent}</td>
-                      <td className="spad-td-mono">{item.leakageCurrent}</td>
-                      <td className="spad-td-mono">{item.propagationDelay}</td>
+                      {paramColumns.map((col) => {
+                        const val = extractLatestValue(item.measurements?.[col.key]);
+                        return (
+                          <td key={col.key} className="spad-td-mono">
+                            {val !== null ? `${val.toFixed(2)} ${col.unit}` : '—'}
+                          </td>
+                        );
+                      })}
                       <td>
-                        <span className="spad-evidence-pill">{item.engineeringLimitStatus}</span>
+                        <span className="spad-evidence-pill">{item.engineeringLimitStatus || 'WITHIN LIMIT'}</span>
                       </td>
                       <td>
                         <span className={`spad-risk-val ${riskClass}`}>{item.aiRisk}%</span>
@@ -248,7 +272,6 @@ export default function ComponentSearch({ onNavigateToComponent, initialComponen
         }}
         components={components}
         onSelectComponent={(comp) => fetchComponentDetail(comp)}
-        parameterSpecs={mockParameterSpecs}
       />
     </div>
   );

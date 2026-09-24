@@ -138,3 +138,48 @@ export function mapScreeningRecord(record) {
     _source: 'backend-api',
   };
 }
+
+/**
+ * Standard Display Mapping for common aerospace electronic parameters.
+ * Keys that do not exist here will gracefully fall back to their raw key name.
+ */
+export const PARAMETER_DISPLAY_MAP = {
+  iddq: { name: 'Standby Current (Iddq)', shortName: 'Iddq', unit: 'mA', defaultRef: [2.00, 2.05, 2.10, 2.15] },
+  leakage: { name: 'Leakage Current (I_leak)', shortName: 'I_leak', unit: 'µA', defaultRef: [0.38, 0.40, 0.41, 0.43] },
+  leakageCurrent: { name: 'Leakage Current (I_leak)', shortName: 'I_leak', unit: 'µA', defaultRef: [0.38, 0.40, 0.41, 0.43] },
+  propDelay: { name: 'Propagation Delay (t_pd)', shortName: 't_pd', unit: 'ns', defaultRef: [8.10, 8.14, 8.18, 8.22] },
+  propagationDelay: { name: 'Propagation Delay (t_pd)', shortName: 't_pd', unit: 'ns', defaultRef: [8.10, 8.14, 8.18, 8.22] },
+  v_th: { name: 'Threshold Voltage (V_th)', shortName: 'V_th', unit: 'V', defaultRef: [1.20, 1.20, 1.20, 1.20] },
+  rdson: { name: 'On-Resistance (R_dson)', shortName: 'R_dson', unit: 'mΩ', defaultRef: [15.0, 15.2, 15.4, 15.6] },
+  freq: { name: 'Frequency (Freq)', shortName: 'Freq', unit: 'MHz', defaultRef: [100.0, 100.0, 100.0, 100.0] },
+  gain: { name: 'Open Loop Gain (Gain)', shortName: 'Gain', unit: 'dB', defaultRef: [80.0, 80.0, 79.9, 79.8] },
+};
+
+/**
+ * Derives rich display metadata for any parameter key from backend telemetry & limits.
+ *
+ * @param {string} key - Machine-readable parameter key (e.g. 'iddq', 'leakage')
+ * @param {number|Object} limit - Engineering limit value or object
+ * @returns {Object} Parameter metadata with id, name, shortName, unit, specLimitMax, healthyRef
+ */
+export function getParameterMeta(key, limit) {
+  const matched = PARAMETER_DISPLAY_MAP[key] || {};
+  let limitValue = undefined;
+
+  if (typeof limit === 'number') {
+    limitValue = limit;
+  } else if (limit && typeof limit === 'object' && typeof limit.limitValue === 'number') {
+    limitValue = limit.limitValue;
+  }
+
+  return {
+    id: key,
+    key: key,
+    name: matched.name || key,
+    shortName: matched.shortName || key,
+    unit: matched.unit || (limit?.unit || ''),
+    specLimitMax: limitValue,
+    healthyRef: matched.defaultRef || [0, 0, 0, 0],
+  };
+}
+

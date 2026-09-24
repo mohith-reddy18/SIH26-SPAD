@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { mockParameterSpecs } from '../data/mockData';
 import './Dashboard.css';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://sih26-spad.onrender.com';
@@ -11,7 +10,7 @@ function getStatusColor(status) {
   return '#38bdf8';
 }
 
-import { mapScreeningRecord } from '../utils/recordMapping';
+import { mapScreeningRecord, getParameterMeta } from '../utils/recordMapping';
 
 export default function FailureAnalysis() {
   const [screeningRecords, setScreeningRecords] = useState([]);
@@ -210,13 +209,16 @@ export default function FailureAnalysis() {
               </thead>
               <tbody>
                 {Object.keys(measurements).map((key) => {
-                  const matched = mockParameterSpecs[key] || {};
-                  const name = matched.name || (key === 'iddq' ? 'Standby Current (Iddq)' : key === 'leakage' ? 'Leakage Current (I_leak)' : key === 'propDelay' ? 'Propagation Delay (t_pd)' : key);
-                  const unit = matched.unit || (key === 'iddq' ? 'mA' : key === 'leakage' ? 'µA' : key === 'propDelay' ? 'ns' : '');
+                  const limitRaw = engineeringLimits[key];
+                  const meta = getParameterMeta(key, limitRaw);
+                  const name = meta.name;
+                  const unit = meta.unit;
                   const series = measurements[key] || [];
-                  const obsFormatted = series.map((v) => `${v} ${unit}`).join(' → ');
-                  const predVal = predictions[`${key}_168h`] ?? series[series.length - 1];
-                  const limitVal = engineeringLimits[key] ?? matched.specLimitMax;
+                  const obsFormatted = Array.isArray(series)
+                    ? series.map((v) => `${v} ${unit}`).join(' → ')
+                    : (typeof series === 'object' ? Object.entries(series).map(([tp, val]) => `${tp}: ${val} ${unit}`).join(' → ') : `${series} ${unit}`);
+                  const predVal = predictions[`${key}_168h`] ?? (Array.isArray(series) ? series[series.length - 1] : series);
+                  const limitVal = meta.specLimitMax;
                   const margin = typeof limitVal === 'number' && typeof predVal === 'number' ? (limitVal - predVal).toFixed(2) : '—';
                   const isBreached = typeof limitVal === 'number' && typeof predVal === 'number' && predVal > limitVal;
 
@@ -224,8 +226,8 @@ export default function FailureAnalysis() {
                     <tr key={key} className="spad-table-row">
                       <td className="spad-td-mono font-bold text-cyan">{name}</td>
                       <td className="spad-td-mono">{obsFormatted}</td>
-                      <td className="spad-td-mono font-bold" style={{ color: '#38bdf8' }}>{predVal} {unit}</td>
-                      <td className="spad-td-mono" style={{ color: '#f87171', fontWeight: '700' }}>{limitVal} {unit}</td>
+                      <td className="spad-td-mono font-bold" style={{ color: '#38bdf8' }}>{predVal !== undefined && predVal !== null ? `${predVal} ${unit}` : '—'}</td>
+                      <td className="spad-td-mono" style={{ color: '#f87171', fontWeight: '700' }}>{limitVal !== undefined && limitVal !== null ? `${limitVal} ${unit}` : '—'}</td>
                       <td className="spad-td-mono" style={{ color: isBreached ? '#ef4444' : '#10b981' }}>{margin !== '—' ? `+${margin} ${unit}` : '—'}</td>
                       <td>
                         <span className={`spad-status-pill ${isBreached ? 'badge-status-critical' : 'badge-status-normal'}`}>

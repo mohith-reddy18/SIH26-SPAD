@@ -109,7 +109,6 @@ export default function Dashboard({ onNavigateToComponent }) {
   const {
     pipelineStages,
     evidencePathways,
-    parameterSpecs,
     systemSubsystems,
     recentAlerts,
   } = mockDashboardData;
@@ -172,7 +171,6 @@ export default function Dashboard({ onNavigateToComponent }) {
       {/* 4. Parameter Trends (Interactive Burn-in Parameter Trajectory) */}
       <section aria-label="Parametric Trends and Degradation">
         <ParameterTrends
-          parameterSpecs={parameterSpecs}
           components={componentRecords}
           context={screeningContext}
         />
@@ -196,7 +194,6 @@ export default function Dashboard({ onNavigateToComponent }) {
         onClose={() => setSelectedModalComponent(null)}
         components={componentRecords}
         onSelectComponent={(comp) => setSelectedModalComponent(comp)}
-        parameterSpecs={parameterSpecs}
       />
     </div>
   );

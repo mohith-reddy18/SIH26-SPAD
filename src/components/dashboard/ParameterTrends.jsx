@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { mockParameterSpecs, mockScreeningContext } from '../../data/mockData';
+import { mockScreeningContext } from '../../data/mockData';
+import { getParameterMeta } from '../../utils/recordMapping';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://sih26-spad.onrender.com';
 
@@ -31,7 +32,6 @@ function extractTrajectory(data, predictionVal) {
 }
 
 export default function ParameterTrends({
-  parameterSpecs = mockParameterSpecs,
   components = [],
   context = mockScreeningContext,
 }) {
@@ -111,37 +111,23 @@ export default function ParameterTrends({
   // 3. Dynamic available parameters constructed from measurements & engineering limits
   const availableParams = useMemo(() => {
     const measurementKeys = Object.keys(activeComponent.measurements || {});
-    if (measurementKeys.length > 0) {
-      return measurementKeys.map((key) => {
-        const matched = Array.isArray(parameterSpecs)
-          ? parameterSpecs.find((s) => s.key === key || s.id === key)
-          : parameterSpecs[key] || Object.values(parameterSpecs).find((s) => s.key === key || s.id === key);
-
-        const limit =
-          typeof activeComponent.engineeringLimits?.[key] === 'number'
-            ? activeComponent.engineeringLimits[key]
-            : matched?.specLimitMax;
-
-        return {
-          id: matched?.id || key,
-          key: key,
-          name: matched?.name || (key === 'iddq' ? 'Standby Current (Iddq)' : key === 'leakage' ? 'Leakage Current (I_leak)' : key === 'propDelay' ? 'Propagation Delay (t_pd)' : key),
-          shortName: matched?.shortName || (key === 'iddq' ? 'Iddq' : key === 'leakage' ? 'I_leak' : key === 'propDelay' ? 't_pd' : key),
-          unit: matched?.unit || (key === 'iddq' ? 'mA' : key === 'leakage' ? 'µA' : key === 'propDelay' ? 'ns' : ''),
-          specLimitMax: limit,
-          healthyRef: matched?.healthyRef || mockParameterSpecs[key]?.healthyRef || [0, 0, 0, 0],
-        };
+    const keys = measurementKeys.length > 0 ? measurementKeys : Object.keys(activeComponent.engineeringLimits || {});
+    if (keys.length > 0) {
+      return keys.map((key) => {
+        const limit = activeComponent.engineeringLimits?.[key];
+        return getParameterMeta(key, limit);
       });
     }
 
-    // Fallback parameter list
-    return Array.isArray(parameterSpecs)
-      ? parameterSpecs
-      : Object.entries(parameterSpecs || {}).map(([key, spec]) => ({
-          id: spec.id || key,
-          ...spec,
-        }));
-  }, [activeComponent.measurements, activeComponent.engineeringLimits, parameterSpecs]);
+    return [getParameterMeta('iddq', 4.0)];
+  }, [activeComponent.measurements, activeComponent.engineeringLimits]);
+
+  // Automatically keep selected parameter in sync if component changes
+  useEffect(() => {
+    if (availableParams.length > 0 && !availableParams.some((p) => p.key === selectedParamKey || p.id === selectedParamKey)) {
+      setSelectedParamKey(availableParams[0].key || availableParams[0].id);
+    }
+  }, [availableParams, selectedParamKey]);
 
   // 4. Active parameter specification lookup
   const activeSpec = useMemo(() => {
@@ -149,15 +135,8 @@ export default function ParameterTrends({
       availableParams.find(
         (p) => (p.id && p.id === selectedParamKey) || (p.key && p.key === selectedParamKey)
       ) ||
-      availableParams[0] || {
-        id: 'iddq',
-        key: 'iddq',
-        name: 'Standby Current (Iddq)',
-        shortName: 'Iddq',
-        unit: 'mA',
-        specLimitMax: 4.00,
-        healthyRef: [2.00, 2.05, 2.10, 2.15],
-      }
+      availableParams[0] ||
+      getParameterMeta('iddq', 4.0)
     );
   }, [availableParams, selectedParamKey]);
 

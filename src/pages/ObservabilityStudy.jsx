@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { mockParameterSpecs } from '../data/mockData';
 import './Dashboard.css';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://sih26-spad.onrender.com';
@@ -11,7 +10,7 @@ function getStatusColor(status) {
   return '#38bdf8';
 }
 
-import { mapScreeningRecord } from '../utils/recordMapping';
+import { mapScreeningRecord, getParameterMeta } from '../utils/recordMapping';
 
 export default function ObservabilityStudy() {
   const [screeningRecords, setScreeningRecords] = useState([]);
@@ -96,20 +95,10 @@ export default function ObservabilityStudy() {
   // Map parameter keys to display information
   const parameterRows = useMemo(() => {
     return availableParamKeys.map((key) => {
-      const matchedSpec = mockParameterSpecs[key] || {};
-      const name =
-        matchedSpec.name ||
-        (key === 'iddq'
-          ? 'Standby Current (Iddq)'
-          : key === 'leakage'
-          ? 'Leakage Current (I_leak)'
-          : key === 'propDelay'
-          ? 'Propagation Delay (t_pd)'
-          : key);
-
-      const unit =
-        matchedSpec.unit ||
-        (key === 'iddq' ? 'mA' : key === 'leakage' ? 'µA' : key === 'propDelay' ? 'ns' : '');
+      const rawLimit = engineeringLimits[key];
+      const meta = getParameterMeta(key, rawLimit);
+      const name = meta.name;
+      const unit = meta.unit;
 
       const series = measurements[key] || [];
       const obs0h = Array.isArray(series) && series.length > 0 ? series[0] : (series['0h'] ?? null);
@@ -124,10 +113,7 @@ export default function ObservabilityStudy() {
         ? canonicalPred
         : (typeof predictions[predKey] === 'number' ? predictions[predKey] : (typeof predictions[key] === 'number' ? predictions[key] : obsFinal));
 
-      const rawLimit = engineeringLimits[key];
-      const limit = typeof rawLimit === 'object' && rawLimit !== null && typeof rawLimit.limitValue === 'number'
-        ? rawLimit.limitValue
-        : (typeof rawLimit === 'number' ? rawLimit : matchedSpec.specLimitMax);
+      const limit = meta.specLimitMax;
 
       const margin =
         typeof limit === 'number' && typeof pred168h === 'number'
