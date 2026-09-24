@@ -42,13 +42,13 @@ export default function ModelPerformance() {
           }
         }
         if (isMounted) {
-          setDataSource('fallback');
+          setDataSource('empty');
         }
       } catch (err) {
         if (isMounted) {
           console.warn('[SPAD] Failed to fetch screening records from backend:', err.message);
           setFetchError(err.message);
-          setDataSource('fallback');
+          setDataSource('offline');
         }
       } finally {
         if (isMounted) {
@@ -73,30 +73,37 @@ export default function ModelPerformance() {
       if (match) return mapScreeningRecord(match);
       return mapScreeningRecord(screeningRecords[0]);
     }
-    return mapScreeningRecord({ id: selectedComponentId || 'C-0001', lotId: 'LOT-2026-001' });
+    return null;
   }, [screeningRecords, selectedComponentId]);
 
-  const componentId = activeRecord.componentId || 'C-0001';
-  const lotId = activeRecord.lotId || 'LOT-2026-001';
-  const engineeringStatus = activeRecord.engineeringStatus || 'NORMAL';
-  const aiStatus = activeRecord.aiStatus || 'NOT_EVALUATED';
-  const riskScore = activeRecord.riskScore || 0.15;
-  const aiRisk = activeRecord.aiRisk || 15;
+  const componentId = activeRecord?.componentId || activeRecord?.id || '—';
+  const lotId = activeRecord?.lotId || '—';
+  const engineeringStatus = activeRecord?.engineeringStatus || 'NORMAL';
+  const aiStatus = activeRecord?.aiStatus || 'NOT_EVALUATED';
+  const riskScore = activeRecord?.riskScore || 0;
+  const aiRisk = activeRecord?.aiRisk || 0;
 
-  const prediction = activeRecord.aiAssessment?.prediction || {
+  const prediction = activeRecord?.aiAssessment?.prediction || {
     status: 'PREDICTED',
-    parameters: activeRecord.predictions || {},
+    parameters: activeRecord?.predictions || {},
   };
 
-  const lotAnomaly = activeRecord.aiAssessment?.lotAnomaly || null;
+  const lotAnomaly = activeRecord?.aiAssessment?.lotAnomaly || null;
 
-  const explanation = activeRecord.aiAssessment?.explanation || activeRecord.modelExplanation || {
+  const explanation = activeRecord?.aiAssessment?.explanation || activeRecord?.modelExplanation || {
     framework: 'Explainability Attributions',
     targetPrediction: 'Predicted 168h Limit Risk',
     baseValue: 0.15,
     features: [],
-    summaryText: 'Parametric measurements track nominal degradation curve.',
+    summaryText: 'Nominal telemetry tracking.',
   };
+
+  const anomalies = activeRecord?.anomalies || {
+    populationAbnormality: false,
+    trajectoryAbnormality: false,
+    futureRiskPrediction: 'Nominal',
+  };
+  const aiAssessment = activeRecord?.aiAssessment?.overallStatus || activeRecord?.aiAssessment || 'NOMINAL';
 
   const riskColor = aiStatus === 'FLAGGED' ? '#f59e0b' : '#10b981';
   const maxAbsShap = (explanation.features || []).reduce(
@@ -117,6 +124,13 @@ export default function ModelPerformance() {
         </p>
       </header>
 
+      {/* Backend API Connection Error Banner */}
+      {fetchError && (
+        <div style={{ padding: '12px 16px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '6px', color: '#fca5a5', fontSize: '13px', marginBottom: '16px' }}>
+          <strong>Backend Connection Notice:</strong> Unable to load live screening records from API ({fetchError}).
+        </div>
+      )}
+
       {/* 2. Component Selection Control Bar */}
       <div className="spad-card" style={{ padding: '16px 20px', marginBottom: '20px' }}>
         <div className="spad-trends-component-controls" style={{ flexWrap: 'wrap', gap: '16px' }}>
@@ -129,6 +143,7 @@ export default function ModelPerformance() {
               className="spad-comp-select-input"
               value={componentId}
               onChange={(e) => setSelectedComponentId(e.target.value)}
+              disabled={screeningRecords.length === 0}
             >
               {screeningRecords.map((c) => {
                 const id = c.componentId || c.id;
@@ -154,14 +169,24 @@ export default function ModelPerformance() {
               AI Status: {aiStatus} (Risk Index: {riskScore.toFixed(2)})
             </span>
             <span className="spad-spec-badge" style={{ marginLeft: 'auto' }}>
-              SOURCE: <strong>{dataSource === 'api' ? 'MONGODB ATLAS' : 'LOCAL FALLBACK'}</strong>
+              SOURCE: <strong>{dataSource === 'api' ? 'MONGODB ATLAS' : dataSource === 'offline' ? 'OFFLINE' : 'EMPTY'}</strong>
             </span>
           </div>
         </div>
       </div>
 
       {/* 3. AI Inference & Anomaly Diagnostic Cards */}
-      <div className="spad-two-col-grid" style={{ marginBottom: '20px' }}>
+      {isLoading ? (
+        <div className="spad-card" style={{ padding: '30px', textAlign: 'center', color: '#94a3b8' }}>
+          Loading model performance data from MongoDB Atlas...
+        </div>
+      ) : !activeRecord ? (
+        <div className="spad-card" style={{ padding: '30px', textAlign: 'center', color: '#94a3b8' }}>
+          {fetchError ? `Backend API connection error: ${fetchError}` : 'No screening records found in database.'}
+        </div>
+      ) : (
+        <>
+          <div className="spad-two-col-grid" style={{ marginBottom: '20px' }}>
         {/* Anomaly Evaluation Card */}
         <div className="spad-card" style={{ padding: '20px' }}>
           <div className="spad-card-header">

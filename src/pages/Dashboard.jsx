@@ -43,13 +43,13 @@ export default function Dashboard({ onNavigateToComponent }) {
           }
         }
         if (isMounted) {
-          setDataSource('fallback');
+          setDataSource('empty');
         }
       } catch (err) {
         if (isMounted) {
           console.warn('[SPAD] Failed to fetch screening records from backend:', err.message);
           setFetchError(err.message);
-          setDataSource('fallback');
+          setDataSource('offline');
         }
       } finally {
         if (isMounted) {
@@ -150,6 +150,13 @@ export default function Dashboard({ onNavigateToComponent }) {
           </div>
         </div>
       </header>
+
+      {/* Backend API Connection Error Banner */}
+      {fetchError && (
+        <div style={{ padding: '12px 16px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '6px', color: '#fca5a5', fontSize: '13px', marginBottom: '16px' }}>
+          <strong>Backend Connection Notice:</strong> Unable to load live screening records from API ({fetchError}). Ensure backend server is running.
+        </div>
+      )}
 
       {/* 2. Five Summary Metrics Cards */}
       <section aria-label="Screening Summary Cards">

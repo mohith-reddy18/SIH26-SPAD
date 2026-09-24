@@ -43,13 +43,13 @@ export default function FailureAnalysis() {
           }
         }
         if (isMounted) {
-          setDataSource('fallback');
+          setDataSource('empty');
         }
       } catch (err) {
         if (isMounted) {
           console.warn('[SPAD] Failed to fetch screening records from backend:', err.message);
           setFetchError(err.message);
-          setDataSource('fallback');
+          setDataSource('offline');
         }
       } finally {
         if (isMounted) {
@@ -74,27 +74,21 @@ export default function FailureAnalysis() {
       if (match) return mapScreeningRecord(match);
       return mapScreeningRecord(screeningRecords[0]);
     }
-    return mapScreeningRecord({ id: selectedComponentId || 'C-0001', lotId: 'LOT-2026-001' });
+    return null;
   }, [screeningRecords, selectedComponentId]);
 
-  const componentId = activeComponent.componentId || 'C-0001';
-  const lotId = activeComponent.lotId || 'LOT-2026-001';
-  const stage = activeComponent.stage || '24h';
-  const engineeringStatus = activeComponent.engineeringStatus || 'NORMAL';
-  const aiStatus = activeComponent.aiStatus || 'NOT_EVALUATED';
-  const aiRisk = activeComponent.aiRisk || 15;
-  const riskScore = activeComponent.riskScore || 0.15;
+  const componentId = activeComponent?.componentId || activeComponent?.id || '—';
+  const lotId = activeComponent?.lotId || '—';
+  const stage = activeComponent?.stage || '—';
+  const engineeringStatus = activeComponent?.engineeringStatus || 'NORMAL';
+  const aiStatus = activeComponent?.aiStatus || 'NOT_EVALUATED';
+  const aiRisk = activeComponent?.aiRisk || 0;
+  const riskScore = activeComponent?.riskScore || 0;
 
-  const measurements = activeComponent.measurements || {};
-  const predictions = activeComponent.predictions || {};
-  const engineeringLimits = activeComponent.engineeringLimits || {};
-  const modelExplanation = activeComponent.modelExplanation || {
-    framework: 'Explainability Attributions',
-    targetPrediction: 'Predicted 168h Limit Risk',
-    baseValue: 0.15,
-    features: [],
-    summaryText: 'Nominal telemetry tracking.',
-  };
+  const measurements = activeComponent?.measurements || {};
+  const predictions = activeComponent?.predictions || {};
+  const engineeringLimits = activeComponent?.engineeringLimits || {};
+  const modelExplanation = activeComponent?.modelExplanation || null;
 
   const isAnomalous = engineeringStatus !== 'NORMAL' || aiStatus === 'FLAGGED';
 
@@ -111,6 +105,13 @@ export default function FailureAnalysis() {
         </p>
       </header>
 
+      {/* Backend API Connection Error Banner */}
+      {fetchError && (
+        <div style={{ padding: '12px 16px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '6px', color: '#fca5a5', fontSize: '13px', marginBottom: '16px' }}>
+          <strong>Backend Connection Notice:</strong> Unable to load live screening records from API ({fetchError}).
+        </div>
+      )}
+
       {/* 2. Component Selector Bar */}
       <div className="spad-card" style={{ padding: '16px 20px', marginBottom: '20px' }}>
         <div className="spad-trends-component-controls" style={{ flexWrap: 'wrap', gap: '16px' }}>
@@ -123,6 +124,7 @@ export default function FailureAnalysis() {
               className="spad-comp-select-input"
               value={componentId}
               onChange={(e) => setSelectedComponentId(e.target.value)}
+              disabled={screeningRecords.length === 0}
             >
               {screeningRecords.map((c) => {
                 const id = c.componentId || c.id;
@@ -154,15 +156,24 @@ export default function FailureAnalysis() {
               AI Risk: {aiRisk}%
             </span>
             <span className="spad-spec-badge" style={{ marginLeft: 'auto' }}>
-              SOURCE: <strong>{dataSource === 'api' ? 'MONGODB ATLAS' : 'LOCAL FALLBACK'}</strong>
+              SOURCE: <strong>{dataSource === 'api' ? 'MONGODB ATLAS' : dataSource === 'offline' ? 'OFFLINE' : 'EMPTY'}</strong>
             </span>
           </div>
         </div>
       </div>
 
       {/* 3. Three-Tier Diagnostic Evidence Grid */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-        {/* Tier 1: Screening Telemetry & Engineering Limits */}
+      {isLoading ? (
+        <div className="spad-card" style={{ padding: '30px', textAlign: 'center', color: '#94a3b8' }}>
+          Loading failure analysis from MongoDB Atlas...
+        </div>
+      ) : !activeComponent ? (
+        <div className="spad-card" style={{ padding: '30px', textAlign: 'center', color: '#94a3b8' }}>
+          {fetchError ? `Backend API connection error: ${fetchError}` : 'No screening records found in database.'}
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          {/* Tier 1: Screening Telemetry & Engineering Limits */}
         <div className="spad-card" style={{ padding: '20px' }}>
           <div className="spad-card-header">
             <div className="spad-card-title-group">
@@ -314,7 +325,7 @@ export default function FailureAnalysis() {
             </div>
           )}
         </div>
-      </div>
+      )}
     </div>
   );
 }

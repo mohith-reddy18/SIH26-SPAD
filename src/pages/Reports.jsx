@@ -47,13 +47,13 @@ export default function Reports() {
           }
         }
         if (isMounted) {
-          setDataSource('fallback');
+          setDataSource('empty');
         }
       } catch (err) {
         if (isMounted) {
           console.warn('[SPAD] Failed to fetch screening records from backend:', err.message);
           setFetchError(err.message);
-          setDataSource('fallback');
+          setDataSource('offline');
         }
       } finally {
         if (isMounted) {
@@ -73,7 +73,7 @@ export default function Reports() {
   const lotsMap = useMemo(() => {
     const map = {};
     screeningRecords.forEach((rec) => {
-      const lot = rec.lotId || 'LOT-2026-001';
+      const lot = rec.lotId || 'LOT-UNKNOWN';
       if (!map[lot]) map[lot] = [];
       map[lot].push(mapScreeningRecord(rec));
     });
@@ -91,28 +91,22 @@ export default function Reports() {
       if (match) return mapScreeningRecord(match);
       return mapScreeningRecord(screeningRecords[0]);
     }
-    return mapScreeningRecord({ id: selectedComponentId || 'C-0001', lotId: 'LOT-2026-001' });
+    return null;
   }, [screeningRecords, selectedComponentId]);
 
-  const componentId = activeComponent.componentId || 'C-0001';
-  const lotId = activeComponent.lotId || 'LOT-2026-001';
-  const stage = activeComponent.stage || '24h';
-  const engineeringStatus = activeComponent.engineeringStatus || 'NORMAL';
-  const aiStatus = activeComponent.aiStatus || 'NOT_EVALUATED';
-  const aiRisk = activeComponent.aiRisk || 15;
-  const riskScore = activeComponent.riskScore || 0.15;
+  const componentId = activeComponent?.componentId || activeComponent?.id || '—';
+  const lotId = activeComponent?.lotId || '—';
+  const stage = activeComponent?.stage || '—';
+  const engineeringStatus = activeComponent?.engineeringStatus || 'NORMAL';
+  const aiStatus = activeComponent?.aiStatus || 'NOT_EVALUATED';
+  const aiRisk = activeComponent?.aiRisk || 0;
+  const riskScore = activeComponent?.riskScore || 0;
 
-  const measurements = activeComponent.measurements || {};
-  const predictions = activeComponent.predictions || {};
-  const engineeringLimits = activeComponent.engineeringLimits || {};
-  const aiAssessment = activeComponent.aiAssessment || {};
-  const modelExplanation = activeComponent.modelExplanation || {
-    framework: 'Explainability Attributions',
-    targetPrediction: 'Predicted 168h Limit Risk',
-    baseValue: 0.15,
-    features: [],
-    summaryText: 'Nominal telemetry tracking.',
-  };
+  const measurements = activeComponent?.measurements || {};
+  const predictions = activeComponent?.predictions || {};
+  const engineeringLimits = activeComponent?.engineeringLimits || {};
+  const aiAssessment = activeComponent?.aiAssessment || {};
+  const modelExplanation = activeComponent?.modelExplanation || null;
 
   // 4. Lot report metrics
   const activeLotRecords = lotsMap[selectedLotId] || (lotsMap[availableLots[0]] || []);
@@ -239,13 +233,21 @@ export default function Reports() {
           </div>
 
           <span className="spad-spec-badge">
-            DATA SOURCE: <strong>{dataSource === 'api' ? 'MONGODB ATLAS' : 'LOCAL FALLBACK'}</strong>
+            DATA SOURCE: <strong>{dataSource === 'api' ? 'MONGODB ATLAS' : dataSource === 'offline' ? 'OFFLINE' : 'EMPTY'}</strong>
           </span>
         </div>
       </div>
 
       {/* 3. REPORT CONTENT CONTAINER */}
-      {reportType === 'component' ? (
+      {isLoading ? (
+        <div className="spad-card" style={{ padding: '30px', textAlign: 'center', color: '#94a3b8' }}>
+          Loading screening report from MongoDB Atlas...
+        </div>
+      ) : !activeComponent && reportType === 'component' ? (
+        <div className="spad-card" style={{ padding: '30px', textAlign: 'center', color: '#94a3b8' }}>
+          {fetchError ? `Backend API connection error: ${fetchError}` : 'No screening component records found in database.'}
+        </div>
+      ) : reportType === 'component' ? (
         /* COMPONENT AUDIT REPORT */
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           {/* Certificate Header Banner */}
