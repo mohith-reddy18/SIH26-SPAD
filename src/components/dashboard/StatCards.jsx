@@ -131,7 +131,7 @@ export default function StatCards({ summaryStats }) {
 
             <div className="spad-stat-value">{card.value}</div>
 
-            {/* Percentage Indicator & Progress Bar for PASSED, HOLD, and REJECTED */}
+            {/* Percentage Indicator & Progress Bar for NORMAL, SUSPECT, and CRITICAL */}
             {card.hasProgress ? (
               <div className="spad-stat-progress-wrap">
                 <span className="spad-stat-pct-label">{card.percentage}%</span>

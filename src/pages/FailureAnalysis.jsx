@@ -141,9 +141,14 @@ export default function FailureAnalysis() {
             <span className="spad-summary-pill-lot">Lot: {lotId}</span>
             <span className="spad-summary-pill-lot">Stage: {stage}</span>
             <span
-              className={`spad-summary-pill-status status-${status.toLowerCase()}`}
+              className={`spad-summary-pill-status status-${engineeringStatus.toLowerCase()}`}
             >
-              Status: {status}
+              Engineering: {engineeringStatus}
+            </span>
+            <span
+              className={`spad-summary-pill-status ${aiStatus === 'FLAGGED' ? 'status-suspect' : 'status-normal'}`}
+            >
+              AI: {aiStatus}
             </span>
             <span className="spad-summary-pill-risk">
               AI Risk: {aiRisk}%
@@ -167,12 +172,12 @@ export default function FailureAnalysis() {
             <span
               className="spad-status-pill"
               style={{
-                backgroundColor: getStatusColor(status) + '20',
-                color: getStatusColor(status),
-                borderColor: getStatusColor(status) + '60',
+                backgroundColor: getStatusColor(engineeringStatus) + '20',
+                color: getStatusColor(engineeringStatus),
+                borderColor: getStatusColor(engineeringStatus) + '60',
               }}
             >
-              {status === 'NORMAL' ? 'WITHIN SPECIFICATION LIMITS' : 'SPECIFICATION ANOMALY'}
+              {engineeringStatus === 'NORMAL' ? 'WITHIN SPECIFICATION LIMITS' : 'SPECIFICATION ANOMALY'}
             </span>
           </div>
 

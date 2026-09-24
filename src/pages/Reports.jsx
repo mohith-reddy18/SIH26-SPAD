@@ -263,11 +263,14 @@ export default function Reports() {
                 </div>
               </div>
 
-              <div style={{ textAlign: 'right' }}>
-                <span className="spad-status-pill" style={{ fontSize: '13px', padding: '6px 14px', backgroundColor: getStatusColor(status) + '20', color: getStatusColor(status), borderColor: getStatusColor(status) + '60' }}>
-                  FINAL STATUS: {status}
+              <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'flex-end' }}>
+                <span className="spad-status-pill" style={{ fontSize: '13px', padding: '6px 14px', backgroundColor: getStatusColor(engineeringStatus) + '20', color: getStatusColor(engineeringStatus), borderColor: getStatusColor(engineeringStatus) + '60' }}>
+                  ENGINEERING: {engineeringStatus}
                 </span>
-                <div className="font-mono" style={{ fontSize: '11px', color: '#64748b', marginTop: '6px' }}>
+                <span className="spad-status-pill" style={{ fontSize: '12px', padding: '4px 12px', backgroundColor: (aiStatus === 'FLAGGED' ? '#f59e0b20' : '#10b98120'), color: (aiStatus === 'FLAGGED' ? '#fbbf24' : '#34d399'), borderColor: (aiStatus === 'FLAGGED' ? '#f59e0b60' : '#10b98160') }}>
+                  AI STATUS: {aiStatus}
+                </span>
+                <div className="font-mono" style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
                   AI RISK SCORE: {riskScore} ({aiRisk}%)
                 </div>
               </div>
@@ -444,7 +447,7 @@ export default function Reports() {
                     <th>PROP DELAY (t_pd)</th>
                     <th>AI RISK</th>
                     <th>EVIDENCE</th>
-                    <th>STATUS</th>
+                    <th>ENGINEERING STATUS</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -452,7 +455,7 @@ export default function Reports() {
                     const cId = item.componentId || item.id;
                     const cStage = item.stage || '96h';
                     const cRisk = typeof item.aiRisk === 'number' ? item.aiRisk : 0;
-                    const cStatus = item.status || 'NORMAL';
+                    const cStatus = item.engineeringStatus || item.status || 'NORMAL';
                     const cEvidence = item.evidence || 'Within Expected Range';
                     const iddqVal = item.measurements?.iddq ? item.measurements.iddq[item.measurements.iddq.length - 1] + ' mA' : item.standbyCurrent || '—';
                     const leakVal = item.measurements?.leakage ? item.measurements.leakage[item.measurements.leakage.length - 1] + ' µA' : item.leakageCurrent || '—';

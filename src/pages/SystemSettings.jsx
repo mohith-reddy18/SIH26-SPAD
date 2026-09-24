@@ -9,6 +9,7 @@ export default function SystemSettings() {
     status: 'checking',
     backend: 'checking...',
     database: 'checking...',
+    aiService: 'checking...',
     timestamp: null,
     latency: null,
   });
@@ -32,6 +33,7 @@ export default function SystemSettings() {
           status: 'ok',
           backend: data.status === 'ok' ? 'Connected (Running)' : 'Unknown',
           database: data.database === 'connected' ? 'Connected (Atlas)' : data.database || 'Disconnected',
+          aiService: data.aiService === 'configured' ? 'Remote Service Configured' : 'Local Dev Interface',
           timestamp: data.timestamp || new Date().toISOString(),
           latency: `${latency}ms`,
         });
@@ -40,6 +42,7 @@ export default function SystemSettings() {
           status: 'error',
           backend: `HTTP ${response.status}`,
           database: 'Unknown',
+          aiService: 'Unknown',
           timestamp: new Date().toISOString(),
           latency: `${latency}ms`,
         });
@@ -49,6 +52,7 @@ export default function SystemSettings() {
         status: 'error',
         backend: 'Unreachable / Offline',
         database: 'Disconnected',
+        aiService: 'Offline',
         timestamp: new Date().toISOString(),
         latency: '—',
       });
@@ -110,6 +114,16 @@ export default function SystemSettings() {
             </div>
             <div className="font-mono" style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
               Time-series Telemetry Storage
+            </div>
+          </div>
+
+          <div style={{ padding: '12px 16px', background: 'rgba(56, 189, 248, 0.04)', border: '1px solid rgba(56, 189, 248, 0.12)', borderRadius: '4px' }}>
+            <span style={{ fontSize: '11px', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>AI Inference Service</span>
+            <div style={{ fontSize: '15px', fontWeight: '700', color: healthStatus.aiService.includes('Configured') || healthStatus.aiService.includes('Local') ? '#38bdf8' : '#f87171', marginTop: '4px' }}>
+              {healthStatus.aiService}
+            </div>
+            <div className="font-mono" style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
+              Method 1 (168h) &amp; Method 2 (Anomaly)
             </div>
           </div>
 

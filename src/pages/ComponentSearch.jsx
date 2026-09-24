@@ -179,7 +179,7 @@ export default function ComponentSearch({ onNavigateToComponent, initialComponen
                 <th>PROP DELAY (t_pd)</th>
                 <th>ENGINEERING LIMIT STATUS</th>
                 <th>AI RISK (168h FORECAST)</th>
-                <th>STATUS</th>
+                <th>ENGINEERING STATUS</th>
               </tr>
             </thead>
             <tbody>
