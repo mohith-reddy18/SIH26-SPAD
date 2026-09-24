@@ -103,7 +103,7 @@ export default function ModelPerformance() {
     trajectoryAbnormality: false,
     futureRiskPrediction: 'Nominal',
   };
-  const aiAssessment = activeRecord?.aiAssessment?.overallStatus || activeRecord?.aiAssessment || 'NOMINAL';
+  const aiAssessment = activeRecord?.aiStatus || (typeof activeRecord?.aiAssessment === 'string' ? activeRecord.aiAssessment : activeRecord?.aiAssessment?.overallStatus) || 'NOT_EVALUATED';
 
   const riskColor = aiStatus === 'FLAGGED' ? '#f59e0b' : '#10b981';
   const maxAbsShap = (explanation.features || []).reduce(

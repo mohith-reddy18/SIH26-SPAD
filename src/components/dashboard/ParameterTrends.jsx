@@ -388,7 +388,7 @@ export default function ParameterTrends({
                 Status: {selectedStatus}
               </span>
               <span className="spad-summary-pill-risk">
-                AI Status: {activeComponent.aiAssessment || (activeComponent.aiRisk > 75 ? 'CRITICAL' : activeComponent.aiRisk > 40 ? 'SUSPECT' : 'NORMAL')}
+                AI Status: {activeComponent.aiStatus || (typeof activeComponent.aiAssessment === 'string' ? activeComponent.aiAssessment : activeComponent.aiAssessment?.overallStatus) || 'NOT_EVALUATED'}
               </span>
             </div>
           </div>
