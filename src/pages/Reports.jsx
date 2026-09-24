@@ -18,7 +18,7 @@ export default function Reports() {
   const [reportType, setReportType] = useState('component'); // 'component' | 'lot'
   const [selectedComponentId, setSelectedComponentId] = useState('C-0001');
   const [selectedLotId, setSelectedLotId] = useState('LOT-2026-001');
-  const [dataSource, setDataSource] = useState('fallback'); // 'api' | 'fallback'
+  const [dataSource, setDataSource] = useState('loading'); // 'loading' | 'api' | 'empty' | 'offline'
   const [isLoading, setIsLoading] = useState(true);
   const [fetchError, setFetchError] = useState(null);
 

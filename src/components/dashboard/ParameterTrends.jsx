@@ -23,6 +23,10 @@ function extractTrajectory(data, predictionVal) {
     const forecastVal = typeof predictionVal === 'number' ? predictionVal : data[2];
     return [data[0], data[1], forecastVal];
   }
+  if (data.length === 2) {
+    const forecastVal = typeof predictionVal === 'number' ? predictionVal : data[1];
+    return [data[0], data[1], forecastVal];
+  }
   return data;
 }
 

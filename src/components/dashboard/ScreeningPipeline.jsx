@@ -82,19 +82,19 @@ export default function ScreeningPipeline({
         <div className="spad-lot-status-grid">
           <div className="spad-lot-stat-item">
             <span className="spad-lot-stat-k">Components in Lot</span>
-            <span className="spad-lot-stat-v">{context.totalUnits ? context.totalUnits.toLocaleString() : '1,248'}</span>
+            <span className="spad-lot-stat-v">{context.totalUnits !== undefined && context.totalUnits !== null ? context.totalUnits.toLocaleString() : '—'}</span>
           </div>
           <div className="spad-lot-stat-item">
             <span className="spad-lot-stat-k">Input Units Tested</span>
-            <span className="spad-lot-stat-v">{context.screenedUnits ? context.screenedUnits.toLocaleString() : '1,248'} <span className="spad-lot-stat-sub">(0h+24h)</span></span>
+            <span className="spad-lot-stat-v">{context.screenedUnits !== undefined && context.screenedUnits !== null ? context.screenedUnits.toLocaleString() : '—'} <span className="spad-lot-stat-sub">(0h+24h)</span></span>
           </div>
           <div className="spad-lot-stat-item">
             <span className="spad-lot-stat-k">Projected 168h Yield</span>
-            <span className="spad-lot-stat-v status-yield">{context.currentYield || '96.2%'}</span>
+            <span className="spad-lot-stat-v status-yield">{context.currentYield || '—'}</span>
           </div>
           <div className="spad-lot-stat-item">
             <span className="spad-lot-stat-k">Predicted Anomalies</span>
-            <span className="spad-lot-stat-v status-anom">{context.anomaliesDetected || '122'} units</span>
+            <span className="spad-lot-stat-v status-anom">{context.anomaliesDetected !== undefined && context.anomaliesDetected !== null ? `${context.anomaliesDetected} units` : '—'}</span>
           </div>
           <div className="spad-lot-stat-item spad-lot-stat-span">
             <span className="spad-lot-stat-k">Next Physical Gate:</span>

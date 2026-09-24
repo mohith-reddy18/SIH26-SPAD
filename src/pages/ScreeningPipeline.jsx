@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import ScreeningPipelineCard from '../components/dashboard/ScreeningPipeline';
-import { mockPipelineStages, mockScreeningContext } from '../data/mockData';
 import { getNormalizedEngineeringStatus } from '../utils/recordMapping';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://sih26-spad.onrender.com';
@@ -8,7 +7,7 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://sih26-spad.onrende
 export default function ScreeningPipeline() {
   const [screeningRecords, setScreeningRecords] = useState([]);
   const [selectedLotId, setSelectedLotId] = useState(null);
-  const [dataSource, setDataSource] = useState('fallback'); // 'api' | 'fallback'
+  const [dataSource, setDataSource] = useState('loading'); // 'loading' | 'api' | 'empty' | 'offline'
   const [isLoading, setIsLoading] = useState(true);
   const [fetchError, setFetchError] = useState(null);
 
@@ -34,16 +33,14 @@ export default function ScreeningPipeline() {
             return;
           }
         }
-        // Fallback when API returns empty/unexpected structure
         if (isMounted) {
-          console.warn('[SPAD] API returned empty/invalid records; using mock fallback.');
-          setDataSource('fallback');
+          setDataSource('empty');
         }
       } catch (err) {
         if (isMounted) {
           console.warn('[SPAD] Failed to fetch screening records from backend:', err.message);
           setFetchError(err.message);
-          setDataSource('fallback');
+          setDataSource('offline');
         }
       } finally {
         if (isMounted) {
@@ -75,12 +72,12 @@ export default function ScreeningPipeline() {
   }, [screeningRecords, dataSource]);
 
   const availableLotIds = useMemo(() => Object.keys(lotsMap), [lotsMap]);
-  const activeLotId = selectedLotId || availableLotIds[0] || mockScreeningContext.lotId;
+  const activeLotId = selectedLotId || availableLotIds[0] || '—';
   const currentLotRecords = lotsMap[activeLotId] || [];
 
-  // Derive lot-level screening context from database data
+  // Derive lot-level screening context from real database data
   const lotContext = useMemo(() => {
-    if (dataSource === 'api' && currentLotRecords.length > 0) {
+    if (currentLotRecords.length > 0) {
       const totalUnits = currentLotRecords.length;
       const normalCount = currentLotRecords.filter(
         (r) => getNormalizedEngineeringStatus(r) === 'NORMAL'
@@ -95,7 +92,7 @@ export default function ScreeningPipeline() {
         lotId: activeLotId,
         lotStatus: 'PREDICTIVE SCREENING ACTIVE',
         currentStage: activeStage,
-        currentProgressPercent: 75,
+        currentProgressPercent: activeStage === '168h' ? 100 : activeStage === '96h' ? 85 : 75,
         totalUnits: totalUnits,
         screenedUnits: totalUnits,
         currentYield: currentYieldPct,
@@ -107,13 +104,25 @@ export default function ScreeningPipeline() {
       };
     }
 
-    // Fallback context when API data is unavailable
-    return mockScreeningContext;
+    return {
+      lotId: activeLotId,
+      lotStatus: dataSource === 'offline' ? 'BACKEND OFFLINE' : 'NO ACTIVE LOT',
+      currentStage: '—',
+      currentProgressPercent: 0,
+      totalUnits: 0,
+      screenedUnits: 0,
+      currentYield: '—',
+      anomaliesDetected: 0,
+      nextGate: '—',
+      temperature: '—',
+      chamberId: '—',
+      operator: '—',
+    };
   }, [currentLotRecords, activeLotId, dataSource]);
 
-  // Derive pipeline stage status
+  // Derive pipeline stage status dynamically from real records
   const pipelineStages = useMemo(() => {
-    if (dataSource === 'api' && currentLotRecords.length > 0) {
+    if (currentLotRecords.length > 0) {
       const sample = currentLotRecords[0];
       const hasBaseline = Boolean(sample.measurements && Object.keys(sample.measurements).length > 0);
       const has24h = Boolean(sample.measurements && Object.keys(sample.measurements).length > 0);
@@ -167,8 +176,49 @@ export default function ScreeningPipeline() {
       ];
     }
 
-    return mockPipelineStages;
-  }, [currentLotRecords, lotContext, dataSource]);
+    return [
+      {
+        id: 'stage-0h',
+        timeLabel: '0h',
+        name: 'Baseline Measurement',
+        category: 'INPUT MEASUREMENT',
+        status: 'pending',
+        badge: 'Pending',
+        description: 'Initial physical baseline screening.',
+        sampleYield: '—',
+      },
+      {
+        id: 'stage-24h',
+        timeLabel: '24h',
+        name: 'Early Burn-In Check',
+        category: 'INPUT MEASUREMENT',
+        status: 'pending',
+        badge: 'Pending',
+        description: 'Early thermal stress checkpoint.',
+        sampleYield: '—',
+      },
+      {
+        id: 'stage-ai',
+        timeLabel: 'AI',
+        name: '168h Risk Prediction',
+        category: 'AI PREDICTION',
+        status: 'pending',
+        badge: 'Pending',
+        description: 'AI model forecast.',
+        sampleYield: '—',
+      },
+      {
+        id: 'stage-168h',
+        timeLabel: '168h',
+        name: 'Physical Validation',
+        category: 'PHYSICAL VALIDATION',
+        status: 'pending',
+        badge: 'Pending',
+        description: 'Physical validation gate.',
+        sampleYield: '—',
+      },
+    ];
+  }, [currentLotRecords, lotContext]);
 
   return (
     <div className="spad-page-container">
@@ -183,8 +233,44 @@ export default function ScreeningPipeline() {
         </p>
       </header>
 
+      {/* Offline/Error Notice */}
+      {dataSource === 'offline' && (
+        <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid #ef4444', borderRadius: 8, padding: '12px 16px', marginBottom: 20, color: '#ef4444', fontSize: 13 }}>
+          <strong>API Connection Offline:</strong> Unable to reach {API_BASE_URL}/api/screening ({fetchError}).
+        </div>
+      )}
+
+      {/* Lot Selector */}
+      {availableLotIds.length > 1 && (
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 16 }}>
+          <span style={{ fontSize: 13, color: '#94a3b8' }}>Select Active Lot:</span>
+          {availableLotIds.map((lId) => (
+            <button
+              key={lId}
+              onClick={() => setSelectedLotId(lId)}
+              style={{
+                background: selectedLotId === lId ? 'rgba(56, 189, 248, 0.2)' : 'rgba(30, 41, 59, 0.5)',
+                border: `1px solid ${selectedLotId === lId ? '#38bdf8' : 'rgba(148, 163, 184, 0.2)'}`,
+                color: selectedLotId === lId ? '#38bdf8' : '#94a3b8',
+                borderRadius: 6,
+                padding: '4px 12px',
+                cursor: 'pointer',
+                fontSize: 12,
+                fontWeight: 600,
+              }}
+            >
+              {lId} ({lotsMap[lId]?.length} units)
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* 2. Lot-Level Screening Pipeline Card */}
-      <ScreeningPipelineCard stages={pipelineStages} context={lotContext} />
+      {isLoading ? (
+        <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>Loading pipeline screening data...</div>
+      ) : (
+        <ScreeningPipelineCard stages={pipelineStages} context={lotContext} />
+      )}
     </div>
   );
 }

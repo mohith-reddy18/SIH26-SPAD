@@ -17,7 +17,7 @@ export default function ObservabilityStudy() {
   const [screeningRecords, setScreeningRecords] = useState([]);
   const [selectedComponentId, setSelectedComponentId] = useState('C-0001');
   const [selectedParamKey, setSelectedParamKey] = useState('ALL');
-  const [dataSource, setDataSource] = useState('fallback'); // 'api' | 'fallback'
+  const [dataSource, setDataSource] = useState('loading'); // 'loading' | 'api' | 'empty' | 'offline'
   const [isLoading, setIsLoading] = useState(true);
   const [fetchError, setFetchError] = useState(null);
 

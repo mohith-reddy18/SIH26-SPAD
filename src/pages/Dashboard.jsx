@@ -17,7 +17,7 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://sih26-spad.onrende
 export default function Dashboard({ onNavigateToComponent }) {
   const [selectedModalComponent, setSelectedModalComponent] = useState(null);
   const [componentRecords, setComponentRecords] = useState([]);
-  const [dataSource, setDataSource] = useState('fallback'); // 'api' | 'fallback'
+  const [dataSource, setDataSource] = useState('loading'); // 'loading' | 'api' | 'empty' | 'offline'
   const [isLoading, setIsLoading] = useState(true);
   const [fetchError, setFetchError] = useState(null);
 
