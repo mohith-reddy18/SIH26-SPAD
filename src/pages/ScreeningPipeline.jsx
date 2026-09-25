@@ -232,10 +232,10 @@ export default function ScreeningPipeline() {
       <header className="spad-page-header">
         <div className="spad-page-title-row">
           <h1 className="spad-page-title">Screening Pipeline</h1>
-          <span className="spad-page-tag">PREDICTIVE SCREENING WORKFLOW</span>
+          <span className="spad-page-tag">SCREENING RESULT SUMMARY</span>
         </div>
         <p className="spad-page-description">
-          Early predictive burn-in screening workflow: 0hr &amp; 24hr baseline physical measurements (Complete) &rarr; AI 168hr Risk Prediction (Available) &rarr; 168hr Physical Validation (Pending).
+          Lot-level predictive screening result summary with dual AI models: Random Forest (Future Prediction) and Isolation Forest (Lot-Level Anomaly Detection).
         </p>
       </header>
 
