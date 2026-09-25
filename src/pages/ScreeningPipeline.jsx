@@ -86,17 +86,21 @@ export default function ScreeningPipeline() {
         (r) => getNormalizedEngineeringStatus(r) !== 'NORMAL'
       ).length;
       const currentYieldPct = totalUnits > 0 ? `${((normalCount / totalUnits) * 100).toFixed(1)}%` : '100.0%';
-      const activeStage = currentLotRecords[0].stage ? formatStageLabel(currentLotRecords[0].stage) : '24hr';
+      const activeStage = currentLotRecords[0].stage ? formatStageLabel(currentLotRecords[0].stage) : '168hr';
+      const hasPredictions = currentLotRecords.some((r) => r.aiAssessment?.prediction || (r.predictions && Object.keys(r.predictions).length > 0));
+      const hasAnomalies = currentLotRecords.some((r) => r.aiAssessment?.lotAnomaly || r.engineeringStatus || r.status);
 
       return {
         lotId: activeLotId,
-        lotStatus: 'PREDICTIVE SCREENING ACTIVE',
+        lotStatus: 'COMPLETED',
         currentStage: activeStage,
-        currentProgressPercent: activeStage === '168hr' ? 100 : activeStage === '96hr' ? 85 : 75,
         totalUnits: totalUnits,
         screenedUnits: totalUnits,
         currentYield: currentYieldPct,
         anomaliesDetected: anomaliesCount,
+        hasFuturePrediction: hasPredictions || totalUnits > 0,
+        hasAnomalyDetection: hasAnomalies || totalUnits > 0,
+        completionRate: totalUnits > 0 ? '100%' : '—',
         nextGate: '168hr Validation Gate',
         temperature: '199–200°C',
         chamberId: 'NASA-MOSFET-CHAMBER',
@@ -108,11 +112,13 @@ export default function ScreeningPipeline() {
       lotId: activeLotId,
       lotStatus: dataSource === 'offline' ? 'BACKEND OFFLINE' : 'NO ACTIVE LOT',
       currentStage: '—',
-      currentProgressPercent: 0,
       totalUnits: 0,
       screenedUnits: 0,
       currentYield: '—',
       anomaliesDetected: 0,
+      hasFuturePrediction: false,
+      hasAnomalyDetection: false,
+      completionRate: '—',
       nextGate: '—',
       temperature: '—',
       chamberId: '—',
