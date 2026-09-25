@@ -97,14 +97,20 @@ export default function Dashboard({ onNavigateToComponent }) {
     const anomalyCount = componentRecords.filter((c) => c.engineeringStatus === 'SUSPECT' || c.engineeringStatus === 'CRITICAL').length;
     const calculatedYield = totalUnits > 0 ? `${((normalCount / totalUnits) * 100).toFixed(1)}%` : '100.0%';
     const primaryLotId = totalUnits > 0 && componentRecords[0].lotId ? componentRecords[0].lotId : 'NASA-MOSFET-199C';
+    const hasPredictions = componentRecords.some((c) => c.predictions && Object.keys(c.predictions).length > 0);
+    const hasAnomalies = componentRecords.some((c) => c.anomalies || c.engineeringStatus !== undefined);
 
     return {
       ...mockDashboardData.screeningContext,
       lotId: primaryLotId,
+      lotStatus: totalUnits > 0 ? 'COMPLETED' : 'NO ACTIVE LOT',
       totalUnits,
       screenedUnits: totalUnits,
       currentYield: calculatedYield,
       anomaliesDetected: anomalyCount,
+      hasFuturePrediction: hasPredictions || totalUnits > 0,
+      hasAnomalyDetection: hasAnomalies || totalUnits > 0,
+      completionRate: totalUnits > 0 ? '100%' : '—',
     };
   }, [componentRecords]);
 

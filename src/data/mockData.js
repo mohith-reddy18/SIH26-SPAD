@@ -19,9 +19,12 @@
 // 1. Static Screening Context Template (Overridden dynamically by active database records)
 export const mockScreeningContext = {
   lotId: 'NASA-MOSFET-199C',
-  lotStatus: 'PREDICTIVE SCREENING ACTIVE',
+  lotStatus: 'COMPLETED',
   currentStage: '168hr Validation Gate',
   currentProgressPercent: 100,
+  hasFuturePrediction: true,
+  hasAnomalyDetection: true,
+  completionRate: '100%',
   startTime: '2026-09-12T08:00:00Z',
   temperature: '199–200°C',
   chamberId: 'NASA-MOSFET-CHAMBER',
@@ -30,7 +33,7 @@ export const mockScreeningContext = {
   screenedUnits: 0,
   currentYield: '100%',
   anomaliesDetected: 0,
-  nextGate: 'V2 Multidimensional Observability Upgrade',
+  nextGate: '168hr Physical Validation Gate',
 };
 
 // 2. Telemetry Parameter Specifications & Engineering Reference Limits
