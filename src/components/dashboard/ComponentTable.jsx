@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { getNormalizedEngineeringStatus, getParameterMeta, extractLatestValue } from '../../utils/recordMapping';
+import { getNormalizedEngineeringStatus, getParameterMeta, extractLatestValue, formatStageLabel } from '../../utils/recordMapping';
 
 function SearchIcon() {
   return (
@@ -140,7 +140,7 @@ export default function ComponentTable({ records = [], onSelectComponent }) {
                   >
                     <td className="spad-td-mono font-bold text-cyan">{item.id}</td>
                     <td className="spad-td-mono text-muted">{item.lotId}</td>
-                    <td className="spad-td-mono text-slate">{item.stage}</td>
+                    <td className="spad-td-mono text-slate">{formatStageLabel(item.stage)}</td>
                     {paramColumns.map((col) => {
                       const val = extractLatestValue(item.measurements?.[col.key]);
                       return (

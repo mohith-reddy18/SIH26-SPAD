@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { mockScreeningContext } from '../../data/mockData';
-import { getParameterMeta, extractPredictedValue } from '../../utils/recordMapping';
+import { getParameterMeta, extractPredictedValue, formatStageLabel } from '../../utils/recordMapping';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://sih26-spad.onrender.com';
 
@@ -117,7 +117,7 @@ export default function ParameterTrends({
         ...liveComponentData,
         id: liveComponentData.componentId || liveComponentData.id || fallback.id || selectedComponentId,
         lotId: liveComponentData.lotId || fallback.lotId || 'NASA-MOSFET-199C',
-        stage: liveComponentData.stage || fallback.stage || '100%',
+        stage: liveComponentData.stage || fallback.stage || '168hr',
         measurements: liveComponentData.measurements || fallback.measurements || {},
         predictions: liveComponentData.predictions || fallback.predictions || {},
         engineeringLimits: liveComponentData.engineeringLimits || fallback.engineeringLimits || {},
@@ -319,19 +319,20 @@ export default function ParameterTrends({
   const checkpoints = useMemo(() => {
     if (rawDataForCheckpoints && typeof rawDataForCheckpoints === 'object' && !Array.isArray(rawDataForCheckpoints)) {
       const keys = Object.keys(rawDataForCheckpoints);
+      const mappedKeys = keys.map(formatStageLabel);
       if (typeof dynamicPrediction === 'number') {
-        return [...keys, 'Predicted (100%)'];
+        return [...mappedKeys, 'Predicted (168hr)'];
       }
-      return keys.length > 0 ? keys : ['0%', '33.33%', '66.67%', '100%'];
+      return mappedKeys.length > 0 ? mappedKeys : ['0hr', '24hr', '96hr', '168hr'];
     }
     if (Array.isArray(rawDataForCheckpoints)) {
       const len = rawDataForCheckpoints.length + (typeof dynamicPrediction === 'number' && rawDataForCheckpoints.length <= 2 ? 1 : 0);
-      if (len === 4) return ['0%', '33.33%', '66.67%', '100%'];
-      if (len === 3) return ['0%', '33.33%', '100% [Forecast]'];
-      if (len === 2) return ['0%', '33.33%'];
-      if (len === 1) return ['Baseline (0%)'];
+      if (len === 4) return ['0hr', '24hr', '96hr', '168hr'];
+      if (len === 3) return ['0hr', '24hr', '168hr [Forecast]'];
+      if (len === 2) return ['0hr', '24hr'];
+      if (len === 1) return ['Baseline (0hr)'];
     }
-    return ['0%', '33.33%', '66.67%', '100%'];
+    return ['0hr', '24hr', '96hr', '168hr'];
   }, [rawDataForCheckpoints, dynamicPrediction]);
 
   const getX = (index) => padding.left + (index / (Math.max(1, checkpoints.length - 1))) * chartW;
@@ -514,7 +515,7 @@ export default function ParameterTrends({
           {/* Vertical Checkpoint Lines & Stage Markers */}
           {checkpoints.map((cp, i) => {
             const x = getX(i);
-            const isForecast = cp === '168h';
+            const isForecast = cp === '168hr' || cp === '168h' || String(cp).includes('168') || String(cp).includes('Forecast');
 
             return (
               <g key={cp}>
@@ -635,7 +636,7 @@ export default function ParameterTrends({
                 {series.data.map((val, idx) => {
                   const cx = getX(idx);
                   const cy = getY(val);
-                  const isForecast = checkpoints[idx] === '168h';
+                  const isForecast = checkpoints[idx] === '168hr' || checkpoints[idx] === '168h' || String(checkpoints[idx]).includes('168') || String(checkpoints[idx]).includes('Forecast');
                   const pointKey = `${series.id}-${idx}`;
                   const isPointHovered = hoveredPoint && hoveredPoint.key === pointKey;
 
@@ -701,13 +702,13 @@ export default function ParameterTrends({
               <text x="10" y="15" fill="#38bdf8" fontSize="10.5" fontWeight="700" fontFamily="var(--font-mono)">
                 {hoveredPoint.componentId === 'Healthy Reference'
                   ? 'Baseline Reference'
-                  : `Component: ${hoveredPoint.componentId} ${hoveredPoint.isForecast ? '(168h Forecast)' : ''}`}
+                  : `Component: ${hoveredPoint.componentId} ${hoveredPoint.isForecast ? '(168hr Forecast)' : ''}`}
               </text>
               <text x="10" y="29" fill="#f8fafc" fontSize="10" fontWeight="600" fontFamily="var(--font-mono)">
                 {hoveredPoint.checkpoint} {hoveredPoint.isForecast ? '[AI Prediction]' : '[Observed]'} | {hoveredPoint.paramName}: {hoveredPoint.val} {hoveredPoint.unit}
               </text>
               <text x="10" y="44" fill="#94a3b8" fontSize="9" fontFamily="var(--font-mono)">
-                {hoveredPoint.isForecast ? 'AI 168h Status: ' : 'Status: '}
+                {hoveredPoint.isForecast ? 'AI 168hr Status: ' : 'Status: '}
                 <tspan fill={hoveredPoint.isForecast ? '#38bdf8' : getStatusColor(hoveredPoint.status)} fontWeight="700">
                   {hoveredPoint.status}
                 </tspan>

@@ -10,7 +10,7 @@ function getStatusColor(status) {
   return '#38bdf8';
 }
 
-import { mapScreeningRecord, getParameterMeta, extractPredictedValue } from '../utils/recordMapping';
+import { mapScreeningRecord, getParameterMeta, extractPredictedValue, formatStageLabel } from '../utils/recordMapping';
 
 export default function FailureAnalysis() {
   const [screeningRecords, setScreeningRecords] = useState([]);
@@ -152,7 +152,7 @@ export default function FailureAnalysis() {
           <div className="spad-comp-compact-summary">
             <span className="spad-summary-pill-id">{componentId}</span>
             <span className="spad-summary-pill-lot">Lot: {lotId}</span>
-            <span className="spad-summary-pill-lot">Stage: {stage}</span>
+            <span className="spad-summary-pill-lot">Stage: {formatStageLabel(stage)}</span>
             <span
               className={`spad-summary-pill-status status-${engineeringStatus.toLowerCase()}`}
             >
@@ -212,8 +212,8 @@ export default function FailureAnalysis() {
               <thead>
                 <tr>
                   <th>PARAMETER</th>
-                  <th>OBSERVED VALUES (0% &rarr; 66.67%)</th>
-                  <th>100% FORECAST PREDICTION</th>
+                  <th>OBSERVED VALUES (0hr &rarr; 96hr)</th>
+                  <th>168hr FORECAST PREDICTION</th>
                   <th>ENGINEERING LIMIT</th>
                   <th>SAFETY MARGIN</th>
                   <th>STATUS</th>

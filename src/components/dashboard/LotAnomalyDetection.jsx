@@ -69,21 +69,61 @@ export default function LotAnomalyDetection({ records = [], onSelectComponent })
   const eligiblePeersCount = Math.max(0, cohortCount - 1);
 
   return (
-    <div className="spad-card spad-lot-anomaly-card" role="region" aria-label="Lot-Level Anomaly Detection">
+    <div className="spad-card spad-lot-anomaly-card" role="region" aria-label="Isolation Forest — Anomaly Detection">
       <div className="spad-card-header">
         <div className="spad-card-title-group">
-          <span className="spad-card-section-label">METHOD 2: INTRA-LOT PEER COMPARISON</span>
-          <h2 className="spad-card-title">Lot-Level Anomaly Detection</h2>
+          <span className="spad-card-section-label">METHOD 2: EARLY TRAJECTORY ANOMALY DETECTION</span>
+          <h2 className="spad-card-title">Isolation Forest — Anomaly Detection</h2>
         </div>
         <div className="spad-card-badge-static">
           <UsersIcon />
-          <span>SAME-LOT PEER ISOLATION</span>
+          <span>EARLY TRAJECTORY NOVELTY (ISOLATION FOREST)</span>
         </div>
       </div>
 
       <p className="spad-card-desc">
-        Evaluates physical devices against eligible peers in the <strong>SAME lot ({lotId})</strong>. Detects population-relative outliers and parametric divergence independent of absolute datasheet boundaries.
+        <strong>Batch Lot-Level Workflow:</strong> Components are screened one-by-one first. After <em>all</em> units in the active lot are screened, Isolation Forest collects eligible peers from the <strong>SAME lot ({lotId})</strong>, evaluates the lot-level trajectory feature set, calculates individual anomaly scores, and identifies outlier components.
       </p>
+
+      {/* Lot-Level Execution Workflow Steps */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))',
+        gap: '8px',
+        margin: '12px 0 16px 0',
+        padding: '12px',
+        background: 'rgba(15, 23, 42, 0.5)',
+        border: '1px solid rgba(56, 189, 248, 0.2)',
+        borderRadius: '6px'
+      }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+          <span style={{ fontSize: '10px', color: '#38bdf8', fontWeight: '700', letterSpacing: '0.05em' }}>STEP 1 • SCREENED UNITS</span>
+          <span style={{ fontSize: '12px', color: '#f8fafc', fontWeight: '600' }}>1-by-1 Ingestion Complete</span>
+          <span style={{ fontSize: '10.5px', color: '#94a3b8' }}>{cohortCount} of {cohortCount} physical units screened</span>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+          <span style={{ fontSize: '10px', color: '#38bdf8', fontWeight: '700', letterSpacing: '0.05em' }}>STEP 2 • SAME-LOT COHORT</span>
+          <span style={{ fontSize: '12px', color: '#f8fafc', fontWeight: '600' }}>Collect Same Lot ({lotId})</span>
+          <span style={{ fontSize: '10.5px', color: '#94a3b8' }}>{eligiblePeersCount} eligible peer baselines isolated</span>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+          <span style={{ fontSize: '10px', color: '#38bdf8', fontWeight: '700', letterSpacing: '0.05em' }}>STEP 3 • FEATURE SET</span>
+          <span style={{ fontSize: '12px', color: '#f8fafc', fontWeight: '600' }}>Early Trajectory Features</span>
+          <span style={{ fontSize: '10.5px', color: '#94a3b8' }}>[RDS0, ΔRDS(0→33)] &amp; 24h drift vector</span>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+          <span style={{ fontSize: '10px', color: '#38bdf8', fontWeight: '700', letterSpacing: '0.05em' }}>STEP 4 • ISOLATION FOREST</span>
+          <span style={{ fontSize: '12px', color: '#f8fafc', fontWeight: '600' }}>Batch Anomaly Scoring</span>
+          <span style={{ fontSize: '10.5px', color: '#94a3b8' }}>Continuous novelty &amp; peer Z-score</span>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+          <span style={{ fontSize: '10px', color: '#38bdf8', fontWeight: '700', letterSpacing: '0.05em' }}>STEP 5 • OUTLIER STATUS</span>
+          <span style={{ fontSize: '12px', color: flaggedCount > 0 ? '#ef4444' : '#10b981', fontWeight: '700' }}>
+            {flaggedCount > 0 ? `${flaggedCount} FLAGGED` : 'ALL NOT FLAGGED'}
+          </span>
+          <span style={{ fontSize: '10.5px', color: '#94a3b8' }}>FLAGGED / NOT FLAGGED / NOT_EVALUATED</span>
+        </div>
+      </div>
 
       {/* 1. Cohort Isolation & Status Metrics */}
       <div className="spad-lot-anomaly-metrics-grid">
@@ -198,9 +238,9 @@ export default function LotAnomalyDetection({ records = [], onSelectComponent })
               <th>COMPONENT ID</th>
               <th>SAME-LOT PEERS</th>
               <th>ANOMALY SCORE</th>
-              <th>Z-SCORE (vs PEERS)</th>
+              <th>PEER ANOMALY EVIDENCE (Z-SCORE)</th>
               <th>DIVERGENCE TYPE</th>
-              <th>AI ANOMALY STATUS</th>
+              <th>MODEL STATUS</th>
               <th>ACTION</th>
             </tr>
           </thead>

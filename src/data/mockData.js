@@ -20,7 +20,7 @@
 export const mockScreeningContext = {
   lotId: 'NASA-MOSFET-199C',
   lotStatus: 'PREDICTIVE SCREENING ACTIVE',
-  currentStage: '100% Validation Gate',
+  currentStage: '168hr Validation Gate',
   currentProgressPercent: 100,
   startTime: '2026-09-12T08:00:00Z',
   temperature: '199–200°C',
@@ -43,7 +43,7 @@ export const mockParameterSpecs = {
     unit: 'Ω',
     specLimitMax: 1.00,
     divergenceThreshold: 0.165,
-    checkpoints: ['0%', '33.33%', '66.67%', '100%'],
+    checkpoints: ['0hr', '24hr', '96hr', '168hr'],
     description: 'Drain-source ON-state resistance extracted from late-pulse ON window (70–90% interval) under 199–200°C thermal overstress.',
   },
   'delta-rdson': {
@@ -54,8 +54,8 @@ export const mockParameterSpecs = {
     unit: 'Ω',
     specLimitMax: 0.15,
     divergenceThreshold: 0.064,
-    checkpoints: ['0%', '33.33%'],
-    description: 'Early degradation drift gradient between baseline (0%) and early observation checkpoint (33.33%).',
+    checkpoints: ['0hr', '24hr'],
+    description: 'Early degradation drift gradient between baseline (0hr) and early observation checkpoint (24hr).',
   },
   'chamber-temp': {
     id: 'chamber-temp',
@@ -65,7 +65,7 @@ export const mockParameterSpecs = {
     unit: '°C',
     specLimitMax: 210.0,
     divergenceThreshold: 5.0,
-    checkpoints: ['0%', '33.33%', '66.67%', '100%'],
+    checkpoints: ['0hr', '24hr', '96hr', '168hr'],
     description: 'Thermal overstress test chamber junction temperature (Nominal condition: ~199–200°C).',
   },
   'gate-voltage': {
@@ -76,7 +76,7 @@ export const mockParameterSpecs = {
     unit: 'V',
     specLimitMax: 12.0,
     divergenceThreshold: 0.5,
-    checkpoints: ['0%', '33.33%', '66.67%', '100%'],
+    checkpoints: ['0hr', '24hr', '96hr', '168hr'],
     description: 'Gate switching voltage pulse (Nominal 10 V, 1000 Hz, 40% duty cycle).',
   },
   'drain-voltage': {
@@ -87,7 +87,7 @@ export const mockParameterSpecs = {
     unit: 'V',
     specLimitMax: 6.0,
     divergenceThreshold: 0.5,
-    checkpoints: ['0%', '33.33%', '66.67%', '100%'],
+    checkpoints: ['0hr', '24hr', '96hr', '168hr'],
     description: 'Drain-to-source test supply voltage (Nominal 5 V).',
   },
   'switching-freq': {
@@ -98,7 +98,7 @@ export const mockParameterSpecs = {
     unit: 'Hz',
     specLimitMax: 1200,
     divergenceThreshold: 50,
-    checkpoints: ['0%', '33.33%', '66.67%', '100%'],
+    checkpoints: ['0hr', '24hr', '96hr', '168hr'],
     description: 'Gate switching frequency (Nominal 1000 Hz).',
   },
   'duty-cycle': {
@@ -109,7 +109,7 @@ export const mockParameterSpecs = {
     unit: '%',
     specLimitMax: 50,
     divergenceThreshold: 5,
-    checkpoints: ['0%', '33.33%', '66.67%', '100%'],
+    checkpoints: ['0hr', '24hr', '96hr', '168hr'],
     description: 'Gate pulse duty cycle (Nominal 40%).',
   },
 };
@@ -133,7 +133,7 @@ export const mockSummaryStats = {
 export const mockPipelineStages = [
   {
     id: 'stage-0pct',
-    timeLabel: '0%',
+    timeLabel: '0hr',
     name: 'Baseline Measurement (RDS0)',
     category: 'INPUT OBSERVATION',
     status: 'complete',
@@ -142,7 +142,7 @@ export const mockPipelineStages = [
   },
   {
     id: 'stage-33pct',
-    timeLabel: '33.33%',
+    timeLabel: '24hr',
     name: 'Early Stress Checkpoint (RDS33)',
     category: 'INPUT OBSERVATION',
     status: 'complete',
@@ -151,7 +151,7 @@ export const mockPipelineStages = [
   },
   {
     id: 'stage-66pct',
-    timeLabel: '66.67%',
+    timeLabel: '96hr',
     name: 'Intermediate Stress Checkpoint',
     category: 'PROGRESSION CHECKPOINT',
     status: 'complete',
@@ -160,7 +160,7 @@ export const mockPipelineStages = [
   },
   {
     id: 'stage-100pct',
-    timeLabel: '100%',
+    timeLabel: '168hr',
     name: 'Forecast Residual Validation Gate',
     category: 'FORECAST & VERIFICATION',
     status: 'active',
@@ -173,7 +173,7 @@ export const mockPipelineStages = [
 export const mockEvidencePathways = [
   {
     id: 'population-abnormality',
-    title: 'Module A — Dynamic Novelty / Anomaly',
+    title: 'Isolation Forest — Anomaly Detection',
     question: 'Is early behavior [RDS0, ΔRDS(0→33)] anomalous compared with the normal reference population?',
     severity: 'critical',
     diagnostic: 'Isolation Forest (n=500, max_samples=13) continuous novelty IF_Score on [RDS0, ΔRDS(0→33)].',
@@ -182,8 +182,8 @@ export const mockEvidencePathways = [
   },
   {
     id: 'trajectory-abnormality',
-    title: 'Module B — Time-Series Drift Forecast',
-    question: 'Given early observations [RDS0, RDS33], what future RDS100 should be expected?',
+    title: 'Random Forest — Future Prediction',
+    question: 'Given early observations [0h, 24h / RDS0, RDS33], what future 168h value should be predicted?',
     severity: 'critical',
     diagnostic: 'Random Forest Regressor (300 trees, depth 3) trained on 13 normal references (LOOCV MAE 0.0528 Ω).',
     primaryMetric: 'MAE 0.0528 Ω',
@@ -192,7 +192,7 @@ export const mockEvidencePathways = [
   {
     id: 'future-risk-prediction',
     title: 'Forecast Residual & Latent Defect Triage',
-    question: 'Does the actual 100% measurement deviate excessively from the learned normal forecast (>0.165 Ω upper fence)?',
+    question: 'Does the actual 168hr measurement deviate excessively from the learned normal forecast (>0.165 Ω upper fence)?',
     severity: 'critical',
     diagnostic: 'Forecast residuals expose latent failure: deviations beyond 0.165 Ω fence indicate gross anomalous degradation.',
     primaryMetric: 'RESIDUAL FENCE 0.165 Ω',

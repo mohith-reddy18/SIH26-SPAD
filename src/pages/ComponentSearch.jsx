@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import ComponentDetailModal from '../components/dashboard/ComponentDetailModal';
-import { mapScreeningRecord, getNormalizedEngineeringStatus, getParameterMeta, extractLatestValue } from '../utils/recordMapping';
+import { mapScreeningRecord, getNormalizedEngineeringStatus, getParameterMeta, extractLatestValue, formatStageLabel } from '../utils/recordMapping';
 
 function SearchIcon() {
   return (
@@ -197,7 +197,7 @@ export default function ComponentSearch({ onNavigateToComponent, initialComponen
                   <th key={col.key}>{col.shortName.toUpperCase()} {col.unit ? `(${col.unit})` : ''}</th>
                 ))}
                 <th>ENGINEERING LIMIT STATUS</th>
-                <th>AI RISK (168h FORECAST)</th>
+                <th>AI RISK (168hr FORECAST)</th>
                 <th>ENGINEERING STATUS</th>
               </tr>
             </thead>
@@ -233,7 +233,7 @@ export default function ComponentSearch({ onNavigateToComponent, initialComponen
                     >
                       <td className="spad-td-mono font-bold text-cyan">{item.id || item.componentId}</td>
                       <td className="spad-td-mono text-muted">{item.lotId}</td>
-                      <td className="spad-td-mono text-slate">{item.stage}</td>
+                      <td className="spad-td-mono text-slate">{formatStageLabel(item.stage)}</td>
                       {paramColumns.map((col) => {
                         const val = extractLatestValue(item.measurements?.[col.key]);
                         return (

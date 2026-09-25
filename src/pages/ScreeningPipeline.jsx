@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import ScreeningPipelineCard from '../components/dashboard/ScreeningPipeline';
-import { getNormalizedEngineeringStatus } from '../utils/recordMapping';
+import { getNormalizedEngineeringStatus, formatStageLabel } from '../utils/recordMapping';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://sih26-spad.onrender.com';
 
@@ -86,18 +86,18 @@ export default function ScreeningPipeline() {
         (r) => getNormalizedEngineeringStatus(r) !== 'NORMAL'
       ).length;
       const currentYieldPct = totalUnits > 0 ? `${((normalCount / totalUnits) * 100).toFixed(1)}%` : '100.0%';
-      const activeStage = currentLotRecords[0].stage || '24h';
+      const activeStage = currentLotRecords[0].stage ? formatStageLabel(currentLotRecords[0].stage) : '24hr';
 
       return {
         lotId: activeLotId,
         lotStatus: 'PREDICTIVE SCREENING ACTIVE',
         currentStage: activeStage,
-        currentProgressPercent: activeStage === '168h' ? 100 : activeStage === '96h' ? 85 : 75,
+        currentProgressPercent: activeStage === '168hr' ? 100 : activeStage === '96hr' ? 85 : 75,
         totalUnits: totalUnits,
         screenedUnits: totalUnits,
         currentYield: currentYieldPct,
         anomaliesDetected: anomaliesCount,
-        nextGate: '100% Validation Gate',
+        nextGate: '168hr Validation Gate',
         temperature: '199–200°C',
         chamberId: 'NASA-MOSFET-CHAMBER',
         operator: 'NASA-THERMAL-OVERSTRESS-V1',
@@ -229,7 +229,7 @@ export default function ScreeningPipeline() {
           <span className="spad-page-tag">PREDICTIVE SCREENING WORKFLOW</span>
         </div>
         <p className="spad-page-description">
-          Early predictive burn-in screening workflow: 0h &amp; 24h baseline physical measurements (Complete) &rarr; AI 168h Risk Prediction (Available) &rarr; 168h Physical Validation (Pending).
+          Early predictive burn-in screening workflow: 0hr &amp; 24hr baseline physical measurements (Complete) &rarr; AI 168hr Risk Prediction (Available) &rarr; 168hr Physical Validation (Pending).
         </p>
       </header>
 

@@ -10,7 +10,7 @@ function getStatusColor(status) {
   return '#38bdf8';
 }
 
-import { mapScreeningRecord, getNormalizedEngineeringStatus, getParameterMeta, extractPredictedValue } from '../utils/recordMapping';
+import { mapScreeningRecord, getNormalizedEngineeringStatus, getParameterMeta, extractPredictedValue, formatStageLabel } from '../utils/recordMapping';
 
 export default function Reports() {
   const [screeningRecords, setScreeningRecords] = useState([]);
@@ -304,10 +304,10 @@ export default function Reports() {
                 <thead>
                   <tr>
                     <th>PARAMETER NAME</th>
-                    <th>0% (BASELINE)</th>
-                    <th>33.33% (EARLY)</th>
-                    <th>66.67% (INTERMEDIATE)</th>
-                    <th>100% (AI FORECAST)</th>
+                    <th>0hr (BASELINE)</th>
+                    <th>24hr (EARLY)</th>
+                    <th>96hr (INTERMEDIATE)</th>
+                    <th>168hr (AI FORECAST)</th>
                     <th>SPEC LIMIT (MAX)</th>
                     <th>SAFETY MARGIN</th>
                     <th>STATUS</th>
@@ -460,9 +460,9 @@ export default function Reports() {
                   <tr>
                     <th>COMPONENT ID</th>
                     <th>STAGE</th>
-                    <th>RDS(on) 0%</th>
-                    <th>RDS(on) 33%</th>
-                    <th>RDS(on) 100%</th>
+                    <th>RDS(on) 0hr</th>
+                    <th>RDS(on) 24hr</th>
+                    <th>RDS(on) 168hr</th>
                     <th>AI RISK</th>
                     <th>EVIDENCE</th>
                     <th>ENGINEERING STATUS</th>
@@ -471,7 +471,7 @@ export default function Reports() {
                 <tbody>
                   {activeLotRecords.map((item) => {
                     const cId = item.componentId || item.id;
-                    const cStage = item.stage || '100%';
+                    const cStage = formatStageLabel(item.stage || '168hr');
                     const cRisk = typeof item.aiRisk === 'number' ? item.aiRisk : 0;
                     const cStatus = item.engineeringStatus || item.status || 'NORMAL';
                     const cEvidence = item.evidence || 'Within Expected Range';

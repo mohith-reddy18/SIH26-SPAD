@@ -8,6 +8,7 @@ import ComponentTable from '../components/dashboard/ComponentTable';
 import SystemStatus from '../components/dashboard/SystemStatus';
 import RecentAlerts from '../components/dashboard/RecentAlerts';
 import LotAnomalyDetection from '../components/dashboard/LotAnomalyDetection';
+import RandomForestPrediction from '../components/dashboard/RandomForestPrediction';
 import ComponentDetailModal from '../components/dashboard/ComponentDetailModal';
 import './Dashboard.css';
 
@@ -197,8 +198,16 @@ export default function Dashboard({ onNavigateToComponent }) {
         />
       </section>
 
-      {/* 5. Dedicated Lot-Level Anomaly Detection (Method 2: Intra-Lot Statistical Peer Comparison) */}
-      <section aria-label="Lot-Level Anomaly Detection">
+      {/* 5. ML Model 1: Random Forest — Future Prediction */}
+      <section aria-label="Random Forest — Future Prediction">
+        <RandomForestPrediction
+          records={componentRecords}
+          onSelectComponent={handleSelectComponent}
+        />
+      </section>
+
+      {/* 6. ML Model 2: Isolation Forest — Anomaly Detection */}
+      <section aria-label="Isolation Forest — Anomaly Detection">
         <LotAnomalyDetection
           records={componentRecords}
           onSelectComponent={handleSelectComponent}

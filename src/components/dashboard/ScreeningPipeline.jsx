@@ -21,7 +21,7 @@ export default function ScreeningPipeline({
 
       {/* 2. Description */}
       <p className="spad-card-desc">
-        Early predictive screening progression for active lot <strong>{context.lotId}</strong> (0% &amp; 33.33% observations complete &rarr; AI 100% forecast available &rarr; 100% validation gate evaluated).
+        Early predictive screening progression for active lot <strong>{context.lotId}</strong> (0hr &amp; 24hr observations complete &rarr; AI 168hr forecast available &rarr; 168hr validation gate evaluated).
       </p>
 
       {/* 3. Progress Bar Gauge */}
@@ -86,7 +86,7 @@ export default function ScreeningPipeline({
           </div>
           <div className="spad-lot-stat-item">
             <span className="spad-lot-stat-k">Input Units Tested</span>
-            <span className="spad-lot-stat-v">{context.screenedUnits !== undefined && context.screenedUnits !== null ? context.screenedUnits.toLocaleString() : '—'} <span className="spad-lot-stat-sub">(0%+33.33%)</span></span>
+            <span className="spad-lot-stat-v">{context.screenedUnits !== undefined && context.screenedUnits !== null ? context.screenedUnits.toLocaleString() : '—'} <span className="spad-lot-stat-sub">(0hr+24hr)</span></span>
           </div>
           <div className="spad-lot-stat-item">
             <span className="spad-lot-stat-k">Predicted Yield</span>
@@ -98,7 +98,7 @@ export default function ScreeningPipeline({
           </div>
           <div className="spad-lot-stat-item spad-lot-stat-span">
             <span className="spad-lot-stat-k">Next Physical Gate:</span>
-            <span className="spad-lot-stat-v highlight">{context.nextGate || '168h Physical Validation Gate'}</span>
+            <span className="spad-lot-stat-v highlight">{context.nextGate || '168hr Physical Validation Gate'}</span>
           </div>
         </div>
       </div>

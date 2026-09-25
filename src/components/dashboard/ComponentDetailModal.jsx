@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { getParameterMeta, getNormalizedEngineeringStatus } from '../../utils/recordMapping';
+import { getParameterMeta, getNormalizedEngineeringStatus, formatStageLabel } from '../../utils/recordMapping';
 
 // Helper for status colors
 function getStatusBadgeStyle(status) {
@@ -168,7 +168,7 @@ export default function ComponentDetailModal({
             <div className="spad-modal-label-row">
               <span className="spad-card-section-label">SPACE-GRADE TELEMETRY AUDIT</span>
               <span className="spad-modal-lot-tag">LOT: {component.lotId}</span>
-              <span className="spad-modal-stage-tag">STAGE: {component.stage || '24h'}</span>
+              <span className="spad-modal-stage-tag">STAGE: {formatStageLabel(component.stage || '168hr')}</span>
             </div>
             <h2 id="modal-component-title" className="spad-modal-title">
               Detailed Component Analysis: <span className="text-cyan">{component.id}</span>
@@ -331,35 +331,35 @@ export default function ComponentDetailModal({
             </div>
 
             <p className="spad-shap-intro-desc">
-              NASA MOSFET V1 dual ML pathways: Module B (drift forecast [RDS0, RDS33] &rarr; RDS100) and Module A (Isolation Forest novelty on [RDS0, ΔRDS(0→33)]) assist screening engineers.
+              NASA MOSFET V1 dual ML models: <strong>Random Forest — Future Prediction</strong> (0h + 24h &rarr; 168h forecast) and <strong>Isolation Forest — Anomaly Detection</strong> (early trajectory novelty [RDS0, ΔRDS(0→33)]).
             </p>
 
             <div className="spad-ai-evidence-grid">
               <div className="spad-ai-evidence-card">
                 <div className="spad-ai-evidence-title-row">
-                  <span className="spad-ai-evidence-k">Module B: 100% Trajectory Drift</span>
+                  <span className="spad-ai-evidence-k">Random Forest — Future Prediction</span>
                   <span className={`spad-ai-status-tag ${prediction?.status === 'PREDICTED' ? (isAiFlagged ? 'tag-warning' : 'tag-nominal') : 'tag-nominal'}`}>
                     {isAiFlagged ? 'FLAGGED' : 'NOT FLAGGED'}
                   </span>
                 </div>
                 <p className="spad-ai-evidence-desc">
                   {isAiFlagged
-                    ? 'Predicted 100% RDS(on) vs actual residual breaches the 0.165 Ω normal upper fence (large forecast residual).'
-                    : 'Learned Random Forest forecast tracks actual 100% measurement within normal error bounds (MAE ≈ 0.0528 Ω).'}
+                    ? 'Predicted 168h RDS(on) vs actual residual breaches normal upper fence (>0.165 Ω).'
+                    : 'Learned Random Forest forecast tracks within normal error bounds (MAE ≈ 0.0528 Ω).'}
                 </p>
               </div>
 
               <div className="spad-ai-evidence-card">
                 <div className="spad-ai-evidence-title-row">
-                  <span className="spad-ai-evidence-k">Module A: Dynamic Anomaly (IF)</span>
-                  <span className={`spad-ai-status-tag ${lotAnomaly?.status === 'ANALYZED' ? (lotAnomaly.overallStatus === 'FLAGGED' ? 'tag-warning' : 'tag-nominal') : 'tag-nominal'}`}>
-                    {lotAnomaly?.overallStatus === 'FLAGGED' ? 'FLAGGED' : 'NOT FLAGGED'}
+                  <span className="spad-ai-evidence-k">Isolation Forest — Anomaly Detection</span>
+                  <span className={`spad-ai-status-tag ${lotAnomaly?.status === 'ANALYZED' ? (lotAnomaly.overallStatus === 'FLAGGED' ? 'tag-warning' : 'tag-nominal') : (component.anomalies?.populationAbnormality ? 'tag-warning' : 'tag-nominal')}`}>
+                    {lotAnomaly?.overallStatus === 'FLAGGED' || component.anomalies?.populationAbnormality ? 'FLAGGED' : 'NOT FLAGGED'}
                   </span>
                 </div>
                 <p className="spad-ai-evidence-desc">
-                  {lotAnomaly?.overallStatus === 'FLAGGED'
-                    ? 'Isolation Forest score indicates significant early isolation/novelty from normal reference population.'
-                    : 'Early observations conform to learned normal reference cluster (IF_Score > 0).'}
+                  {lotAnomaly?.overallStatus === 'FLAGGED' || component.anomalies?.populationAbnormality
+                    ? 'Isolation Forest anomaly score indicates early trajectory divergence from normal lot cluster.'
+                    : 'Early trajectory features conform to learned normal reference cluster (IF_Score > 0).'}
                 </p>
               </div>
 
@@ -371,7 +371,7 @@ export default function ComponentDetailModal({
                   </span>
                 </div>
                 <p className="spad-ai-evidence-desc">
-                  Model risk score: <strong>{riskScore.toFixed(2)}</strong> index. AI outputs provide assistive telemetry insights without overriding deterministic screening rules.
+                  Model risk score: <strong>{riskScore.toFixed(2)}</strong> index ({Math.round(riskScore * 100)}%). AI outputs provide assistive telemetry insights without overriding deterministic screening rules.
                 </p>
               </div>
             </div>
