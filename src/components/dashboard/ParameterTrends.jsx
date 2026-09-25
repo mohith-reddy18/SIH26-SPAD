@@ -516,6 +516,8 @@ export default function ParameterTrends({
           {checkpoints.map((cp, i) => {
             const x = getX(i);
             const isForecast = cp === '168hr' || cp === '168h' || String(cp).includes('168') || String(cp).includes('Forecast');
+            const isPredicted96 = cp === '96hr' || cp === '96h' || String(cp).includes('96');
+            const stageAnnotation = isForecast ? '[FORECAST]' : (isPredicted96 ? '[PREDICTED]' : '[OBSERVED]');
 
             return (
               <g key={cp}>
@@ -542,13 +544,13 @@ export default function ParameterTrends({
                   x={x}
                   y={padding.top + chartH + 28}
                   textAnchor="middle"
-                  fill={isForecast ? 'rgba(56, 189, 248, 0.75)' : '#64748b'}
+                  fill={isForecast ? 'rgba(56, 189, 248, 0.75)' : (isPredicted96 ? 'rgba(56, 189, 248, 0.75)' : '#64748b')}
                   fontSize="8"
                   fontWeight="600"
                   fontFamily="var(--font-mono)"
                   letterSpacing="0.04em"
                 >
-                  {isForecast ? '[FORECAST]' : '[OBSERVED]'}
+                  {stageAnnotation}
                 </text>
               </g>
             );
