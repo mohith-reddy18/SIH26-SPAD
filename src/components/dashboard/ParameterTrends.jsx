@@ -344,8 +344,8 @@ export default function ParameterTrends({
       {/* 1. Header with View Mode Switcher */}
       <div className="spad-card-header spad-trends-header">
         <div className="spad-card-title-group">
-          <span className="spad-card-section-label">PARAMETRIC TELEMETRY DYNAMICS</span>
-          <h2 className="spad-card-title">Parameter Trends</h2>
+          <span className="spad-card-section-label">RANDOM FOREST — FUTURE PREDICTION</span>
+          <h2 className="spad-card-title">Random Forest — Future Prediction</h2>
         </div>
 
         {/* View Mode Toggle: [ Component View ] [ Lot Overview ] */}
