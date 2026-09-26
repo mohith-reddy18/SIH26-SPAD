@@ -54,7 +54,7 @@ export default function ScreeningPipeline({ selectedLotId, onSelectLot }) {
     const map = {};
     if (dataSource === 'api' && screeningRecords.length > 0) {
       screeningRecords.forEach((rec) => {
-        const lot = rec.lotId || 'NASA-MOSFET-199C';
+        const lot = rec.lotId || 'LOT-UNKNOWN';
         if (!map[lot]) {
           map[lot] = [];
         }
@@ -65,8 +65,8 @@ export default function ScreeningPipeline({ selectedLotId, onSelectLot }) {
   }, [screeningRecords, dataSource]);
 
   const availableLotIds = useMemo(() => Object.keys(lotsMap), [lotsMap]);
-  const activeLotId = selectedLotId || availableLotIds[0] || '—';
-  const currentLotRecords = useMemo(() => lotsMap[activeLotId] || [], [lotsMap, activeLotId]);
+  const resolvedLotId = activeLotId || selectedLotId || availableLotIds[0] || '—';
+  const currentLotRecords = useMemo(() => lotsMap[resolvedLotId] || [], [lotsMap, resolvedLotId]);
 
   // Derive lot-level screening context from real database data
   const lotContext = useMemo(() => {

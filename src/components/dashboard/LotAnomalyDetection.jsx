@@ -16,7 +16,7 @@ function UsersIcon() {
  * Displays model summary, metrics, and configuration only.
  */
 export default function LotAnomalyDetection({ records = [] }) {
-  const lotId = records[0]?.lotId || 'NASA-MOSFET-199C';
+  const lotId = records[0]?.lotId || 'NO ACTIVE LOT';
 
   // Find components with lotAnomaly data
   const componentsWithAnomaly = useMemo(() => {

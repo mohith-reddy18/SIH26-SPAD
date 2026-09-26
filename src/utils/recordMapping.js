@@ -244,8 +244,8 @@ export function formatStageLabel(stage) {
 export function mapScreeningRecord(record) {
   if (!record || typeof record !== 'object') return null;
 
-  const componentId = String(record.componentId || record.id || 'TEST-01').trim();
-  const lotId = String(record.lotId || 'NASA-MOSFET-199C').trim();
+  const componentId = String(record.componentId || record.id || 'UNKNOWN').trim();
+  const lotId = String(record.lotId || 'LOT-UNKNOWN').trim();
   const stage = formatStageLabel(record.stage || '168hr');
 
   const measurements = record.measurements && typeof record.measurements === 'object' ? record.measurements : {};

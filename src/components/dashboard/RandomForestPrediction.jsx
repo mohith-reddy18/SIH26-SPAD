@@ -15,7 +15,7 @@ function TrendingUpIcon() {
  * Displays model summary, metrics, and configuration only.
  */
 export default function RandomForestPrediction({ records = [] }) {
-  const lotId = records[0]?.lotId || 'NASA-MOSFET-199C';
+  const lotId = records[0]?.lotId || 'NO ACTIVE LOT';
 
   // Extract component prediction items
   const componentsWithPrediction = useMemo(() => {

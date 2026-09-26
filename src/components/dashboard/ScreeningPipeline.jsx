@@ -331,7 +331,10 @@ export default function ScreeningPipeline({
                   lineHeight: '1.5',
                 }}
               >
-                <strong style={{ color: '#38bdf8' }}>Predictive Methodology:</strong> The Random Forest workflow evaluates components individually by leveraging <strong>early stress observations</strong> to forecast long-term parameter degradation and detect projected limit breaches before extended burn-in comple              {/* 7-Step Explanatory Workflow */}
+                <strong style={{ color: '#38bdf8' }}>Predictive Methodology:</strong> The Random Forest workflow evaluates components individually by leveraging <strong>early stress observations</strong> to forecast long-term parameter degradation and detect projected limit breaches before extended burn-in completion.
+              </div>
+
+              {/* 7-Step Explanatory Workflow */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 <span style={{ fontSize: '11px', fontWeight: '700', color: '#38bdf8', fontFamily: 'var(--font-mono)', letterSpacing: '0.05em' }}>
                   METHODOLOGY PIPELINE (7 STEPS):
