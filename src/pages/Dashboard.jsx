@@ -7,7 +7,6 @@ import ComponentTable from '../components/dashboard/ComponentTable';
 import SystemStatus from '../components/dashboard/SystemStatus';
 import RecentAlerts from '../components/dashboard/RecentAlerts';
 import LotAnomalyDetection from '../components/dashboard/LotAnomalyDetection';
-import RandomForestPrediction from '../components/dashboard/RandomForestPrediction';
 import ComponentDetailModal from '../components/dashboard/ComponentDetailModal';
 import './Dashboard.css';
 
@@ -325,14 +324,6 @@ export default function Dashboard({ onNavigateToComponent, onNavigate, selectedL
         <ParameterTrends
           components={componentRecords}
           context={screeningContext}
-        />
-      </section>
-
-      {/* 4. ML Model 1: Random Forest — Future Prediction */}
-      <section aria-label="Random Forest — Future Prediction">
-        <RandomForestPrediction
-          records={componentRecords}
-          onSelectComponent={handleSelectComponent}
         />
       </section>
 
