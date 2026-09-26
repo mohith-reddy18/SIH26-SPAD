@@ -194,130 +194,130 @@ export default function ModelPerformance({ selectedLotId, onSelectLot }) {
         </div>
       ) : (
         <>
-          <div className="spad-two-col-grid" style={{ marginBottom: '20px' }}>
-        {/* Anomaly Evaluation Card */}
-        <div className="spad-card" style={{ padding: '20px' }}>
-          <div className="spad-card-header">
-            <div className="spad-card-title-group">
-              <span className="spad-card-section-label">AI DIAGNOSTIC TRACE</span>
-              <h2 className="spad-card-title">Early Anomaly Detection</h2>
-            </div>
-            <span className="spad-status-pill" style={{ backgroundColor: riskColor + '20', color: riskColor, borderColor: riskColor + '60' }}>
-              {aiAssessment}
-            </span>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px', marginTop: '14px' }}>
-            <div className="spad-ai-evidence-card">
-              <div className="spad-ai-evidence-title-row">
-                <span className="spad-ai-evidence-k">Population Abnormality</span>
-                <span className={`spad-ai-status-tag ${anomalies.populationAbnormality === true ? 'tag-warning' : anomalies.populationAbnormality === false ? 'tag-nominal' : ''}`}>
-                  {anomalies.populationAbnormality === true ? 'FLAGGED' : anomalies.populationAbnormality === false ? 'NOMINAL' : 'NOT_EVALUATED'}
+          <div className="spad-equal-two-col-grid" style={{ marginBottom: '20px' }}>
+            {/* Early Anomaly Detection (Left Card) */}
+            <div className="spad-card" style={{ padding: '20px' }}>
+              <div className="spad-card-header">
+                <div className="spad-card-title-group">
+                  <span className="spad-card-section-label">AI DIAGNOSTIC TRACE</span>
+                  <h2 className="spad-card-title">Early Anomaly Detection</h2>
+                </div>
+                <span className="spad-status-pill" style={{ backgroundColor: riskColor + '20', color: riskColor, borderColor: riskColor + '60' }}>
+                  {aiAssessment}
                 </span>
               </div>
-              <p className="spad-ai-evidence-desc">
-                {anomalies.populationAbnormality === true
-                  ? 'Multivariate Mahalanobis distance exceeds Gaussian lot threshold.'
-                  : anomalies.populationAbnormality === false
-                  ? 'Statistical distribution aligns tightly with active lot population baseline.'
-                  : 'Statistical population anomaly metrics not evaluated.'}
-              </p>
-            </div>
 
-            <div className="spad-ai-evidence-card">
-              <div className="spad-ai-evidence-title-row">
-                <span className="spad-ai-evidence-k">Trajectory Abnormality</span>
-                <span className={`spad-ai-status-tag ${anomalies.trajectoryAbnormality === true ? 'tag-warning' : anomalies.trajectoryAbnormality === false ? 'tag-nominal' : ''}`}>
-                  {anomalies.trajectoryAbnormality === true ? 'FLAGGED' : anomalies.trajectoryAbnormality === false ? 'NOMINAL' : 'NOT_EVALUATED'}
-                </span>
-              </div>
-              <p className="spad-ai-evidence-desc">
-                {anomalies.trajectoryAbnormality === true
-                  ? 'Non-linear rate of change observed across early burn-in intervals.'
-                  : anomalies.trajectoryAbnormality === false
-                  ? 'Steady degradation gradient conforming to standard physics-of-failure curve.'
-                  : 'Parametric degradation trajectory anomaly metrics not evaluated.'}
-              </p>
-            </div>
-
-            <div className="spad-ai-evidence-card">
-              <div className="spad-ai-evidence-title-row">
-                <span className="spad-ai-evidence-k">Future-Risk Prediction</span>
-                <span className={`spad-ai-status-tag ${aiRisk > 75 ? 'tag-critical' : aiRisk > 40 ? 'tag-warning' : 'tag-nominal'}`}>
-                  {anomalies.futureRiskPrediction || (typeof activeRecord?.riskScore === 'number' ? `${aiRisk}% Risk` : 'NOT_EVALUATED')}
-                </span>
-              </div>
-              <p className="spad-ai-evidence-desc">
-                {aiRisk > 75
-                  ? `High probability (${aiRisk}%) of exceeding engineering limit at 168h.`
-                  : aiRisk > 40
-                  ? `Moderate probability (${aiRisk}%) of parameter drift toward specification boundary.`
-                  : typeof activeRecord?.riskScore === 'number'
-                  ? `Nominal 168h forecast prediction (${aiRisk}%) well within safe engineering margins.`
-                  : 'Early risk prediction telemetry not evaluated.'}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Dynamic 168h Predictions Card */}
-        <div className="spad-card" style={{ padding: '20px' }}>
-          <div className="spad-card-header">
-            <div className="spad-card-title-group">
-              <span className="spad-card-section-label">EARLY PARAMETER FORECASTS</span>
-              <h2 className="spad-card-title">168h Projected Values</h2>
-            </div>
-            <span className="spad-status-pill badge-status-normal">
-              AI INFERENCE READY
-            </span>
-          </div>
-
-          <p className="spad-card-desc">
-            Parameter trajectories projected at the 168h validation gate from 0h &amp; 24h physical burn-in measurements.
-          </p>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '12px' }}>
-            {Object.keys(predictions).length === 0 ? (
-              <span className="text-muted font-mono" style={{ fontSize: '12px' }}>
-                No parameter predictions available for this record.
-              </span>
-            ) : (
-              Object.entries(predictions).map(([predKey, predVal]) => {
-                const baseKey = predKey.replace(/_168h$/i, '');
-                const meta = getParameterMeta(baseKey);
-                const is168hSuffix = predKey.toLowerCase().endsWith('_168h');
-                const cleanName = is168hSuffix ? `${meta.name} @ 168h` : meta.name;
-                const unit = meta.unit || '';
-
-                const numericVal = typeof predVal === 'number' ? predVal : (typeof predVal?.predicted168h === 'number' ? predVal.predicted168h : null);
-                const displayVal = numericVal !== null ? `${numericVal.toFixed(2)} ${unit}`.trim() : '—';
-
-                return (
-                  <div
-                    key={predKey}
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      padding: '10px 14px',
-                      background: 'rgba(56, 189, 248, 0.04)',
-                      border: '1px solid rgba(56, 189, 248, 0.1)',
-                      borderRadius: '4px',
-                    }}
-                  >
-                    <span style={{ fontSize: '13px', color: '#f8fafc', fontWeight: '500' }}>
-                      {cleanName}
-                    </span>
-                    <span className="font-mono" style={{ color: '#38bdf8', fontWeight: '700', fontSize: '14px' }}>
-                      {displayVal}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '14px' }}>
+                <div className="spad-ai-evidence-card" style={{ padding: '12px 14px', background: 'var(--spad-inset, #101119)', border: '1px solid var(--spad-border, #1F212B)', borderRadius: '6px' }}>
+                  <div className="spad-ai-evidence-title-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                    <span className="spad-ai-evidence-k" style={{ fontSize: '12.5px', fontWeight: '600', color: 'var(--spad-text-primary, #F5F6F8)', fontFamily: 'var(--font-ui, Inter, sans-serif)' }}>Population Abnormality</span>
+                    <span className={`spad-ai-status-tag ${anomalies.populationAbnormality === true ? 'tag-warning' : anomalies.populationAbnormality === false ? 'tag-nominal' : ''}`}>
+                      {anomalies.populationAbnormality === true ? 'FLAGGED' : anomalies.populationAbnormality === false ? 'NOMINAL' : 'NOT_EVALUATED'}
                     </span>
                   </div>
-                );
-              })
-            )}
+                  <p className="spad-ai-evidence-desc" style={{ fontSize: '11px', color: 'var(--spad-text-secondary, #8B8FA3)', margin: 0, lineHeight: 1.4, fontFamily: 'var(--font-ui, Inter, sans-serif)' }}>
+                    {anomalies.populationAbnormality === true
+                      ? 'Multivariate Mahalanobis distance exceeds Gaussian lot threshold.'
+                      : anomalies.populationAbnormality === false
+                      ? 'Statistical distribution aligns tightly with active lot population baseline.'
+                      : 'Statistical population anomaly metrics not evaluated.'}
+                  </p>
+                </div>
+
+                <div className="spad-ai-evidence-card" style={{ padding: '12px 14px', background: 'var(--spad-inset, #101119)', border: '1px solid var(--spad-border, #1F212B)', borderRadius: '6px' }}>
+                  <div className="spad-ai-evidence-title-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                    <span className="spad-ai-evidence-k" style={{ fontSize: '12.5px', fontWeight: '600', color: 'var(--spad-text-primary, #F5F6F8)', fontFamily: 'var(--font-ui, Inter, sans-serif)' }}>Trajectory Abnormality</span>
+                    <span className={`spad-ai-status-tag ${anomalies.trajectoryAbnormality === true ? 'tag-warning' : anomalies.trajectoryAbnormality === false ? 'tag-nominal' : ''}`}>
+                      {anomalies.trajectoryAbnormality === true ? 'FLAGGED' : anomalies.trajectoryAbnormality === false ? 'NOMINAL' : 'NOT_EVALUATED'}
+                    </span>
+                  </div>
+                  <p className="spad-ai-evidence-desc" style={{ fontSize: '11px', color: 'var(--spad-text-secondary, #8B8FA3)', margin: 0, lineHeight: 1.4, fontFamily: 'var(--font-ui, Inter, sans-serif)' }}>
+                    {anomalies.trajectoryAbnormality === true
+                      ? 'Non-linear rate of change observed across early burn-in intervals.'
+                      : anomalies.trajectoryAbnormality === false
+                      ? 'Steady degradation gradient conforming to standard physics-of-failure curve.'
+                      : 'Parametric degradation trajectory anomaly metrics not evaluated.'}
+                  </p>
+                </div>
+
+                <div className="spad-ai-evidence-card" style={{ padding: '12px 14px', background: 'var(--spad-inset, #101119)', border: '1px solid var(--spad-border, #1F212B)', borderRadius: '6px' }}>
+                  <div className="spad-ai-evidence-title-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                    <span className="spad-ai-evidence-k" style={{ fontSize: '12.5px', fontWeight: '600', color: 'var(--spad-text-primary, #F5F6F8)', fontFamily: 'var(--font-ui, Inter, sans-serif)' }}>Future-Risk Prediction</span>
+                    <span className={`spad-ai-status-tag ${aiRisk > 75 ? 'tag-critical' : aiRisk > 40 ? 'tag-warning' : 'tag-nominal'}`}>
+                      {anomalies.futureRiskPrediction || (typeof activeRecord?.riskScore === 'number' ? `${aiRisk}% Risk` : 'NOT_EVALUATED')}
+                    </span>
+                  </div>
+                  <p className="spad-ai-evidence-desc" style={{ fontSize: '11px', color: 'var(--spad-text-secondary, #8B8FA3)', margin: 0, lineHeight: 1.4, fontFamily: 'var(--font-ui, Inter, sans-serif)' }}>
+                    {aiRisk > 75
+                      ? `High probability (${aiRisk}%) of exceeding engineering limit at 168h.`
+                      : aiRisk > 40
+                      ? `Moderate probability (${aiRisk}%) of parameter drift toward specification boundary.`
+                      : typeof activeRecord?.riskScore === 'number'
+                      ? `Nominal 168h forecast prediction (${aiRisk}%) well within safe engineering margins.`
+                      : 'Early risk prediction telemetry not evaluated.'}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Dynamic 168h Predictions Card (Right Card) */}
+            <div className="spad-card" style={{ padding: '20px' }}>
+              <div className="spad-card-header">
+                <div className="spad-card-title-group">
+                  <span className="spad-card-section-label">EARLY PARAMETER FORECASTS</span>
+                  <h2 className="spad-card-title">168h Projected Values</h2>
+                </div>
+                <span className="spad-status-pill badge-status-normal">
+                  AI INFERENCE READY
+                </span>
+              </div>
+
+              <p className="spad-card-desc">
+                Parameter trajectories projected at the 168h validation gate from 0h &amp; 24h physical burn-in measurements.
+              </p>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px' }}>
+                {Object.keys(predictions).length === 0 ? (
+                  <span className="text-muted font-mono" style={{ fontSize: '12px' }}>
+                    No parameter predictions available for this record.
+                  </span>
+                ) : (
+                  Object.entries(predictions).map(([predKey, predVal]) => {
+                    const baseKey = predKey.replace(/_168h$/i, '');
+                    const meta = getParameterMeta(baseKey);
+                    const is168hSuffix = predKey.toLowerCase().endsWith('_168h');
+                    const cleanName = is168hSuffix ? `${meta.name} @ 168h` : meta.name;
+                    const unit = meta.unit || '';
+
+                    const numericVal = typeof predVal === 'number' ? predVal : (typeof predVal?.predicted168h === 'number' ? predVal.predicted168h : null);
+                    const displayVal = numericVal !== null ? `${numericVal.toFixed(2)} ${unit}`.trim() : '—';
+
+                    return (
+                      <div
+                        key={predKey}
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          padding: '9px 12px',
+                          background: 'var(--spad-inset, #101119)',
+                          border: '1px solid var(--spad-border, #1F212B)',
+                          borderRadius: '6px',
+                        }}
+                      >
+                        <span style={{ fontSize: '12.5px', color: 'var(--spad-text-primary, #F5F6F8)', fontWeight: '500', fontFamily: 'var(--font-ui, Inter, sans-serif)' }}>
+                          {cleanName}
+                        </span>
+                        <span style={{ color: 'var(--spad-blue, #3B82F6)', fontWeight: '700', fontSize: '13px', fontFamily: 'var(--font-ui, Inter, sans-serif)' }}>
+                          {displayVal}
+                        </span>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
 
       {/* 4. Machine Learning Explainability — SHAP (TreeExplainer) */}
       <section className="spad-card spad-shap-section" style={{ padding: '24px', marginBottom: '20px' }}>

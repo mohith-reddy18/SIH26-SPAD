@@ -84,7 +84,7 @@ export default function ScreeningPipeline({ selectedLotId, onSelectLot }) {
       const hasAnomalies = currentLotRecords.some((r) => r.aiAssessment?.lotAnomaly || r.engineeringStatus || r.status);
 
       return {
-        lotId: activeLotId,
+        lotId: resolvedLotId,
         lotStatus: 'COMPLETED',
         currentStage: activeStage,
         totalUnits: totalUnits,
@@ -102,7 +102,7 @@ export default function ScreeningPipeline({ selectedLotId, onSelectLot }) {
     }
 
     return {
-      lotId: activeLotId,
+      lotId: resolvedLotId,
       lotStatus: dataSource === 'offline' ? 'BACKEND OFFLINE' : 'NO ACTIVE LOT',
       currentStage: '—',
       totalUnits: 0,

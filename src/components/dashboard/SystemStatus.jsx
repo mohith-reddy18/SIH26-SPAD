@@ -1,6 +1,6 @@
 import React from 'react';
 
-export default function SystemStatus({ subsystems }) {
+export default function SystemStatus({ subsystems = [] }) {
   return (
     <div className="spad-card spad-sys-card">
       <div className="spad-card-header">

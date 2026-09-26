@@ -12,7 +12,7 @@ function SearchIcon() {
   );
 }
 
-export default function ComponentSearch({ onNavigateToComponent, initialComponentId }) {
+export default function ComponentSearch({ onNavigateToComponent, initialComponentId, selectedLotId, onSelectLot }) {
   const [components, setComponents] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -45,6 +45,17 @@ export default function ComponentSearch({ onNavigateToComponent, initialComponen
   useEffect(() => {
     loadComponents();
   }, [loadComponents]);
+
+  // Safely clear selected modal component if user switches active lot to a different lot
+  useEffect(() => {
+    if (selectedModalComponent && selectedLotId && selectedLotId !== 'ALL') {
+      const compLot = selectedModalComponent.lotId;
+      if (compLot && compLot !== selectedLotId) {
+        setSelectedModalComponent(null);
+        setIsModalOpen(false);
+      }
+    }
+  }, [selectedLotId, selectedModalComponent]);
 
   // 2. Fetch individual component detail on click or deep link
   const fetchComponentDetail = async (compItem) => {
@@ -100,7 +111,7 @@ export default function ComponentSearch({ onNavigateToComponent, initialComponen
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 10;
 
-  // Filter components dynamically from live backend data
+  // Filter components dynamically from live backend data and active lot selection
   const filteredComponents = useMemo(() => {
     return components.filter((comp) => {
       const idStr = comp.id || comp.componentId || '';
@@ -112,14 +123,15 @@ export default function ComponentSearch({ onNavigateToComponent, initialComponen
         evidenceStr.toLowerCase().includes(searchTerm.toLowerCase());
       const engStatus = getNormalizedEngineeringStatus(comp);
       const matchesFilter = activeParamFilter === 'ALL' || engStatus === activeParamFilter;
-      return matchesSearch && matchesFilter;
+      const matchesLot = !selectedLotId || selectedLotId === 'ALL' || comp.lotId === selectedLotId;
+      return matchesSearch && matchesFilter && matchesLot;
     });
-  }, [components, searchTerm, activeParamFilter]);
+  }, [components, searchTerm, activeParamFilter, selectedLotId]);
 
-  // Reset pagination to page 1 on filter changes
+  // Reset pagination to page 1 on filter or lot changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, activeParamFilter]);
+  }, [searchTerm, activeParamFilter, selectedLotId]);
 
   const totalPages = Math.max(1, Math.ceil(filteredComponents.length / ITEMS_PER_PAGE));
   const safeCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
@@ -221,6 +233,34 @@ export default function ComponentSearch({ onNavigateToComponent, initialComponen
               </button>
             ))}
           </div>
+
+          {selectedLotId && selectedLotId !== 'ALL' && (
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'rgba(59, 130, 246, 0.12)', border: '1px solid rgba(59, 130, 246, 0.3)', padding: '5px 10px', borderRadius: '6px' }}>
+              <span style={{ fontSize: '11px', color: '#80a4ff', fontFamily: 'var(--font-ui, Inter, sans-serif)', fontWeight: '600' }}>
+                Active Lot: <strong style={{ color: '#F5F6F8' }}>{selectedLotId}</strong>
+              </span>
+              {typeof onSelectLot === 'function' && (
+                <button
+                  type="button"
+                  onClick={() => onSelectLot(null)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#94a3b8',
+                    cursor: 'pointer',
+                    fontSize: '11px',
+                    fontWeight: '700',
+                    padding: '0 2px',
+                    lineHeight: 1,
+                  }}
+                  title="Clear lot filter to show all components"
+                  aria-label="Clear active lot filter"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </div>
 

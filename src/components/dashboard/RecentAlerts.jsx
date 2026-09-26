@@ -9,7 +9,7 @@ function BellAlertIcon() {
   );
 }
 
-export default function RecentAlerts({ alerts, onAlertClick }) {
+export default function RecentAlerts({ alerts = [], onAlertClick }) {
   return (
     <div className="spad-card spad-alerts-card">
       <div className="spad-card-header">

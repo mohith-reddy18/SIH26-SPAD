@@ -57,6 +57,28 @@ export default function ScreeningHistory({
 
       {/* 2. Vertically Scrollable History List */}
       <div className="spad-history-scroll-container">
+        {/* All Lots Global Option */}
+        <button
+          type="button"
+          className={`spad-history-all-lots-btn ${!selectedLotId || selectedLotId === 'ALL' ? 'is-active' : ''}`}
+          onClick={() => typeof onSelectLot === 'function' && onSelectLot(null)}
+          title="Show all components and data across all screening lots"
+          aria-label="Select All Lots"
+        >
+          <div className="spad-all-lots-left">
+            <div className="spad-all-lots-title-row">
+              <span className="spad-all-lots-bullet">❖</span>
+              <span className="spad-all-lots-title">ALL LOTS</span>
+            </div>
+            <span className="spad-all-lots-subtitle">Show all units across lots</span>
+          </div>
+          {(!selectedLotId || selectedLotId === 'ALL') ? (
+            <span className="spad-history-active-tag">ACTIVE</span>
+          ) : (
+            <span className="spad-history-all-tag">SHOW ALL</span>
+          )}
+        </button>
+
         {isLoading ? (
           <div className="spad-history-empty">
             Loading screening history from MongoDB Atlas...
@@ -77,7 +99,7 @@ export default function ScreeningHistory({
                 key={item.lotId}
                 className={`spad-history-item ${isSelected ? 'is-selected' : ''}`}
                 onClick={() => typeof onSelectLot === 'function' && onSelectLot(item.lotId)}
-                title={typeof onSelectLot === 'function' ? `Click to view Lot ${item.lotId}` : undefined}
+                title={typeof onSelectLot === 'function' ? `Click to activate Lot ${item.lotId}` : undefined}
                 role="button"
                 tabIndex={0}
                 onKeyDown={(e) => {
@@ -87,11 +109,14 @@ export default function ScreeningHistory({
                   }
                 }}
               >
-                {/* Lot Header Row: ID on left, Status badge on right */}
+                {/* Lot Header Row: ID + Active Badge on left, Status badge on right */}
                 <div className="spad-history-item-header">
                   <div className="spad-history-lot-id-row">
                     <span className="spad-history-bullet">◆</span>
                     <span className="spad-history-lot-id">{item.lotId}</span>
+                    {isSelected && (
+                      <span className="spad-history-active-tag">ACTIVE</span>
+                    )}
                   </div>
                   <span className={`spad-history-status-tag ${isSuccess ? 'tag-success' : 'tag-warning'}`}>
                     {item.status || 'COMPLETED'}

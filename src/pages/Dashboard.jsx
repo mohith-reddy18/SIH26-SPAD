@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { mockDashboardData } from '../data/mockData';
 import ScreeningPipeline from '../components/dashboard/ScreeningPipeline';
-import ScreeningHistory from '../components/dashboard/ScreeningHistory';
 import ParameterTrends from '../components/dashboard/ParameterTrends';
 import ComponentTable from '../components/dashboard/ComponentTable';
 import SystemStatus from '../components/dashboard/SystemStatus';
@@ -13,18 +12,34 @@ import './Dashboard.css';
 import { mapScreeningRecord } from '../utils/recordMapping';
 import { API_BASE_URL } from '../config/api';
 
-export default function Dashboard({ onNavigateToComponent, onNavigate, selectedLotId = 'NASA-MOSFET-199C', onSelectLot }) {
-  const effectiveLotId = selectedLotId || 'NASA-MOSFET-199C';
+export default function Dashboard({ 
+  onNavigateToComponent, 
+  onNavigate, 
+  selectedLotId, 
+  onSelectLot,
+  screeningHistory: externalHistory = [],
+  isLoadingHistory: externalLoadingHistory = false,
+}) {
+  const effectiveLotId = selectedLotId && selectedLotId !== 'ALL' ? selectedLotId : null;
   const [selectedModalComponent, setSelectedModalComponent] = useState(null);
   const [componentRecords, setComponentRecords] = useState([]);
-  const [backendHistory, setBackendHistory] = useState([]);
+  const [backendHistory, setBackendHistory] = useState(externalHistory);
   const [dataSource, setDataSource] = useState('loading'); // 'loading' | 'api' | 'empty' | 'offline'
   const [isLoadingComponents, setIsLoadingComponents] = useState(true);
-  const [isLoadingHistory, setIsLoadingHistory] = useState(true);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(externalLoadingHistory);
   const [fetchError, setFetchError] = useState(null);
 
-  // 1. Fetch Screening History independently on mount
+  // Sync external history when provided
+  useEffect(() => {
+    if (externalHistory && externalHistory.length > 0) {
+      setBackendHistory(externalHistory);
+      setIsLoadingHistory(false);
+    }
+  }, [externalHistory]);
+
+  // 1. Fetch Screening History if not supplied externally
   const loadHistory = useCallback(async () => {
+    if (externalHistory && externalHistory.length > 0) return;
     setIsLoadingHistory(true);
     try {
       const histRes = await fetch(`${API_BASE_URL}/api/screening/history`);
@@ -39,27 +54,29 @@ export default function Dashboard({ onNavigateToComponent, onNavigate, selectedL
     } finally {
       setIsLoadingHistory(false);
     }
-  }, []);
+  }, [externalHistory]);
 
   useEffect(() => {
     loadHistory();
   }, [loadHistory]);
 
-  // 2. Fetch component records strictly for the active selected lot
+  // 2. Fetch component records for the active selected lot or all lots
   const loadComponentRecords = useCallback(async () => {
     setIsLoadingComponents(true);
     setFetchError(null);
 
     try {
-      const queryParam = `?lotId=${encodeURIComponent(effectiveLotId)}`;
+      const queryParam = effectiveLotId ? `?lotId=${encodeURIComponent(effectiveLotId)}` : '';
       const compRes = await fetch(`${API_BASE_URL}/api/screening${queryParam}`);
 
       if (compRes.ok) {
         const result = await compRes.json();
         if (result.success && Array.isArray(result.data)) {
           const mapped = result.data.map(mapScreeningRecord);
-          // Strict lot-isolation filter: only include components belonging to the effective lot
-          const filtered = mapped.filter((r) => !r.lotId || r.lotId === effectiveLotId);
+          // Lot filter
+          const filtered = effectiveLotId 
+            ? mapped.filter((r) => !r.lotId || r.lotId === effectiveLotId)
+            : mapped;
           setComponentRecords(filtered);
           setDataSource(filtered.length > 0 ? 'api' : 'empty');
         } else {
@@ -369,57 +386,40 @@ export default function Dashboard({ onNavigateToComponent, onNavigate, selectedL
         </div>
       )}
 
-      {/* 2. Two-Column Dashboard Layout: Main Workspace (Left) + Sticky Screening History (Right) */}
-      <div className="spad-dashboard-main-layout">
-        {/* Left Column: Main Dashboard Content */}
-        <div className="spad-dashboard-main-col">
-          {/* Screening Pipeline (Lot Screening Metrics, Model 1, Model 2) */}
-          <section aria-label="Screening Pipeline and ML Diagnostics">
-            <ScreeningPipeline
-              stages={pipelineStages}
-              context={screeningContext}
-              isLoading={isLoadingComponents && !activeLotSummary}
-            />
-          </section>
+      {/* Screening Pipeline (Lot Screening Metrics, Model 1, Model 2) */}
+      <section aria-label="Screening Pipeline and ML Diagnostics">
+        <ScreeningPipeline
+          stages={pipelineStages}
+          context={screeningContext}
+          isLoading={isLoadingComponents && !activeLotSummary}
+        />
+      </section>
 
-          {/* Parameter Trends (Interactive Burn-in Parameter Trajectory) */}
-          <section aria-label="Parametric Trends and Degradation">
-            <ParameterTrends
-              components={componentRecords}
-              context={screeningContext}
-            />
-          </section>
+      {/* Parameter Trends (Interactive Burn-in Parameter Trajectory) */}
+      <section aria-label="Parametric Trends and Degradation">
+        <ParameterTrends
+          components={componentRecords}
+          context={screeningContext}
+        />
+      </section>
 
-          {/* ML Model 2: Isolation Forest — Anomaly Detection */}
-          <section aria-label="Isolation Forest — Anomaly Detection">
-            <LotAnomalyDetection
-              records={componentRecords}
-            />
-          </section>
+      {/* ML Model 2: Isolation Forest — Anomaly Detection */}
+      <section aria-label="Isolation Forest — Anomaly Detection">
+        <LotAnomalyDetection
+          records={componentRecords}
+        />
+      </section>
 
-          {/* Detailed Component View (Overview Table) */}
-          <section aria-label="Component Screening Records">
-            <ComponentTable records={componentRecords} onSelectComponent={handleSelectComponent} />
-          </section>
+      {/* Detailed Component View (Overview Table) */}
+      <section aria-label="Component Screening Records">
+        <ComponentTable records={componentRecords} onSelectComponent={handleSelectComponent} />
+      </section>
 
-          {/* System Status + Recent Alerts */}
-          <section className="spad-two-col-grid" aria-label="System Health and Event Stream">
-            <SystemStatus subsystems={systemSubsystems} />
-            <RecentAlerts alerts={recentAlerts} onAlertClick={handleAlertClick} />
-          </section>
-        </div>
-
-        {/* Right Column: Sticky Screening History Panel */}
-        <aside className="spad-dashboard-history-sidebar" aria-label="Screening History Audit">
-          <ScreeningHistory
-            history={screeningHistory}
-            isLoading={isLoadingHistory}
-            onNavigate={onNavigate}
-            selectedLotId={selectedLotId || screeningContext.lotId}
-            onSelectLot={onSelectLot}
-          />
-        </aside>
-      </div>
+      {/* System Status + Recent Alerts */}
+      <section className="spad-two-col-grid" aria-label="System Health and Event Stream">
+        <SystemStatus subsystems={systemSubsystems} />
+        <RecentAlerts alerts={recentAlerts} onAlertClick={handleAlertClick} />
+      </section>
 
       {/* 8. Detailed Component Analysis & SHAP Explainability Dialog */}
       <ComponentDetailModal
