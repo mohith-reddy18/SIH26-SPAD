@@ -144,29 +144,70 @@ export default function Dashboard({ onNavigateToComponent, onNavigate, selectedL
     });
   }, [backendHistory, componentRecords]);
 
-  // Primary screening lot context
+  // Derive selected lot summary from already-loaded history or active component records
+  const activeLotSummary = useMemo(() => {
+    const targetLotId = selectedLotId || (componentRecords.length > 0 ? componentRecords[0]?.lotId : null);
+    if (!targetLotId) return null;
+    return backendHistory.find((h) => h.lotId === targetLotId) || null;
+  }, [backendHistory, selectedLotId, componentRecords]);
+
+  // Primary screening lot context derived coherently from database lot summary and active records
   const screeningContext = useMemo(() => {
-    const totalUnits = componentRecords.length;
-    const normalCount = componentRecords.filter((c) => c.engineeringStatus === 'NORMAL').length;
-    const anomalyCount = componentRecords.filter((c) => c.engineeringStatus === 'SUSPECT' || c.engineeringStatus === 'CRITICAL').length;
-    const calculatedYield = totalUnits > 0 ? `${((normalCount / totalUnits) * 100).toFixed(1)}%` : '100.0%';
-    const primaryLotId = selectedLotId || (totalUnits > 0 && componentRecords[0].lotId ? componentRecords[0].lotId : 'NO ACTIVE LOT');
-    const hasPredictions = componentRecords.some((c) => c.predictions && Object.keys(c.predictions).length > 0);
-    const hasAnomalies = componentRecords.some((c) => c.anomalies || c.engineeringStatus !== undefined);
+    const activeLotRecords = selectedLotId
+      ? componentRecords.filter((c) => c.lotId === selectedLotId)
+      : componentRecords;
+
+    if (activeLotRecords.length > 0) {
+      const totalUnits = activeLotRecords.length;
+      const normalCount = activeLotRecords.filter((c) => c.engineeringStatus === 'NORMAL').length;
+      const anomalyCount = activeLotRecords.filter((c) => c.engineeringStatus === 'SUSPECT' || c.engineeringStatus === 'CRITICAL').length;
+      const calculatedYield = totalUnits > 0 ? `${((normalCount / totalUnits) * 100).toFixed(1)}%` : '100.0%';
+      const primaryLotId = selectedLotId || activeLotRecords[0].lotId || 'NO ACTIVE LOT';
+      const hasPredictions = activeLotRecords.some((c) => c.predictions && Object.keys(c.predictions).length > 0);
+      const hasAnomalies = activeLotRecords.some((c) => c.anomalies || c.engineeringStatus !== undefined);
+
+      return {
+        ...mockDashboardData.screeningContext,
+        lotId: primaryLotId,
+        lotStatus: totalUnits > 0 ? 'COMPLETED' : 'NO ACTIVE LOT',
+        totalUnits,
+        screenedUnits: totalUnits,
+        currentYield: calculatedYield,
+        anomaliesDetected: anomalyCount,
+        hasFuturePrediction: hasPredictions || totalUnits > 0,
+        hasAnomalyDetection: hasAnomalies || totalUnits > 0,
+        completionRate: totalUnits > 0 ? '100%' : '—',
+      };
+    }
+
+    if (activeLotSummary) {
+      return {
+        ...mockDashboardData.screeningContext,
+        lotId: activeLotSummary.lotId,
+        lotStatus: activeLotSummary.status || (activeLotSummary.totalUnits > 0 ? 'COMPLETED' : 'PENDING'),
+        totalUnits: activeLotSummary.totalUnits || 0,
+        screenedUnits: activeLotSummary.totalUnits || 0,
+        currentYield: activeLotSummary.yield || '100.0%',
+        anomaliesDetected: activeLotSummary.anomalyCount || 0,
+        hasFuturePrediction: activeLotSummary.hasPredictions !== false && activeLotSummary.totalUnits > 0,
+        hasAnomalyDetection: activeLotSummary.hasAnomalyDet !== false && activeLotSummary.totalUnits > 0,
+        completionRate: activeLotSummary.totalUnits > 0 ? '100%' : '—',
+      };
+    }
 
     return {
       ...mockDashboardData.screeningContext,
-      lotId: primaryLotId,
-      lotStatus: totalUnits > 0 ? 'COMPLETED' : 'NO ACTIVE LOT',
-      totalUnits,
-      screenedUnits: totalUnits,
-      currentYield: calculatedYield,
-      anomaliesDetected: anomalyCount,
-      hasFuturePrediction: hasPredictions || totalUnits > 0,
-      hasAnomalyDetection: hasAnomalies || totalUnits > 0,
-      completionRate: totalUnits > 0 ? '100%' : '—',
+      lotId: selectedLotId || 'NO ACTIVE LOT',
+      lotStatus: isLoadingComponents ? 'LOADING' : 'NO ACTIVE LOT',
+      totalUnits: 0,
+      screenedUnits: 0,
+      currentYield: '—',
+      anomaliesDetected: 0,
+      hasFuturePrediction: false,
+      hasAnomalyDetection: false,
+      completionRate: '—',
     };
-  }, [componentRecords, selectedLotId]);
+  }, [componentRecords, selectedLotId, activeLotSummary, isLoadingComponents]);
 
   // Derive alerts dynamically from database component records
   const recentAlerts = useMemo(() => {
@@ -266,7 +307,11 @@ export default function Dashboard({ onNavigateToComponent, onNavigate, selectedL
 
       {/* 2. Screening Result Summary + Screening History (Two-Column Section) */}
       <section className="spad-two-col-grid spad-pipeline-history-grid" aria-label="Screening Result and Run History">
-        <ScreeningPipeline stages={pipelineStages} context={screeningContext} />
+        <ScreeningPipeline
+          stages={pipelineStages}
+          context={screeningContext}
+          isLoading={isLoadingComponents && !activeLotSummary}
+        />
         <ScreeningHistory
           history={screeningHistory}
           isLoading={isLoadingHistory}
