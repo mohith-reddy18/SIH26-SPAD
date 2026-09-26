@@ -8,11 +8,11 @@
   display: flex;
   flex-direction: column;
   gap: 18px;
-  padding: 22px 28px 48px 28px;
+  padding: 0;
   width: 100%;
-  max-width: 1540px;
+  max-width: 100%;
   box-sizing: border-box;
-  margin: 0 auto;
+  margin: 0;
   overflow-x: hidden;
 }
 
@@ -2027,7 +2027,7 @@
 /* Tablet Landscape & Portrait (768px - 1023px) */
 @media (max-width: 1023px) {
   .spad-dashboard-page {
-    padding: 18px 18px 32px 18px;
+    padding: 0;
     gap: 16px;
   }
 
@@ -2088,7 +2088,7 @@
 /* Mobile Screens (480px - 767px) */
 @media (max-width: 767px) {
   .spad-dashboard-page {
-    padding: 14px 12px 28px 12px;
+    padding: 0;
     gap: 14px;
   }
 

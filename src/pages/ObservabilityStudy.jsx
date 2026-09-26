@@ -320,7 +320,7 @@ export default function ObservabilityStudy({ selectedLotId, onSelectLot }) {
       )}
 
       {/* 4. Telemetry Distribution & Population Observability Notes */}
-      <div className="spad-two-col-grid" style={{ marginBottom: '20px' }}>
+      <div className="spad-equal-two-col-grid" style={{ marginBottom: '20px' }}>
         <div className="spad-card" style={{ padding: '20px' }}>
           <div className="spad-card-header">
             <div className="spad-card-title-group">

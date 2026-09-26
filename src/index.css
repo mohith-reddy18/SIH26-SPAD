@@ -115,19 +115,17 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Global Workspace Two-Column Layout (Main Workspace + Sticky History Sidebar) */
 .app-workspace-layout {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 350px);
   gap: 20px;
-  align-items: flex-start;
+  align-items: start;
   width: 100%;
-  max-width: 1720px;
   padding: 22px 28px 48px 28px;
   box-sizing: border-box;
-  margin: 0 auto;
 }
 
 /* Main Content Area */
 .app-main-content {
-  flex: 1 1 0%;
   min-width: 0;
   width: 100%;
   background-color: transparent;
@@ -139,10 +137,9 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Persistent Global Screening History Panel (Right Side) */
 .app-history-sidebar {
-  width: 350px;
+  width: 100%;
   min-width: 320px;
-  max-width: 380px;
-  flex-shrink: 0;
+  max-width: 350px;
   position: -webkit-sticky;
   position: sticky;
   top: 18px;
@@ -274,14 +271,34 @@ h1, h2, h3, h4, h5, h6 {
     width: 100%;
   }
 
+  .app-workspace-layout {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    padding: 18px 18px 32px 18px;
+  }
+
+  .app-history-sidebar {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    position: static;
+    height: auto;
+    max-height: none;
+  }
+
   .spad-page-container {
-    padding: 24px 20px;
+    padding: 0;
   }
 }
 
 @media (max-width: 640px) {
+  .app-workspace-layout {
+    padding: 14px 12px 28px 12px;
+    gap: 14px;
+  }
+
   .spad-page-container {
-    padding: 16px 14px;
+    padding: 0;
   }
 
   .spad-page-title {
@@ -291,5 +308,4 @@ h1, h2, h3, h4, h5, h6 {
   .spad-page-description {
     font-size: 12.5px;
   }
-
 }

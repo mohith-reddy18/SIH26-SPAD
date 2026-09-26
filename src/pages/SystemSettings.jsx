@@ -14,10 +14,75 @@ export default function SystemSettings() {
   });
   const [isRefreshingHealth, setIsRefreshingHealth] = useState(false);
 
-  // Frontend-only UI preferences (local state)
-  const [autoRefreshInterval, setAutoRefreshInterval] = useState('off');
-  const [chartSmoothing, setChartSmoothing] = useState(true);
-  const [highContrastPills, setHighContrastPills] = useState(false);
+  // Frontend-only UI preferences with localStorage persistence
+  const [autoRefreshInterval, setAutoRefreshInterval] = useState(() => {
+    try {
+      const saved = localStorage.getItem('spad_telemetry_refresh_interval');
+      if (saved === '30s' || saved === '60s' || saved === 'off') {
+        return saved;
+      }
+    } catch (err) {
+      console.warn('[SPAD] Failed to read refresh interval from storage:', err);
+    }
+    return 'off';
+  });
+
+  const [chartSmoothing, setChartSmoothing] = useState(() => {
+    try {
+      const saved = localStorage.getItem('spad_chart_smoothing');
+      if (saved !== null) {
+        return saved === 'true';
+      }
+    } catch (err) {
+      console.warn('[SPAD] Failed to read chart smoothing from storage:', err);
+    }
+    return true;
+  });
+
+  const [highContrastPills, setHighContrastPills] = useState(() => {
+    try {
+      const saved = localStorage.getItem('spad_high_contrast_pills');
+      if (saved !== null) {
+        return saved === 'true';
+      }
+    } catch (err) {
+      console.warn('[SPAD] Failed to read high contrast preference from storage:', err);
+    }
+    return false;
+  });
+
+  const handleRefreshIntervalChange = (val) => {
+    setAutoRefreshInterval(val);
+    try {
+      localStorage.setItem('spad_telemetry_refresh_interval', val);
+    } catch (err) {
+      console.warn('[SPAD] Failed to save refresh interval to storage:', err);
+    }
+  };
+
+  const handleToggleChartSmoothing = () => {
+    setChartSmoothing((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('spad_chart_smoothing', String(next));
+      } catch (err) {
+        console.warn('[SPAD] Failed to save chart smoothing to storage:', err);
+      }
+      return next;
+    });
+  };
+
+  const handleToggleHighContrast = () => {
+    setHighContrastPills((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('spad_high_contrast_pills', String(next));
+      } catch (err) {
+        console.warn('[SPAD] Failed to save high contrast preference to storage:', err);
+      }
+      return next;
+    });
+  };
 
   // Live health check against GET /api/health
   const checkBackendHealth = async () => {
@@ -208,7 +273,7 @@ export default function SystemSettings() {
             <select
               className="spad-comp-select-input"
               value={autoRefreshInterval}
-              onChange={(e) => setAutoRefreshInterval(e.target.value)}
+              onChange={(e) => handleRefreshIntervalChange(e.target.value)}
               style={{ minWidth: '120px' }}
             >
               <option value="off">Manual Only</option>
@@ -225,7 +290,7 @@ export default function SystemSettings() {
             <button
               type="button"
               className={`spad-mode-btn ${chartSmoothing ? 'active' : ''}`}
-              onClick={() => setChartSmoothing(!chartSmoothing)}
+              onClick={handleToggleChartSmoothing}
               style={{ fontSize: '12px', padding: '4px 12px' }}
             >
               {chartSmoothing ? 'Enabled' : 'Disabled'}
@@ -240,7 +305,7 @@ export default function SystemSettings() {
             <button
               type="button"
               className={`spad-mode-btn ${highContrastPills ? 'active' : ''}`}
-              onClick={() => setHighContrastPills(!highContrastPills)}
+              onClick={handleToggleHighContrast}
               style={{ fontSize: '12px', padding: '4px 12px' }}
             >
               {highContrastPills ? 'Enabled' : 'Standard'}
