@@ -331,7 +331,6 @@ export default function Dashboard({ onNavigateToComponent, onNavigate, selectedL
       <section aria-label="Isolation Forest — Anomaly Detection">
         <LotAnomalyDetection
           records={componentRecords}
-          onSelectComponent={handleSelectComponent}
         />
       </section>
 

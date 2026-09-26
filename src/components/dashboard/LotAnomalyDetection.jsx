@@ -77,7 +77,7 @@ function StatusIcon({ status }) {
  * Method 2 — Isolation Forest: Lot-Level Anomaly Detection
  * Displays compact lot-level summary and focused component-level anomaly inference cards.
  */
-export default function LotAnomalyDetection({ records = [], onSelectComponent }) {
+export default function LotAnomalyDetection({ records = [] }) {
   const lotId = records[0]?.lotId || 'NO ACTIVE LOT';
 
   // Process components with their actual backend lotAnomaly inferences
@@ -143,7 +143,7 @@ export default function LotAnomalyDetection({ records = [], onSelectComponent })
     });
   }, [records]);
 
-  // Selected component state for focused inspection
+  // Selected component state for focused inspection within this section only
   const [selectedCompId, setSelectedCompId] = useState(
     () => componentsWithAnomaly[0]?.id || ''
   );
@@ -324,8 +324,6 @@ export default function LotAnomalyDetection({ records = [], onSelectComponent })
               value={activeComp?.id || ''}
               onChange={(e) => {
                 setSelectedCompId(e.target.value);
-                const target = componentsWithAnomaly.find((c) => c.id === e.target.value);
-                if (target && onSelectComponent) onSelectComponent(target);
               }}
               style={{
                 background: '#0b1324',
@@ -536,4 +534,3 @@ export default function LotAnomalyDetection({ records = [], onSelectComponent })
     </div>
   );
 }
-
