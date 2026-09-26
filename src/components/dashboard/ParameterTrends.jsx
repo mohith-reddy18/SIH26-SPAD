@@ -348,7 +348,6 @@ export default function ParameterTrends({
 
           {/* Compact Component Summary derived from activeComponent data */}
           <div className="spad-comp-compact-summary">
-            <span className="spad-summary-pill-id">{activeComponent.id || '—'}</span>
             <span className="spad-summary-pill-lot">Lot: {activeComponent.lotId || currentLotId}</span>
             <span
               className={`spad-summary-pill-status status-${selectedStatus.toLowerCase()}`}
@@ -360,67 +359,9 @@ export default function ParameterTrends({
             </span>
           </div>
         </div>
-
-        {typeof dynamicLimit === 'number' && (
-          <span className="spad-spec-badge">
-            MAX SPEC LIMIT:{' '}
-            <strong>
-              {dynamicLimit.toFixed(2)} {activeSpec.unit}
-            </strong>
-          </span>
-        )}
       </div>
 
-      {/* 3. Checkpoint Metric Cards Strip */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
-          gap: '8px',
-          padding: '8px 12px',
-          margin: '0 0 10px 0',
-          background: 'rgba(15, 23, 42, 0.55)',
-          border: '1px solid rgba(255, 255, 255, 0.05)',
-          borderRadius: '4px',
-          fontFamily: 'var(--font-mono)',
-          fontSize: '11px',
-        }}
-      >
-        <div>
-          <span style={{ color: '#64748b', fontSize: '10px', display: 'block' }}>0hr [OBSERVED]</span>
-          <span style={{ color: '#f8fafc', fontWeight: '700' }}>
-            {compData[0] !== undefined ? `${Number(compData[0]).toFixed(3)} ${activeSpec.unit}` : '—'}
-          </span>
-        </div>
-        <div>
-          <span style={{ color: '#64748b', fontSize: '10px', display: 'block' }}>24hr [OBSERVED]</span>
-          <span style={{ color: '#f8fafc', fontWeight: '700' }}>
-            {compData[1] !== undefined ? `${Number(compData[1]).toFixed(3)} ${activeSpec.unit}` : '—'}
-          </span>
-        </div>
-        <div>
-          <span style={{ color: '#38bdf8', fontSize: '10px', display: 'block' }}>96hr [PREDICTED]</span>
-          <span style={{ color: '#38bdf8', fontWeight: '700' }}>
-            {compData[2] !== undefined ? `${Number(compData[2]).toFixed(3)} ${activeSpec.unit}` : '—'}
-          </span>
-        </div>
-        <div>
-          <span style={{ color: '#38bdf8', fontSize: '10px', display: 'block' }}>168hr [PREDICTED]</span>
-          <span style={{ color: '#38bdf8', fontWeight: '700' }}>
-            {compData[3] !== undefined ? `${Number(compData[3]).toFixed(3)} ${activeSpec.unit}` : '—'}
-          </span>
-        </div>
-        {typeof dynamicLimit === 'number' && (
-          <div>
-            <span style={{ color: '#ef4444', fontSize: '10px', display: 'block' }}>SPEC LIMIT</span>
-            <span style={{ color: '#f87171', fontWeight: '700' }}>
-              {dynamicLimit.toFixed(2)} {activeSpec.unit}
-            </span>
-          </div>
-        )}
-      </div>
-
-      {/* 4. Interactive SVG Chart Container */}
+      {/* 3. Interactive SVG Chart Container */}
       <div className="spad-chart-wrapper">
         <svg
           className="spad-trend-svg"
