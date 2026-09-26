@@ -82,7 +82,6 @@ export default function ScreeningHistory({
         style={{
           flex: 1,
           overflowY: 'auto',
-          maxHeight: '340px',
           display: 'flex',
           flexDirection: 'column',
           gap: '8px',

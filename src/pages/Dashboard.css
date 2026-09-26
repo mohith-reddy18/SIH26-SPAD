@@ -330,6 +330,54 @@
   white-space: nowrap;
 }
 
+/* ==========================================================================
+   Two-Column Dashboard Layout (Left Workspace + Sticky Right History Panel)
+   ========================================================================== */
+.spad-dashboard-main-layout {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.spad-dashboard-main-col {
+  flex: 1 1 0%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  box-sizing: border-box;
+}
+
+.spad-dashboard-history-sidebar {
+  width: 340px;
+  flex-shrink: 0;
+  position: -webkit-sticky;
+  position: sticky;
+  top: 18px;
+  max-height: calc(100vh - 36px);
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  z-index: 10;
+}
+
+.spad-dashboard-history-sidebar .spad-history-card {
+  height: 100%;
+  max-height: calc(100vh - 36px);
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+
+.spad-dashboard-history-sidebar .spad-history-scroll-container {
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  max-height: calc(100vh - 110px);
+}
+
 /* --------------------------------------------------------------------------
    3. Two-Column Layout (Row 1: Pipeline 50% | Evidence 50%)
    -------------------------------------------------------------------------- */
@@ -1585,6 +1633,10 @@
   .spad-stat-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
+
+  .spad-dashboard-history-sidebar {
+    width: 300px;
+  }
 }
 
 /* Tablet Portrait (768px - 1023px) */
@@ -1592,6 +1644,25 @@
   .spad-dashboard-page {
     padding: 18px 18px 32px 18px;
     gap: 16px;
+  }
+
+  .spad-dashboard-main-layout {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .spad-dashboard-history-sidebar {
+    width: 100%;
+    position: static;
+    max-height: none;
+  }
+
+  .spad-dashboard-history-sidebar .spad-history-card {
+    max-height: none;
+  }
+
+  .spad-dashboard-history-sidebar .spad-history-scroll-container {
+    max-height: 380px;
   }
 
   .spad-two-col-grid,

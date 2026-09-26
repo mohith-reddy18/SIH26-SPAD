@@ -369,47 +369,57 @@ export default function Dashboard({ onNavigateToComponent, onNavigate, selectedL
         </div>
       )}
 
-      {/* 2. Screening Result Summary + Screening History (Two-Column Section) */}
-      <section className="spad-two-col-grid spad-pipeline-history-grid" aria-label="Screening Result and Run History">
-        <ScreeningPipeline
-          stages={pipelineStages}
-          context={screeningContext}
-          isLoading={isLoadingComponents && !activeLotSummary}
-        />
-        <ScreeningHistory
-          history={screeningHistory}
-          isLoading={isLoadingHistory}
-          onNavigate={onNavigate}
-          selectedLotId={selectedLotId || screeningContext.lotId}
-          onSelectLot={onSelectLot}
-        />
-      </section>
+      {/* 2. Two-Column Dashboard Layout: Main Workspace (Left) + Sticky Screening History (Right) */}
+      <div className="spad-dashboard-main-layout">
+        {/* Left Column: Main Dashboard Content */}
+        <div className="spad-dashboard-main-col">
+          {/* Screening Pipeline (Lot Screening Metrics, Model 1, Model 2) */}
+          <section aria-label="Screening Pipeline and ML Diagnostics">
+            <ScreeningPipeline
+              stages={pipelineStages}
+              context={screeningContext}
+              isLoading={isLoadingComponents && !activeLotSummary}
+            />
+          </section>
 
-      {/* 3. Parameter Trends (Interactive Burn-in Parameter Trajectory) */}
-      <section aria-label="Parametric Trends and Degradation">
-        <ParameterTrends
-          components={componentRecords}
-          context={screeningContext}
-        />
-      </section>
+          {/* Parameter Trends (Interactive Burn-in Parameter Trajectory) */}
+          <section aria-label="Parametric Trends and Degradation">
+            <ParameterTrends
+              components={componentRecords}
+              context={screeningContext}
+            />
+          </section>
 
-      {/* 5. ML Model 2: Isolation Forest — Anomaly Detection */}
-      <section aria-label="Isolation Forest — Anomaly Detection">
-        <LotAnomalyDetection
-          records={componentRecords}
-        />
-      </section>
+          {/* ML Model 2: Isolation Forest — Anomaly Detection */}
+          <section aria-label="Isolation Forest — Anomaly Detection">
+            <LotAnomalyDetection
+              records={componentRecords}
+            />
+          </section>
 
-      {/* 6. Detailed Component View (Full-Width Table) */}
-      <section aria-label="Component Screening Records">
-        <ComponentTable records={componentRecords} onSelectComponent={handleSelectComponent} />
-      </section>
+          {/* Detailed Component View (Overview Table) */}
+          <section aria-label="Component Screening Records">
+            <ComponentTable records={componentRecords} onSelectComponent={handleSelectComponent} />
+          </section>
 
-      {/* 7. System Status + Recent Alerts (Two-Column Section) */}
-      <section className="spad-two-col-grid" aria-label="System Health and Event Stream">
-        <SystemStatus subsystems={systemSubsystems} />
-        <RecentAlerts alerts={recentAlerts} onAlertClick={handleAlertClick} />
-      </section>
+          {/* System Status + Recent Alerts */}
+          <section className="spad-two-col-grid" aria-label="System Health and Event Stream">
+            <SystemStatus subsystems={systemSubsystems} />
+            <RecentAlerts alerts={recentAlerts} onAlertClick={handleAlertClick} />
+          </section>
+        </div>
+
+        {/* Right Column: Sticky Screening History Panel */}
+        <aside className="spad-dashboard-history-sidebar" aria-label="Screening History Audit">
+          <ScreeningHistory
+            history={screeningHistory}
+            isLoading={isLoadingHistory}
+            onNavigate={onNavigate}
+            selectedLotId={selectedLotId || screeningContext.lotId}
+            onSelectLot={onSelectLot}
+          />
+        </aside>
+      </div>
 
       {/* 8. Detailed Component Analysis & SHAP Explainability Dialog */}
       <ComponentDetailModal
