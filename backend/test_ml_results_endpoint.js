@@ -73,14 +73,19 @@ async function runTests() {
 
     // Module A (Isolation Forest) checks
     const anomParam = rec1.aiAssessment.lotAnomaly.parameters.rdson;
-    assert.strictEqual(anomParam.lotAnomalyScore, 0.042);
+    assert.strictEqual(anomParam.lotAnomalyScore, 0.042, 'Raw Isolation Forest score must be preserved exactly without modification/clamping');
     assert.strictEqual(anomParam.aiFlag, 'NOT_EVALUATED', 'Module A flag must be NOT_EVALUATED when no explicit flag provided (no invented threshold)');
     assert.strictEqual(anomParam.peerComparisonEvidence.noveltyPercentile, 84.5);
     assert.strictEqual(anomParam.peerComparisonEvidence.rawScore, 0.042);
 
     // AI Overall Status
     assert.strictEqual(rec1.aiAssessment.overallStatus, 'NOT FLAGGED');
-    console.log('[PASS] Valid payload normalized correctly with full evidence and proper flag handling');
+
+    // Engineering Status when no valid DB limit exists
+    assert.deepStrictEqual(rec1.engineeringLimits, {}, 'engineeringLimits must be empty when no official limit is configured');
+    assert.strictEqual(rec1.engineeringStatus, 'NOT_EVALUATED', 'engineeringStatus must be NOT_EVALUATED when no official DB limits exist (cannot assume NORMAL)');
+    assert.strictEqual(rec1.status, 'NOT_EVALUATED', 'status must be NOT_EVALUATED when no official DB limits exist');
+    console.log('[PASS] Valid payload normalized correctly with NOT_EVALUATED engineering status and preserved IF raw score');
 
     // 2. Module B Anomaly Flagged
     console.log('\n--- TEST 2: Module B Flagged (1 / FLAGGED) ---');
@@ -104,6 +109,28 @@ async function runTests() {
     assert.strictEqual(rec2.aiAssessment.overallStatus, 'FLAGGED');
     assert.strictEqual(rec2.aiRisk, 85);
     console.log('[PASS] Module B anomaly 1 correctly normalized to FLAGGED');
+
+    // 2b. Signed / Negative Isolation Forest Score Preservation
+    console.log('\n--- TEST 2b: Signed / Negative Isolation Forest Score Preservation ---');
+    const negativeScorePayload = {
+      lotId: 'NASA-MOSFET-199C',
+      results: [
+        {
+          Test_ID: 'TEST-03',
+          RDS0: 1.6,
+          RDS33: 1.7,
+          Predicted_RDS100: 2.0,
+          Module_A_IF_Score: -0.145, // Scikit-Learn raw decision function output can be negative
+          Module_B_Anomaly: 0,
+        },
+      ],
+    };
+    const res2b = await postJson(negativeScorePayload);
+    assert.strictEqual(res2b.status, 200);
+    const rec2b = res2b.data.records[0].normalizedRecord;
+    assert.strictEqual(rec2b.aiAssessment.lotAnomaly.parameters.rdson.lotAnomalyScore, -0.145, 'Negative IF score must be preserved as-is without clamping');
+    assert.strictEqual(rec2b.aiAssessment.lotAnomaly.parameters.rdson.peerComparisonEvidence.rawScore, -0.145);
+    console.log('[PASS] Negative signed Isolation Forest score preserved exactly (-0.145)');
 
     // 3. Validation: Missing lotId
     console.log('\n--- TEST 3: Validation Error - Missing lotId ---');

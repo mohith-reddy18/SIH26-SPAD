@@ -519,15 +519,33 @@ router.post('/results', async (req, res) => {
         },
       };
 
-      // Authoritative Engineering Status (no artificial spec limits invented)
-      const calculatedEngineeringStatus = engineeringStatus(measurements, {});
+      // Authoritative Engineering Status:
+      // Only evaluate if valid authoritative engineering limits exist.
+      // If no valid database engineering limit exists, do NOT invent one and do NOT treat as NORMAL;
+      // explicitly preserve the absence of evaluation as 'NOT_EVALUATED'.
+      let calculatedEngineeringStatus = 'NOT_EVALUATED';
+      const authoritativeLimits = {}; // No authoritative limit invented for dry-run
+
+      const hasOfficialLimits = Object.values(authoritativeLimits).some((lim) => {
+        if (!lim || typeof lim !== 'object') return typeof lim === 'number' && Number.isFinite(lim);
+        const src = lim.source ? String(lim.source).toUpperCase() : 'DATABASE_CATALOG';
+        return (
+          src !== 'AI_ESTIMATED_BOUNDARY' &&
+          src !== 'NONE_AVAILABLE' &&
+          (typeof lim.limitValue === 'number' || typeof lim.upper === 'number' || typeof lim.lower === 'number')
+        );
+      });
+
+      if (hasOfficialLimits) {
+        calculatedEngineeringStatus = engineeringStatus(measurements, authoritativeLimits);
+      }
 
       const canonicalRecord = {
         componentId,
         lotId: itemLotId,
         stage: '24h',
         measurements,
-        engineeringLimits: {},
+        engineeringLimits: authoritativeLimits,
         engineeringStatus: calculatedEngineeringStatus,
         aiAssessment: {
           overallStatus: calculatedOverallStatus,

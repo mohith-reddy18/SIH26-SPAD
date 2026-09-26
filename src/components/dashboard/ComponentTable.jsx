@@ -210,13 +210,10 @@ export default function ComponentTable({ records = [], onSelectComponent }) {
           borderTop: '1px solid rgba(255, 255, 255, 0.05)',
         }}
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
           <span className="spad-table-footer-stat" style={{ fontSize: '12px', color: '#94a3b8', fontFamily: 'var(--font-mono)' }}>
             Showing <strong>{startItem}–{endItem}</strong> of <strong>{filteredRecords.length}</strong> components
             {records.length !== filteredRecords.length && ` (filtered from ${records.length} total)`}
-          </span>
-          <span className="spad-table-footer-hint" style={{ fontSize: '11px', color: '#64748b' }}>
-            Click row for full component telemetry trace
           </span>
         </div>
 
