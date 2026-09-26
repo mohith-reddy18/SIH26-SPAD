@@ -191,10 +191,6 @@ export default function LotAnomalyDetection({ records = [] }) {
           <span className="spad-card-section-label">METHOD 2 &bull; LOT-WIDE NOVELTY DETECTION</span>
           <h2 className="spad-card-title">Isolation Forest — Anomaly Detection</h2>
         </div>
-        <div className="spad-card-badge-static">
-          <UsersIcon />
-          <span>EARLY TRAJECTORY NOVELTY (ISOLATION FOREST)</span>
-        </div>
       </div>
 
       {/* 2. Compact Lot & Cohort Context Metadata Strip */}
@@ -235,38 +231,10 @@ export default function LotAnomalyDetection({ records = [] }) {
         )}
       </div>
 
-      {/* 4. Model Architecture & Configuration Specs (Without Redundant Lot Evaluation Result) */}
+      {/* 3. Selected-Component Isolation Forest Inferences */}
       <div
         style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-          gap: '8px',
-          padding: '10px 14px',
-          background: 'rgba(0, 0, 0, 0.25)',
-          borderRadius: '4px',
-          border: '1px solid rgba(255, 255, 255, 0.04)',
-          fontSize: '11px',
-          fontFamily: 'var(--font-mono)',
-        }}
-      >
-        <div>
-          <span style={{ color: '#64748b', display: 'block', fontSize: '10px' }}>ALGORITHM TYPE</span>
-          <span style={{ color: '#f8fafc', fontWeight: '600' }}>IsolationForest (n_trees=100)</span>
-        </div>
-        <div>
-          <span style={{ color: '#64748b', display: 'block', fontSize: '10px' }}>TRAJECTORY FEATURE SET</span>
-          <span style={{ color: '#a78bfa', fontWeight: '600' }}>[RDS0, ΔRDS(0→24h), rate_of_change]</span>
-        </div>
-        <div>
-          <span style={{ color: '#64748b', display: 'block', fontSize: '10px' }}>ANOMALY THRESHOLD</span>
-          <span style={{ color: '#10b981', fontWeight: '600' }}>Z-Score: |z| &gt; 3.0σ (Contamination: 0.10)</span>
-        </div>
-      </div>
-
-      {/* 5. Selected-Component Isolation Forest Inferences */}
-      <div
-        style={{
-          marginTop: '14px',
+          marginTop: '6px',
           background: 'rgba(10, 15, 29, 0.65)',
           border: '1px solid rgba(255, 255, 255, 0.07)',
           borderRadius: '6px',
