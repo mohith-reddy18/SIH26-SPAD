@@ -103,7 +103,7 @@
 .spad-sidebar-header {
   position: relative;
   z-index: 1;
-  padding: 20px 18px 12px 18px;
+  padding: 18px 18px 16px 18px;
   border-bottom: 1px solid var(--spad-sidebar-border-subtle);
   background: linear-gradient(180deg, rgba(11, 17, 32, 0.6) 0%, transparent 100%);
   display: flex;
@@ -177,19 +177,6 @@
   color: #ffffff;
   border-color: #38bdf8;
   background: rgba(56, 189, 248, 0.15);
-}
-
-.spad-brand-subtitle {
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.03em;
-  color: var(--spad-text-muted);
-  padding: 10px 18px 0 18px;
-  text-transform: uppercase;
-  line-height: 1.35;
-  font-family: var(--spad-font-mono);
-  position: relative;
-  z-index: 1;
 }
 
 /* --------------------------------------------------------------------------

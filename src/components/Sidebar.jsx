@@ -254,10 +254,6 @@ export default function Sidebar({ activePath = '/', onNavigate, isOpen = false, 
           </button>
         </div>
 
-        <div className="spad-brand-subtitle">
-          Space-Grade Anomaly Detection
-        </div>
-
         {/* 2. Navigation Items List */}
         <nav className="spad-nav-container">
           <div className="spad-nav-section-label">SCREENING & CONTROL</div>
