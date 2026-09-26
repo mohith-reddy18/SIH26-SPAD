@@ -1,23 +1,42 @@
+@import url('https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800&display=swap');
+
 /* ==========================================================================
    SPAD Application Global Styles
    Aerospace Reliability & Electronics Screening System
    ========================================================================== */
 
 :root {
-  --spad-bg-root: #070b14;
-  --spad-bg-canvas: #090e1a;
-  --spad-bg-card: #0b1220;
-  --spad-border-subtle: rgba(56, 189, 248, 0.1);
-  --spad-border-dashed: rgba(56, 189, 248, 0.16);
-  --spad-text-primary: #f8fafc;
-  --spad-text-secondary: #94a3b8;
-  --spad-text-muted: #64748b;
-  --spad-text-dim: #475569;
-  --spad-accent-cyan: #38bdf8;
-  --spad-accent-blue: #2563eb;
+  /* Reference Visual Foundation Palette */
+  --spad-bg: #18181A;
+  --spad-surface: #201F21;
+  --spad-inset: #282628;
+  --spad-chip: #363636;
+  --spad-text: #FFFFFF;
+  --spad-text-secondary: #B6B6B6;
+  --spad-text-muted: #8B8B8F;
+  --spad-green: #00C442;
+  --spad-blue: #0038D8;
 
-  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  /* Theme mappings */
+  --spad-bg-root: #18181A;
+  --spad-bg-canvas: #18181A;
+  --spad-bg-card: #201F21;
+  --spad-border-subtle: rgba(255, 255, 255, 0.08);
+  --spad-border-dashed: rgba(255, 255, 255, 0.14);
+  --spad-text-primary: #FFFFFF;
+  --spad-text-dim: #5A5A5E;
+  --spad-accent-cyan: #00C442;
+  --spad-accent-blue: #0038D8;
+  --spad-status-green: #00C442;
+  --spad-status-glow: rgba(0, 196, 66, 0.35);
+
+  /* Typography: Exactly Two Font Families */
+  --font-display: 'Anton', sans-serif;
+  --font-ui: 'Inter', sans-serif;
+  --font-sans: var(--font-ui);
+  --font-mono: var(--font-ui);
+  --spad-font-sans: var(--font-ui);
+  --spad-font-mono: var(--font-ui);
 
   color-scheme: dark;
 }
@@ -34,9 +53,13 @@ body {
   padding: 0;
   width: 100%;
   min-height: 100vh;
-  background-color: var(--spad-bg-root);
+  background-color: var(--spad-bg);
+  background-image: 
+    linear-gradient(to right, rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
+  background-size: 36px 36px;
   color: var(--spad-text-secondary);
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
@@ -47,6 +70,15 @@ body {
   width: 100%;
   display: flex;
   overflow-x: hidden;
+}
+
+/* Headings: Anton condensed display */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: 0.03em;
+  color: var(--spad-text);
+  margin-top: 0;
 }
 
 /* App Main Container Layout */
@@ -74,7 +106,7 @@ body {
 .app-main-content {
   flex: 1;
   width: 100%;
-  background-color: var(--spad-bg-canvas);
+  background-color: transparent;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
@@ -111,24 +143,25 @@ body {
 }
 
 .spad-page-title {
-  font-size: 24px;
-  font-weight: 800;
-  color: var(--spad-text-primary);
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 400;
+  color: var(--spad-text);
   margin: 0;
-  letter-spacing: -0.01em;
-  font-family: var(--font-sans);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
 }
 
 .spad-page-tag {
   font-size: 9.5px;
   font-weight: 700;
-  letter-spacing: 0.1em;
-  color: var(--spad-accent-cyan);
-  background: rgba(56, 189, 248, 0.08);
-  border: 1px solid rgba(56, 189, 248, 0.2);
+  letter-spacing: 0.08em;
+  color: var(--spad-green);
+  background: rgba(0, 196, 66, 0.1);
+  border: 1px solid rgba(0, 196, 66, 0.25);
   padding: 3px 8px;
   border-radius: 4px;
-  font-family: var(--font-mono);
+  font-family: var(--font-ui);
 }
 
 .spad-page-description {
@@ -136,6 +169,7 @@ body {
   color: var(--spad-text-muted);
   margin: 0;
   line-height: 1.5;
+  font-family: var(--font-ui);
 }
 
 /* Clean Technical Module Placeholder */
@@ -145,7 +179,7 @@ body {
   border-radius: 8px;
   padding: 42px 24px;
   text-align: center;
-  background: rgba(11, 18, 32, 0.4);
+  background: var(--spad-surface);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -159,10 +193,10 @@ body {
   font-size: 11px;
   font-weight: 700;
   color: var(--spad-text-secondary);
-  font-family: var(--font-mono);
+  font-family: var(--font-ui);
   letter-spacing: 0.08em;
-  background: rgba(15, 23, 42, 0.7);
-  border: 1px solid rgba(56, 189, 248, 0.15);
+  background: var(--spad-chip);
+  border: 1px solid var(--spad-border-subtle);
   padding: 5px 12px;
   border-radius: 4px;
 }
@@ -173,6 +207,7 @@ body {
   max-width: 620px;
   margin: 0;
   line-height: 1.5;
+  font-family: var(--font-ui);
 }
 
 /* --------------------------------------------------------------------------

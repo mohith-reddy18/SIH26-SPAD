@@ -6,8 +6,8 @@
 .spad-mobile-topbar {
   display: none;
   height: 56px;
-  background-color: #070b14;
-  border-bottom: 1px solid rgba(56, 189, 248, 0.15);
+  background-color: var(--spad-bg, #18181A);
+  border-bottom: 1px solid var(--spad-border-subtle, rgba(255, 255, 255, 0.08));
   padding: 0 16px;
   align-items: center;
   justify-content: space-between;
@@ -33,9 +33,9 @@
   width: 36px;
   height: 36px;
   border-radius: 6px;
-  background: rgba(15, 23, 42, 0.8);
-  border: 1px solid rgba(56, 189, 248, 0.2);
-  color: #38bdf8;
+  background: var(--spad-surface, #201F21);
+  border: 1px solid var(--spad-border-subtle, rgba(255, 255, 255, 0.1));
+  color: var(--spad-text, #FFFFFF);
   cursor: pointer;
   padding: 0;
   transition: all 0.15s ease;
@@ -43,8 +43,8 @@
 
 .spad-mobile-menu-btn:hover,
 .spad-mobile-menu-btn:focus-visible {
-  background: rgba(56, 189, 248, 0.15);
-  border-color: #38bdf8;
+  background: var(--spad-chip, #363636);
+  border-color: var(--spad-green, #00C442);
   outline: none;
 }
 
@@ -55,11 +55,12 @@
 }
 
 .spad-mobile-title {
-  font-size: 18px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  color: #f8fafc;
-  font-family: var(--font-sans);
+  font-size: 20px;
+  font-weight: 400;
+  letter-spacing: 0.05em;
+  color: var(--spad-text, #FFFFFF);
+  font-family: var(--font-display, 'Anton', sans-serif);
+  text-transform: uppercase;
 }
 
 .spad-mobile-right {
@@ -73,20 +74,20 @@
   gap: 6px;
   padding: 4px 10px;
   border-radius: 4px;
-  background: rgba(15, 23, 42, 0.8);
-  border: 1px solid rgba(56, 189, 248, 0.2);
-  font-family: var(--font-mono);
+  background: var(--spad-surface, #201F21);
+  border: 1px solid var(--spad-border-subtle, rgba(255, 255, 255, 0.1));
+  font-family: var(--font-ui, 'Inter', sans-serif);
   font-size: 11px;
   font-weight: 700;
-  color: #38bdf8;
+  color: var(--spad-green, #00C442);
 }
 
 .spad-mobile-pulse-dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background-color: #10b981;
-  box-shadow: 0 0 6px #10b981;
+  background-color: var(--spad-green, #00C442);
+  box-shadow: 0 0 6px rgba(0, 196, 66, 0.6);
   animation: spadPulse 2.5s infinite ease-in-out;
 }
 

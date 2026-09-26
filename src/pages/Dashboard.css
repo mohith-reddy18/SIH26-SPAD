@@ -38,21 +38,23 @@
 }
 
 .spad-header-title {
-  font-size: 24px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  color: var(--spad-text-primary);
+  font-family: var(--font-display, 'Anton', sans-serif);
+  font-size: 28px;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  color: var(--spad-text);
   margin: 0;
-  line-height: 1.2;
+  line-height: 1.1;
+  text-transform: uppercase;
 }
 
 .spad-header-subtitle {
-  font-size: 11.5px;
+  font-size: 11px;
   color: var(--spad-text-muted);
-  font-weight: 500;
-  letter-spacing: 0.04em;
+  font-weight: 600;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  font-family: var(--font-mono);
+  font-family: var(--font-ui, 'Inter', sans-serif);
 }
 
 .spad-header-right {
@@ -67,26 +69,26 @@
   align-items: center;
   gap: 8px;
   padding: 5px 12px;
-  background: rgba(15, 23, 42, 0.8);
-  border: 1px solid rgba(56, 189, 248, 0.2);
+  background: var(--spad-chip);
+  border: 1px solid var(--spad-border-subtle);
   border-radius: 6px;
-  font-family: var(--font-mono);
+  font-family: var(--font-ui, 'Inter', sans-serif);
   font-size: 11.5px;
-  color: #f8fafc;
+  color: var(--spad-text);
   white-space: nowrap;
 }
 
 .spad-lot-name {
   font-weight: 700;
-  color: var(--spad-accent-cyan);
+  color: var(--spad-green);
 }
 
 .spad-pulse-indicator {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background-color: #10b981;
-  box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+  background-color: var(--spad-green);
+  box-shadow: 0 0 8px rgba(0, 196, 66, 0.6);
   animation: spadPulse 2.5s infinite ease-in-out;
   flex-shrink: 0;
 }
@@ -96,12 +98,12 @@
   align-items: center;
   gap: 6px;
   padding: 5px 12px;
-  background: rgba(37, 99, 235, 0.12);
-  border: 1px solid rgba(56, 189, 248, 0.25);
+  background: rgba(0, 56, 216, 0.18);
+  border: 1px solid rgba(0, 56, 216, 0.4);
   border-radius: 6px;
-  font-family: var(--font-mono);
+  font-family: var(--font-ui, 'Inter', sans-serif);
   font-size: 11.5px;
-  color: #7dd3fc;
+  color: #80a4ff;
   font-weight: 600;
   white-space: nowrap;
 }
@@ -117,7 +119,7 @@
 }
 
 .spad-stat-card {
-  background: var(--spad-bg-card);
+  background: var(--spad-surface);
   border: 1px solid var(--spad-border-subtle);
   border-radius: 8px;
   padding: 14px 16px;
@@ -132,7 +134,7 @@
 
 .spad-stat-card:hover {
   transform: translateY(-2px);
-  border-color: rgba(56, 189, 248, 0.3);
+  border-color: rgba(0, 196, 66, 0.3);
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
 }
 
@@ -147,11 +149,11 @@
   transition: background 0.18s ease;
 }
 
-.stat-accent-cyan::after { background: #38bdf8; }
-.stat-accent-green::after { background: #10b981; }
+.stat-accent-cyan::after { background: var(--spad-green); }
+.stat-accent-green::after { background: var(--spad-green); }
 .stat-accent-amber::after { background: #f59e0b; }
 .stat-accent-red::after { background: #ef4444; }
-.stat-accent-blue::after { background: #3b82f6; }
+.stat-accent-blue::after { background: var(--spad-blue); }
 
 .spad-stat-card-header {
   display: flex;
@@ -165,7 +167,8 @@
   font-weight: 700;
   letter-spacing: 0.08em;
   color: var(--spad-text-muted);
-  font-family: var(--font-mono);
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  text-transform: uppercase;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -179,19 +182,19 @@
   flex-shrink: 0;
 }
 
-.stat-accent-cyan .spad-stat-icon-wrap { color: #38bdf8; }
-.stat-accent-green .spad-stat-icon-wrap { color: #10b981; }
+.stat-accent-cyan .spad-stat-icon-wrap { color: var(--spad-green); }
+.stat-accent-green .spad-stat-icon-wrap { color: var(--spad-green); }
 .stat-accent-amber .spad-stat-icon-wrap { color: #f59e0b; }
 .stat-accent-red .spad-stat-icon-wrap { color: #ef4444; }
 .stat-accent-blue .spad-stat-icon-wrap { color: #60a5fa; }
 
 .spad-stat-value {
-  font-size: 24px;
-  font-weight: 800;
-  color: var(--spad-text-primary);
+  font-size: 26px;
+  font-weight: 400;
+  color: var(--spad-text);
   line-height: 1.1;
-  font-family: var(--font-mono);
-  letter-spacing: -0.02em;
+  font-family: var(--font-display, 'Anton', sans-serif);
+  letter-spacing: 0.02em;
 }
 
 /* Stat Card Percentage Progress Bar */
@@ -206,7 +209,7 @@
 .spad-stat-pct-label {
   font-size: 11px;
   font-weight: 700;
-  font-family: var(--font-mono);
+  font-family: var(--font-ui, 'Inter', sans-serif);
   color: var(--spad-text-secondary);
   min-width: 38px;
 }
@@ -214,8 +217,8 @@
 .spad-stat-progress-track {
   flex: 1;
   height: 4px;
-  background: rgba(15, 23, 42, 0.9);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: var(--spad-inset);
+  border: 1px solid var(--spad-border-subtle);
   border-radius: 9999px;
   overflow: hidden;
 }
@@ -227,8 +230,8 @@
 }
 
 .spad-stat-progress-fill.bar-green {
-  background-color: #10b981;
-  box-shadow: 0 0 6px rgba(16, 185, 129, 0.4);
+  background-color: var(--spad-green);
+  box-shadow: 0 0 6px rgba(0, 196, 66, 0.4);
 }
 
 .spad-stat-progress-fill.bar-amber {
@@ -259,13 +262,14 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-family: var(--font-ui, 'Inter', sans-serif);
 }
 
 /* --------------------------------------------------------------------------
    Generic Card Container Utilities
    -------------------------------------------------------------------------- */
 .spad-card {
-  background: var(--spad-bg-card);
+  background: var(--spad-surface);
   border: 1px solid var(--spad-border-subtle);
   border-radius: 8px;
   padding: 16px 18px;
@@ -294,17 +298,20 @@
 .spad-card-section-label {
   font-size: 8.5px;
   font-weight: 700;
-  letter-spacing: 0.12em;
-  color: var(--spad-accent-cyan);
-  font-family: var(--font-mono);
+  letter-spacing: 0.1em;
+  color: var(--spad-green);
+  font-family: var(--font-ui, 'Inter', sans-serif);
+  text-transform: uppercase;
 }
 
 .spad-card-title {
-  font-size: 15.5px;
-  font-weight: 700;
-  color: var(--spad-text-primary);
+  font-family: var(--font-display, 'Anton', sans-serif);
+  font-size: 17px;
+  font-weight: 400;
+  color: var(--spad-text);
   margin: 0;
-  letter-spacing: -0.01em;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
 }
 
 .spad-card-desc {
@@ -312,6 +319,7 @@
   color: var(--spad-text-muted);
   margin: -4px 0 0 0;
   line-height: 1.4;
+  font-family: var(--font-ui, 'Inter', sans-serif);
 }
 
 .spad-card-badge-static {
@@ -320,12 +328,12 @@
   gap: 5px;
   padding: 3px 8px;
   border-radius: 4px;
-  background: rgba(15, 23, 42, 0.7);
-  border: 1px solid rgba(56, 189, 248, 0.18);
-  font-family: var(--font-mono);
+  background: var(--spad-chip);
+  border: 1px solid var(--spad-border-subtle);
+  font-family: var(--font-ui, 'Inter', sans-serif);
   font-size: 9.5px;
   font-weight: 700;
-  color: #7dd3fc;
+  color: var(--spad-green);
   letter-spacing: 0.06em;
   white-space: nowrap;
 }
@@ -2101,10 +2109,12 @@
 }
 
 .spad-modal-title {
-  font-size: 17px;
-  font-weight: 700;
-  color: var(--spad-text-primary);
-  letter-spacing: -0.01em;
+  font-family: var(--font-display, 'Anton', sans-serif);
+  font-size: 20px;
+  font-weight: 400;
+  color: var(--spad-text);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
   margin: 0;
 }
 
@@ -2120,12 +2130,14 @@
   gap: 6px;
   font-size: 11px;
   color: var(--spad-text-muted);
+  font-family: var(--font-ui, 'Inter', sans-serif);
 }
 
 .spad-modal-switcher .spad-comp-select-input {
   min-height: 30px;
   padding: 3px 8px;
   font-size: 11.5px;
+  font-family: var(--font-ui, 'Inter', sans-serif);
 }
 
 .spad-modal-close-btn {
@@ -2135,7 +2147,7 @@
   align-items: center;
   justify-content: center;
   border-radius: 6px;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--spad-chip);
   border: 1px solid var(--spad-border-subtle);
   color: var(--spad-text-secondary);
   font-size: 14px;
@@ -2163,7 +2175,7 @@
   grid-template-columns: repeat(4, 1fr);
   gap: 10px;
   padding: 10px 14px;
-  background: rgba(15, 23, 42, 0.45);
+  background: var(--spad-inset);
   border: 1px solid var(--spad-border-subtle);
   border-radius: 8px;
 }
@@ -2179,19 +2191,19 @@
   padding: 16px;
   border-radius: 8px;
   border: 1px solid var(--spad-border-subtle);
-  background: rgba(11, 18, 32, 0.6);
+  background: var(--spad-surface);
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
 .spad-decision-section {
-  border-color: rgba(56, 189, 248, 0.2);
+  border-color: rgba(0, 196, 66, 0.2);
 }
 
 .spad-shap-section {
-  border-color: rgba(168, 85, 247, 0.25);
-  background: rgba(11, 18, 32, 0.75);
+  border-color: rgba(0, 56, 216, 0.25);
+  background: var(--spad-surface);
 }
 
 .spad-section-header {
@@ -2215,31 +2227,35 @@
   padding: 1px 6px;
   border-radius: 3px;
   width: fit-content;
+  font-family: var(--font-ui, 'Inter', sans-serif);
 }
 
 .spad-section-pill.eng-pill {
-  background: rgba(56, 189, 248, 0.12);
-  color: #38bdf8;
-  border: 1px solid rgba(56, 189, 248, 0.3);
+  background: rgba(0, 196, 66, 0.12);
+  color: var(--spad-green);
+  border: 1px solid rgba(0, 196, 66, 0.3);
 }
 
 .spad-section-pill.ai-pill {
-  background: rgba(168, 85, 247, 0.15);
-  color: #c084fc;
-  border: 1px solid rgba(168, 85, 247, 0.35);
+  background: rgba(0, 56, 216, 0.18);
+  color: #80a4ff;
+  border: 1px solid rgba(0, 56, 216, 0.35);
 }
 
 .spad-section-title {
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--spad-text-primary);
+  font-family: var(--font-display, 'Anton', sans-serif);
+  font-size: 15px;
+  font-weight: 400;
+  color: var(--spad-text);
   margin: 0;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
 }
 
 .spad-decision-badge {
   font-size: 11.5px;
   font-weight: 700;
-  font-family: var(--font-mono);
+  font-family: var(--font-ui, 'Inter', sans-serif);
   padding: 4px 12px;
   border-radius: 6px;
   border: 1px solid;
@@ -2249,7 +2265,7 @@
 .spad-decision-explanation-box {
   padding: 10px 12px;
   border-radius: 6px;
-  background: rgba(7, 11, 20, 0.7);
+  background: var(--spad-inset);
   border: 1px solid rgba(255, 255, 255, 0.06);
 }
 

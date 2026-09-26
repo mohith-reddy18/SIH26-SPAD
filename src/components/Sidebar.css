@@ -5,27 +5,27 @@
 
 :root {
   --spad-sidebar-width: 248px;
-  --spad-sidebar-bg: #070b14;
-  --spad-sidebar-surface: #0b1120;
-  --spad-sidebar-border: rgba(56, 189, 248, 0.12);
+  --spad-sidebar-bg: #18181A;
+  --spad-sidebar-surface: #201F21;
+  --spad-sidebar-border: rgba(255, 255, 255, 0.08);
   --spad-sidebar-border-subtle: rgba(255, 255, 255, 0.06);
   
-  --spad-text-primary: #f8fafc;
-  --spad-text-secondary: #94a3b8;
-  --spad-text-muted: #64748b;
-  --spad-text-dim: #475569;
+  --spad-text-primary: #FFFFFF;
+  --spad-text-secondary: #B6B6B6;
+  --spad-text-muted: #8B8B8F;
+  --spad-text-dim: #5A5A5E;
 
-  --spad-accent-blue: #38bdf8;
-  --spad-accent-glow: rgba(56, 189, 248, 0.16);
-  --spad-accent-hover: rgba(56, 189, 248, 0.08);
-  --spad-accent-active-bg: rgba(14, 116, 144, 0.22);
-  --spad-accent-active-border: #38bdf8;
+  --spad-accent-blue: #0038D8;
+  --spad-accent-glow: rgba(0, 56, 216, 0.2);
+  --spad-accent-hover: rgba(255, 255, 255, 0.04);
+  --spad-accent-active-bg: rgba(0, 56, 216, 0.2);
+  --spad-accent-active-border: #0038D8;
 
-  --spad-status-green: #10b981;
-  --spad-status-glow: rgba(16, 185, 129, 0.35);
+  --spad-status-green: #00C442;
+  --spad-status-glow: rgba(0, 196, 66, 0.35);
 
-  --spad-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --spad-font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  --spad-font-sans: 'Inter', sans-serif;
+  --spad-font-mono: 'Inter', sans-serif;
 }
 
 /* Mobile Drawer Overlay Backdrop */
@@ -36,7 +36,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(3, 7, 18, 0.75);
+  background-color: rgba(0, 0, 0, 0.8);
   backdrop-filter: blur(3px);
   -webkit-backdrop-filter: blur(3px);
   z-index: 1050;
@@ -84,7 +84,7 @@
   right: 0;
   bottom: 0;
   pointer-events: none;
-  background: radial-gradient(circle at 10% 0%, rgba(56, 189, 248, 0.03) 0%, transparent 60%);
+  background: radial-gradient(circle at 10% 0%, rgba(255, 255, 255, 0.02) 0%, transparent 60%);
   z-index: 0;
 }
 
@@ -105,7 +105,7 @@
   z-index: 1;
   padding: 18px 18px 16px 18px;
   border-bottom: 1px solid var(--spad-sidebar-border-subtle);
-  background: linear-gradient(180deg, rgba(11, 17, 32, 0.6) 0%, transparent 100%);
+  background: var(--spad-surface);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -124,7 +124,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  filter: drop-shadow(0 0 8px rgba(56, 189, 248, 0.25));
+  filter: drop-shadow(0 0 8px rgba(0, 196, 66, 0.25));
 }
 
 .spad-emblem-svg {
@@ -140,22 +140,23 @@
 }
 
 .spad-brand-title {
-  font-size: 20px;
-  font-weight: 800;
-  letter-spacing: 0.1em;
+  font-family: var(--font-display, 'Anton', sans-serif);
+  font-size: 22px;
+  font-weight: 400;
+  letter-spacing: 0.05em;
   color: var(--spad-text-primary);
-  line-height: 1.1;
-  font-family: var(--spad-font-sans);
+  line-height: 1;
+  text-transform: uppercase;
 }
 
 .spad-brand-badge {
-  font-size: 8px;
+  font-size: 8.5px;
   font-weight: 700;
-  letter-spacing: 0.12em;
-  color: #38bdf8;
-  font-family: var(--spad-font-mono);
-  margin-top: 2px;
-  opacity: 0.85;
+  letter-spacing: 0.1em;
+  color: var(--spad-status-green);
+  font-family: var(--spad-font-sans);
+  margin-top: 3px;
+  opacity: 0.9;
 }
 
 .spad-sidebar-close-btn {
