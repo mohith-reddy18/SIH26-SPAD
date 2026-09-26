@@ -19,20 +19,40 @@ export default function Dashboard({ onNavigateToComponent, onNavigate, selectedL
   const [componentRecords, setComponentRecords] = useState([]);
   const [backendHistory, setBackendHistory] = useState([]);
   const [dataSource, setDataSource] = useState('loading'); // 'loading' | 'api' | 'empty' | 'offline'
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingComponents, setIsLoadingComponents] = useState(true);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const [fetchError, setFetchError] = useState(null);
 
-  // Primary data fetch from backend API
-  const loadDashboardData = useCallback(async () => {
-    setIsLoading(true);
+  // 1. Fetch Screening History independently on mount
+  const loadHistory = useCallback(async () => {
+    setIsLoadingHistory(true);
+    try {
+      const histRes = await fetch(`${API_BASE_URL}/api/screening/history`);
+      if (histRes.ok) {
+        const histResult = await histRes.json();
+        if (histResult.success && Array.isArray(histResult.data)) {
+          setBackendHistory(histResult.data);
+        }
+      }
+    } catch (err) {
+      console.warn('[SPAD] Failed to fetch screening history from backend:', err.message);
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadHistory();
+  }, [loadHistory]);
+
+  // 2. Fetch component records whenever selectedLotId changes
+  const loadComponentRecords = useCallback(async () => {
+    setIsLoadingComponents(true);
     setFetchError(null);
 
     try {
       const queryParam = selectedLotId ? `?lotId=${encodeURIComponent(selectedLotId)}` : '';
-      const [compRes, histRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/api/screening${queryParam}`),
-        fetch(`${API_BASE_URL}/api/screening/history`).catch(() => null),
-      ]);
+      const compRes = await fetch(`${API_BASE_URL}/api/screening${queryParam}`);
 
       if (compRes.ok) {
         const result = await compRes.json();
@@ -41,30 +61,30 @@ export default function Dashboard({ onNavigateToComponent, onNavigate, selectedL
           setComponentRecords(mapped);
           setDataSource(mapped.length > 0 ? 'api' : 'empty');
         } else {
+          setComponentRecords([]);
           setDataSource('empty');
         }
       } else {
+        setComponentRecords([]);
         setDataSource('empty');
-      }
-
-      if (histRes && histRes.ok) {
-        const histResult = await histRes.json();
-        if (histResult.success && Array.isArray(histResult.data)) {
-          setBackendHistory(histResult.data);
-        }
       }
     } catch (err) {
       console.warn('[SPAD] Failed to fetch screening data from backend:', err.message);
       setFetchError(err.message || 'Unable to connect to SPAD backend');
       setDataSource('offline');
     } finally {
-      setIsLoading(false);
+      setIsLoadingComponents(false);
     }
   }, [selectedLotId]);
 
   useEffect(() => {
-    loadDashboardData();
-  }, [loadDashboardData]);
+    loadComponentRecords();
+  }, [loadComponentRecords]);
+
+  const handleRetry = () => {
+    loadHistory();
+    loadComponentRecords();
+  };
 
   // Combine backend lot history with client records if backend history endpoint is empty
   const screeningHistory = useMemo(() => {
@@ -219,7 +239,7 @@ export default function Dashboard({ onNavigateToComponent, onNavigate, selectedL
           </div>
           <button
             type="button"
-            onClick={loadDashboardData}
+            onClick={handleRetry}
             style={{
               background: '#ef4444',
               color: '#ffffff',
@@ -238,7 +258,7 @@ export default function Dashboard({ onNavigateToComponent, onNavigate, selectedL
       )}
 
       {/* Backend Connected but No Data Banner (Requirement 8B) */}
-      {dataSource === 'empty' && !isLoading && (
+      {dataSource === 'empty' && !isLoadingComponents && (
         <div style={{ padding: '14px 18px', background: 'rgba(56, 189, 248, 0.06)', border: '1px solid rgba(56, 189, 248, 0.2)', borderRadius: '6px', color: '#94a3b8', fontSize: '13px', marginBottom: '16px' }}>
           No screening data available in database for active selection.
         </div>
@@ -249,7 +269,7 @@ export default function Dashboard({ onNavigateToComponent, onNavigate, selectedL
         <ScreeningPipeline stages={pipelineStages} context={screeningContext} />
         <ScreeningHistory
           history={screeningHistory}
-          isLoading={isLoading}
+          isLoading={isLoadingHistory}
           onNavigate={onNavigate}
           selectedLotId={selectedLotId || screeningContext.lotId}
           onSelectLot={onSelectLot}
