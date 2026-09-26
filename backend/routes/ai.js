@@ -4,6 +4,7 @@ const aiService = require('../services/aiService');
 const {
   rateOfChangePerHour,
   projectedMargin,
+  engineeringStatus,
   overallStatus,
 } = require('../utils/contractCalculations');
 
@@ -356,4 +357,258 @@ router.post('/detect-lot-anomalies', async (req, res) => {
   }
 });
 
+// ============================================================================
+// METHOD 3: External Python ML Results Ingestion (Validation & Mapping Layer)
+// POST /api/ai/results
+// ============================================================================
+router.post('/results', async (req, res) => {
+  try {
+    const { lotId, results } = req.body || {};
+
+    // 1. Validate top-level lotId
+    if (!lotId || typeof lotId !== 'string' || !lotId.trim()) {
+      return createErrorResponse(
+        res,
+        400,
+        'INVALID_PAYLOAD',
+        'Field "lotId" is required and must be a non-empty string',
+        null,
+        null
+      );
+    }
+
+    const cleanLotId = lotId.trim();
+
+    // 2. Validate results array
+    if (!Array.isArray(results) || results.length === 0) {
+      return createErrorResponse(
+        res,
+        400,
+        'INVALID_PAYLOAD',
+        'Field "results" is required and must be a non-empty array of inference records',
+        null,
+        cleanLotId
+      );
+    }
+
+    // 3. Validate each ML record
+    const normalizedRecords = [];
+
+    for (let i = 0; i < results.length; i++) {
+      const item = results[i];
+
+      if (!item || typeof item !== 'object' || Array.isArray(item)) {
+        return createErrorResponse(
+          res,
+          400,
+          'INVALID_PAYLOAD',
+          `Result item at index ${i} must be a valid object`,
+          null,
+          cleanLotId
+        );
+      }
+
+      // Required: Test_ID
+      const rawTestId = item.Test_ID ?? item.componentId;
+      if (rawTestId === undefined || rawTestId === null || (typeof rawTestId === 'string' && !rawTestId.trim())) {
+        return createErrorResponse(
+          res,
+          400,
+          'INVALID_PAYLOAD',
+          `Result item at index ${i} is missing required field "Test_ID"`,
+          null,
+          cleanLotId
+        );
+      }
+      const componentId = String(rawTestId).trim();
+
+      // Required numeric fields (must be finite numbers)
+      const requiredNumericFields = ['RDS0', 'RDS33', 'Predicted_RDS100', 'Module_A_IF_Score'];
+      for (const field of requiredNumericFields) {
+        const val = item[field];
+        if (typeof val !== 'number' || !Number.isFinite(val)) {
+          return createErrorResponse(
+            res,
+            400,
+            'INVALID_PAYLOAD',
+            `Result item "${componentId}" (index ${i}) field "${field}" must be a valid finite number`,
+            componentId,
+            cleanLotId
+          );
+        }
+      }
+
+      // Optional numeric fields validation
+      const optionalNumericFields = [
+        'Delta_RDS_0_33',
+        'Module_A_Novelty_Percentile',
+        'Forecast_Residual',
+        'Absolute_Forecast_Error',
+        'Forecast_Error_Ratio',
+      ];
+      for (const field of optionalNumericFields) {
+        if (item[field] !== undefined && item[field] !== null) {
+          if (typeof item[field] !== 'number' || !Number.isFinite(item[field])) {
+            return createErrorResponse(
+              res,
+              400,
+              'INVALID_PAYLOAD',
+              `Result item "${componentId}" (index ${i}) optional field "${field}" must be a valid finite number if provided`,
+              componentId,
+              cleanLotId
+            );
+          }
+        }
+      }
+
+      // 4. Map to Canonical ScreeningRecord Structure
+      const itemLotId = (typeof item.lotId === 'string' && item.lotId.trim())
+        ? item.lotId.trim()
+        : cleanLotId;
+
+      // Deterministic rate of change per hour
+      const roc = rateOfChangePerHour(item.RDS0, item.RDS33);
+
+      // Module B (Random Forest Prediction Flag)
+      let m2Flag = 'NOT_EVALUATED';
+      if (
+        item.Module_B_Anomaly === 1 ||
+        item.Module_B_Anomaly === true ||
+        (typeof item.Module_B_Anomaly === 'string' && item.Module_B_Anomaly.trim().toUpperCase() === 'FLAGGED')
+      ) {
+        m2Flag = 'FLAGGED';
+      } else if (
+        item.Module_B_Anomaly === 0 ||
+        item.Module_B_Anomaly === false ||
+        (typeof item.Module_B_Anomaly === 'string' &&
+          (item.Module_B_Anomaly.trim().toUpperCase() === 'NOT FLAGGED' ||
+            item.Module_B_Anomaly.trim().toUpperCase() === 'NOT_FLAGGED'))
+      ) {
+        m2Flag = 'NOT FLAGGED';
+      }
+
+      // Module A (Isolation Forest Anomaly Flag)
+      // Do NOT invent a threshold (e.g. Module_A_IF_Score > 0.5)
+      let m1Flag = 'NOT_EVALUATED';
+      const rawModuleAFlag = item.Module_A_Anomaly ?? item.Module_A_Flag;
+      if (
+        rawModuleAFlag === 1 ||
+        rawModuleAFlag === true ||
+        (typeof rawModuleAFlag === 'string' && rawModuleAFlag.trim().toUpperCase() === 'FLAGGED')
+      ) {
+        m1Flag = 'FLAGGED';
+      } else if (
+        rawModuleAFlag === 0 ||
+        rawModuleAFlag === false ||
+        (typeof rawModuleAFlag === 'string' &&
+          (rawModuleAFlag.trim().toUpperCase() === 'NOT FLAGGED' ||
+            rawModuleAFlag.trim().toUpperCase() === 'NOT_FLAGGED'))
+      ) {
+        m1Flag = 'NOT FLAGGED';
+      }
+
+      // Aggregate AI Overall Status
+      const calculatedOverallStatus = overallStatus([m2Flag, m1Flag]);
+
+      // Canonical measurements structure (observed 0h and 24h only)
+      const measurements = {
+        rdson: {
+          unit: 'Ω',
+          '0h': item.RDS0,
+          '24h': item.RDS33,
+        },
+      };
+
+      // Authoritative Engineering Status (no artificial spec limits invented)
+      const calculatedEngineeringStatus = engineeringStatus(measurements, {});
+
+      const canonicalRecord = {
+        componentId,
+        lotId: itemLotId,
+        stage: '24h',
+        measurements,
+        engineeringLimits: {},
+        engineeringStatus: calculatedEngineeringStatus,
+        aiAssessment: {
+          overallStatus: calculatedOverallStatus,
+          prediction: {
+            status: 'PREDICTED',
+            method: 'FUTURE_PREDICTION',
+            parameters: {
+              rdson: {
+                status: 'PREDICTED',
+                unit: 'Ω',
+                observed: {
+                  '0h': item.RDS0,
+                  '24h': item.RDS33,
+                },
+                predicted168h: item.Predicted_RDS100,
+                rateOfChangePerHour: roc,
+                aiFlag: m2Flag,
+                engineeringLimit: null,
+                projectedMargin: null,
+                modelEvidence: {
+                  forecastResidual: (item.Forecast_Residual !== undefined && item.Forecast_Residual !== null) ? item.Forecast_Residual : null,
+                  absoluteForecastError: (item.Absolute_Forecast_Error !== undefined && item.Absolute_Forecast_Error !== null) ? item.Absolute_Forecast_Error : null,
+                  forecastErrorRatio: (item.Forecast_Error_Ratio !== undefined && item.Forecast_Error_Ratio !== null) ? item.Forecast_Error_Ratio : null,
+                  pythonDelta: (item.Delta_RDS_0_33 !== undefined && item.Delta_RDS_0_33 !== null) ? item.Delta_RDS_0_33 : null,
+                },
+              },
+            },
+          },
+          lotAnomaly: {
+            status: 'ANALYZED',
+            method: 'LOT_ANOMALY_DETECTION',
+            parameters: {
+              rdson: {
+                status: 'ANALYZED',
+                observed: {
+                  '0h': item.RDS0,
+                  '24h': item.RDS33,
+                },
+                lotAnomalyScore: item.Module_A_IF_Score,
+                aiFlag: m1Flag,
+                peerComparisonEvidence: {
+                  rawScore: item.Module_A_IF_Score,
+                  noveltyPercentile: (item.Module_A_Novelty_Percentile !== undefined && item.Module_A_Novelty_Percentile !== null) ? item.Module_A_Novelty_Percentile : null,
+                },
+              },
+            },
+          },
+          explanation: null,
+        },
+        // Backward compatibility legacy fields
+        status: calculatedEngineeringStatus,
+        aiRisk: calculatedOverallStatus === 'FLAGGED' ? 85 : 15,
+        riskScore: calculatedOverallStatus === 'FLAGGED' ? 0.85 : 0.15,
+      };
+
+      normalizedRecords.push({
+        componentId,
+        lotId: itemLotId,
+        normalizedRecord: canonicalRecord,
+      });
+    }
+
+    // Step 1: Dry-run response only. No MongoDB writes performed.
+    return res.status(200).json({
+      success: true,
+      message: 'AI results payload validated and normalized successfully (dry-run)',
+      lotId: cleanLotId,
+      recordsCount: normalizedRecords.length,
+      records: normalizedRecords,
+    });
+  } catch (error) {
+    return createErrorResponse(
+      res,
+      500,
+      'INTERNAL_SERVER_ERROR',
+      error.message || 'An unexpected error occurred during AI results processing',
+      null,
+      req.body?.lotId
+    );
+  }
+});
+
 module.exports = router;
+
