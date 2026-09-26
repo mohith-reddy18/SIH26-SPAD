@@ -62,12 +62,7 @@ export default function ScreeningPipeline({
         </div>
       </div>
 
-      {/* 2. Description */}
-      <p className="spad-card-desc">
-        Completed predictive screening results and dual-model AI evaluations for active lot <strong>{context.lotId || 'NASA-MOSFET-199C'}</strong>. Click either model card to view its complete execution workflow in a full-screen overlay.
-      </p>
-
-      {/* 3. Compact Screening Result Summary Box */}
+      {/* 2. Compact Screening Result Summary Box */}
       <div className="spad-lot-status-box" style={{ margin: '2px 0 4px 0' }}>
         <div className="spad-lot-status-header">
           <span className="spad-lot-status-title">LOT SCREENING METRICS</span>

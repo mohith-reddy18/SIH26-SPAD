@@ -76,12 +76,7 @@ export default function ScreeningHistory({
         </div>
       </div>
 
-      {/* 2. Description */}
-      <p className="spad-card-desc" style={{ marginBottom: '10px' }}>
-        Historical screening audit trail for lots processed through dual Random Forest &amp; Isolation Forest models.
-      </p>
-
-      {/* 3. Vertically Scrollable History List */}
+      {/* 2. Vertically Scrollable History List */}
       <div
         className="spad-history-scroll-container"
         style={{
