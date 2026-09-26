@@ -6,8 +6,8 @@
 .spad-mobile-topbar {
   display: none;
   height: 56px;
-  background-color: var(--spad-bg, #18181A);
-  border-bottom: 1px solid var(--spad-border-subtle, rgba(255, 255, 255, 0.08));
+  background-color: var(--spad-sidebar, #0D0E15);
+  border-bottom: 1px solid var(--spad-border, #1F212B);
   padding: 0 16px;
   align-items: center;
   justify-content: space-between;
@@ -33,9 +33,9 @@
   width: 36px;
   height: 36px;
   border-radius: 6px;
-  background: var(--spad-surface, #201F21);
-  border: 1px solid var(--spad-border-subtle, rgba(255, 255, 255, 0.1));
-  color: var(--spad-text, #FFFFFF);
+  background: var(--spad-surface, #12141C);
+  border: 1px solid var(--spad-border, #1F212B);
+  color: var(--spad-text, #F5F6F8);
   cursor: pointer;
   padding: 0;
   transition: all 0.15s ease;
@@ -43,8 +43,8 @@
 
 .spad-mobile-menu-btn:hover,
 .spad-mobile-menu-btn:focus-visible {
-  background: var(--spad-chip, #363636);
-  border-color: var(--spad-green, #00C442);
+  background: var(--spad-chip, #1F212B);
+  border-color: var(--spad-blue, #3B82F6);
   outline: none;
 }
 
@@ -58,7 +58,7 @@
   font-size: 20px;
   font-weight: 400;
   letter-spacing: 0.05em;
-  color: var(--spad-text, #FFFFFF);
+  color: var(--spad-text, #F5F6F8);
   font-family: var(--font-display, 'Anton', sans-serif);
   text-transform: uppercase;
 }
@@ -74,20 +74,20 @@
   gap: 6px;
   padding: 4px 10px;
   border-radius: 4px;
-  background: var(--spad-surface, #201F21);
-  border: 1px solid var(--spad-border-subtle, rgba(255, 255, 255, 0.1));
+  background: #14532D;
+  border: 1px solid rgba(74, 222, 128, 0.25);
   font-family: var(--font-ui, 'Inter', sans-serif);
   font-size: 11px;
   font-weight: 700;
-  color: var(--spad-green, #00C442);
+  color: #4ADE80;
 }
 
 .spad-mobile-pulse-dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background-color: var(--spad-green, #00C442);
-  box-shadow: 0 0 6px rgba(0, 196, 66, 0.6);
+  background-color: var(--spad-green, #22C55E);
+  box-shadow: 0 0 6px rgba(34, 197, 94, 0.6);
   animation: spadPulse 2.5s infinite ease-in-out;
 }
 

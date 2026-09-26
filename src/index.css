@@ -6,29 +6,40 @@
    ========================================================================== */
 
 :root {
-  /* Reference Visual Foundation Palette */
-  --spad-bg: #18181A;
-  --spad-surface: #201F21;
-  --spad-inset: #282628;
-  --spad-chip: #363636;
-  --spad-text: #FFFFFF;
-  --spad-text-secondary: #B6B6B6;
-  --spad-text-muted: #8B8B8F;
-  --spad-green: #00C442;
-  --spad-blue: #0038D8;
+  /* Global Design Tokens */
+  --spad-bg: #0A0B10;
+  --spad-sidebar: #0D0E15;
+  --spad-right-panel: #030406;
+  --spad-surface: #12141C;
+  --spad-inset: #101119;
+  --spad-chip: #1F212B;
+  --spad-border: #1F212B;
+  --spad-border-subtle: #1F212B;
+  --spad-border-dashed: #2E303D;
 
-  /* Theme mappings */
-  --spad-bg-root: #18181A;
-  --spad-bg-canvas: #18181A;
-  --spad-bg-card: #201F21;
-  --spad-border-subtle: rgba(255, 255, 255, 0.08);
-  --spad-border-dashed: rgba(255, 255, 255, 0.14);
-  --spad-text-primary: #FFFFFF;
-  --spad-text-dim: #5A5A5E;
-  --spad-accent-cyan: #00C442;
-  --spad-accent-blue: #0038D8;
-  --spad-status-green: #00C442;
-  --spad-status-glow: rgba(0, 196, 66, 0.35);
+  --spad-text-primary: #F5F6F8;
+  --spad-text: #F5F6F8;
+  --spad-text-secondary: #8B8FA3;
+  --spad-text-muted: #5C6070;
+  --spad-text-dim: #5C6070;
+
+  --spad-blue: #3B82F6;
+  --spad-blue-light: #60A5FA;
+  --spad-blue-dark: #1E3A8A;
+  --spad-green: #22C55E;
+  --spad-green-dark: #0F2A1C;
+  --spad-purple: #A855F7;
+  --spad-cyan: #22D3EE;
+  --spad-orange: #F97316;
+
+  /* Backward-compatible project theme mappings */
+  --spad-bg-root: #0A0B10;
+  --spad-bg-canvas: #0A0B10;
+  --spad-bg-card: #12141C;
+  --spad-accent-cyan: #3B82F6;
+  --spad-accent-blue: #3B82F6;
+  --spad-status-green: #22C55E;
+  --spad-status-glow: rgba(34, 197, 94, 0.35);
 
   /* Typography: Exactly Two Font Families */
   --font-display: 'Anton', sans-serif;
