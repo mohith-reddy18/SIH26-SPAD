@@ -57,28 +57,6 @@ export default function ScreeningHistory({
 
       {/* 2. Vertically Scrollable History List */}
       <div className="spad-history-scroll-container">
-        {/* All Lots Global Option */}
-        <button
-          type="button"
-          className={`spad-history-all-lots-btn ${!selectedLotId || selectedLotId === 'ALL' ? 'is-active' : ''}`}
-          onClick={() => typeof onSelectLot === 'function' && onSelectLot(null)}
-          title="Show all components and data across all screening lots"
-          aria-label="Select All Lots"
-        >
-          <div className="spad-all-lots-left">
-            <div className="spad-all-lots-title-row">
-              <span className="spad-all-lots-bullet">❖</span>
-              <span className="spad-all-lots-title">ALL LOTS</span>
-            </div>
-            <span className="spad-all-lots-subtitle">Show all units across lots</span>
-          </div>
-          {(!selectedLotId || selectedLotId === 'ALL') ? (
-            <span className="spad-history-active-tag">ACTIVE</span>
-          ) : (
-            <span className="spad-history-all-tag">SHOW ALL</span>
-          )}
-        </button>
-
         {isLoading ? (
           <div className="spad-history-empty">
             Loading screening history from MongoDB Atlas...
