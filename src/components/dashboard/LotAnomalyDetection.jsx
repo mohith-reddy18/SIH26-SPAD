@@ -197,12 +197,7 @@ export default function LotAnomalyDetection({ records = [] }) {
         </div>
       </div>
 
-      {/* 2. Model Description */}
-      <p className="spad-card-desc">
-        <strong>Batch Lot-Level Workflow:</strong> Components are screened one-by-one first. After <em>all</em> units in the active lot are screened, Isolation Forest collects eligible peers from the <strong>SAME lot ({lotId})</strong>, evaluates the lot-level trajectory feature set, calculates individual anomaly scores, and identifies outlier components.
-      </p>
-
-      {/* 3. Compact Lot & Cohort Context Metadata Strip */}
+      {/* 2. Compact Lot & Cohort Context Metadata Strip */}
       <div
         style={{
           display: 'flex',

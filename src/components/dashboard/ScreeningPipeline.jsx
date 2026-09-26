@@ -85,6 +85,13 @@ export default function ScreeningPipeline({
         ) : (
           <div className="spad-lot-status-grid">
             <div className="spad-lot-stat-item">
+              <span className="spad-lot-stat-k">Lot Name</span>
+              <span className="spad-lot-stat-v highlight">
+                {context.lotId || 'NASA-MOSFET-199C'}
+              </span>
+            </div>
+
+            <div className="spad-lot-stat-item">
               <span className="spad-lot-stat-k">Lot Screening Status</span>
               <span className="spad-lot-stat-v" style={{ color: isComplete ? '#10b981' : '#f8fafc' }}>
                 {lotStatusText}
@@ -95,6 +102,13 @@ export default function ScreeningPipeline({
               <span className="spad-lot-stat-k">Components Screened</span>
               <span className="spad-lot-stat-v">
                 {unitCount > 0 ? unitCount.toLocaleString() : '—'}
+              </span>
+            </div>
+
+            <div className="spad-lot-stat-item">
+              <span className="spad-lot-stat-k">Predicted Yield</span>
+              <span className="spad-lot-stat-v status-yield">
+                {context.currentYield || '—'}
               </span>
             </div>
 
@@ -133,11 +147,25 @@ export default function ScreeningPipeline({
                 {finalCompletion}
               </span>
             </div>
+
+            <div className="spad-lot-stat-item">
+              <span className="spad-lot-stat-k">Chamber</span>
+              <span className="spad-lot-stat-v">
+                {context.chamberId || 'NASA-CHAMBER'}
+              </span>
+            </div>
+
+            <div className="spad-lot-stat-item">
+              <span className="spad-lot-stat-k">Stress Temperature</span>
+              <span className="spad-lot-stat-v">
+                {context.temperature || '199–200°C'}
+              </span>
+            </div>
           </div>
         )}
       </div>
 
-      {/* 4. Dual AI Screening Pathways (Compact Clickable Cards) */}
+      {/* 3. Dual AI Screening Pathways (Compact Clickable Cards) */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px', margin: '2px 0' }}>
         {/* Model 1: Random Forest — Future Prediction */}
         <div
@@ -257,26 +285,6 @@ export default function ScreeningPipeline({
           <div style={{ fontSize: '9.5px', color: '#a78bfa', fontWeight: '600', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
             <span>Click to view 6-step workflow</span> &rarr;
           </div>
-        </div>
-      </div>
-
-      {/* 5. Bottom Lot & Test Meta Stats */}
-      <div className="spad-pipeline-meta">
-        <div className="spad-meta-item">
-          <span className="spad-meta-k">Active Lot:</span>
-          <span className="spad-meta-v highlight">{context.lotId || 'NASA-MOSFET-199C'}</span>
-        </div>
-        <div className="spad-meta-item">
-          <span className="spad-meta-k">Predicted Yield:</span>
-          <span className="spad-meta-v status-yield">{context.currentYield || '—'}</span>
-        </div>
-        <div className="spad-meta-item">
-          <span className="spad-meta-k">Chamber:</span>
-          <span className="spad-meta-v">{context.chamberId || 'NASA-CHAMBER'}</span>
-        </div>
-        <div className="spad-meta-item">
-          <span className="spad-meta-k">Stress Temp:</span>
-          <span className="spad-meta-v">{context.temperature || '199–200°C'}</span>
         </div>
       </div>
 
