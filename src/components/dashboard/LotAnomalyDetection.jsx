@@ -28,16 +28,6 @@ function CpuIcon() {
   );
 }
 
-function LayersIcon() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <polygon points="12 2 2 7 12 12 22 7 12 2" />
-      <polyline points="2 17 12 22 22 17" />
-      <polyline points="2 12 12 17 22 12" />
-    </svg>
-  );
-}
-
 function ActivityIcon() {
   return (
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -75,7 +65,7 @@ function StatusIcon({ status }) {
 
 /**
  * Method 2 — Isolation Forest: Lot-Level Anomaly Detection
- * Displays compact lot-level summary and focused component-level anomaly inference cards.
+ * Displays compact lot-level metadata and focused component-level anomaly inference cards.
  */
 export default function LotAnomalyDetection({ records = [] }) {
   const lotId = records[0]?.lotId || 'NO ACTIVE LOT';
@@ -169,10 +159,6 @@ export default function LotAnomalyDetection({ records = [] }) {
     return componentsWithAnomaly.filter((c) => c.aiFlag === 'FLAGGED').length;
   }, [componentsWithAnomaly]);
 
-  const notFlaggedCount = useMemo(() => {
-    return componentsWithAnomaly.filter((c) => c.aiFlag === 'NOT FLAGGED').length;
-  }, [componentsWithAnomaly]);
-
   const cohortCount = componentsWithAnomaly.length;
   const eligiblePeersCount = Math.max(0, cohortCount - 1);
 
@@ -216,35 +202,49 @@ export default function LotAnomalyDetection({ records = [] }) {
         <strong>Batch Lot-Level Workflow:</strong> Components are screened one-by-one first. After <em>all</em> units in the active lot are screened, Isolation Forest collects eligible peers from the <strong>SAME lot ({lotId})</strong>, evaluates the lot-level trajectory feature set, calculates individual anomaly scores, and identifies outlier components.
       </p>
 
-      {/* 3. Compact Lot-Level Summary & Metrics */}
-      <div className="spad-lot-anomaly-metrics-grid" style={{ marginBottom: '10px' }}>
-        <div className="spad-lot-metric-pill">
-          <span className="spad-lot-metric-label">ACTIVE LOT COHORT</span>
-          <span className="spad-lot-metric-val font-bold text-cyan">{lotId}</span>
+      {/* 3. Compact Lot & Cohort Context Metadata Strip */}
+      <div
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          gap: '12px 24px',
+          padding: '8px 14px',
+          background: 'rgba(15, 23, 42, 0.65)',
+          border: '1px solid rgba(255, 255, 255, 0.06)',
+          borderRadius: '4px',
+          fontSize: '11px',
+          fontFamily: 'var(--font-mono)',
+          marginBottom: '8px',
+        }}
+      >
+        <div>
+          <span style={{ color: '#64748b', marginRight: '6px' }}>Lot:</span>
+          <span style={{ color: '#38bdf8', fontWeight: '700' }}>{lotId}</span>
         </div>
-        <div className="spad-lot-metric-pill">
-          <span className="spad-lot-metric-label">SAME-LOT PEERS</span>
-          <span className="spad-lot-metric-val font-mono">{eligiblePeersCount} Peers / {cohortCount} Units</span>
+        <div>
+          <span style={{ color: '#64748b', marginRight: '6px' }}>Same-Lot Peers:</span>
+          <span style={{ color: '#f8fafc', fontWeight: '600' }}>{eligiblePeersCount} ({cohortCount} Units)</span>
         </div>
-        <div className="spad-lot-metric-pill">
-          <span className="spad-lot-metric-label">COHORT SAMPLE QUALITY</span>
-          <span className="spad-lot-metric-val" style={{ color: cohortCount >= 3 ? '#10b981' : '#f59e0b' }}>
+        <div>
+          <span style={{ color: '#64748b', marginRight: '6px' }}>Cohort:</span>
+          <span style={{ color: cohortCount >= 3 ? '#10b981' : '#f59e0b', fontWeight: '600' }}>
             {cohortCount >= 3 ? 'SUFFICIENT (≥ 3 Units)' : 'INSUFFICIENT (< 3 Units)'}
           </span>
         </div>
-        <div className="spad-lot-metric-pill">
-          <span className="spad-lot-metric-label">INTRA-LOT OUTLIERS</span>
-          <span className="spad-lot-metric-val" style={{ color: flaggedCount > 0 ? '#ef4444' : '#10b981' }}>
-            {flaggedCount > 0 ? `${flaggedCount} FLAGGED` : '0 FLAGGED (NOMINAL)'}
-          </span>
-        </div>
+        {flaggedCount > 0 && (
+          <div>
+            <span style={{ color: '#64748b', marginRight: '6px' }}>Flagged:</span>
+            <span style={{ color: '#ef4444', fontWeight: '700' }}>{flaggedCount} Outlier{flaggedCount > 1 ? 's' : ''}</span>
+          </div>
+        )}
       </div>
 
-      {/* 4. Model Architecture & Configuration Specs */}
+      {/* 4. Model Architecture & Configuration Specs (Without Redundant Lot Evaluation Result) */}
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
           gap: '8px',
           padding: '10px 14px',
           background: 'rgba(0, 0, 0, 0.25)',
@@ -266,13 +266,9 @@ export default function LotAnomalyDetection({ records = [] }) {
           <span style={{ color: '#64748b', display: 'block', fontSize: '10px' }}>ANOMALY THRESHOLD</span>
           <span style={{ color: '#10b981', fontWeight: '600' }}>Z-Score: |z| &gt; 3.0σ (Contamination: 0.10)</span>
         </div>
-        <div>
-          <span style={{ color: '#64748b', display: 'block', fontSize: '10px' }}>LOT EVALUATION RESULT</span>
-          <span style={{ color: '#f8fafc', fontWeight: '600' }}>{notFlaggedCount} Nominal &bull; {flaggedCount} Outlier</span>
-        </div>
       </div>
 
-      {/* 5. Selected-Component Isolation Forest Inferences (Compact Metric-Card Grid) */}
+      {/* 5. Selected-Component Isolation Forest Inferences */}
       <div
         style={{
           marginTop: '14px',
@@ -347,11 +343,11 @@ export default function LotAnomalyDetection({ records = [] }) {
           </div>
         </div>
 
-        {/* 2x2 Metric Cards Layout */}
+        {/* Compact Selected Component Metric Cards */}
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
             gap: '10px',
             marginBottom: '12px',
           }}
@@ -443,33 +439,7 @@ export default function LotAnomalyDetection({ records = [] }) {
             </span>
           </div>
 
-          {/* Card 3: Active Lot */}
-          <div
-            style={{
-              background: 'rgba(15, 23, 42, 0.7)',
-              border: '1px solid rgba(255, 255, 255, 0.06)',
-              borderRadius: '6px',
-              padding: '12px 14px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '6px',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '10px', fontWeight: '700', letterSpacing: '0.06em', color: '#64748b', fontFamily: 'var(--font-mono)' }}>
-                ACTIVE LOT
-              </span>
-              <LayersIcon />
-            </div>
-            <div style={{ fontSize: '16px', fontWeight: '800', color: '#38bdf8', fontFamily: 'var(--font-mono)' }}>
-              {lotId}
-            </div>
-            <span style={{ fontSize: '11px', color: '#94a3b8', fontFamily: 'var(--font-mono)' }}>
-              {cohortCount} Same-Lot Peer Units
-            </span>
-          </div>
-
-          {/* Card 4: Anomaly Score */}
+          {/* Card 3: Anomaly Score */}
           <div
             style={{
               background: 'rgba(15, 23, 42, 0.7)',
