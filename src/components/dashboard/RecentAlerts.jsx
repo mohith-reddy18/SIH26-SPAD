@@ -23,10 +23,6 @@ export default function RecentAlerts({ alerts, onAlertClick }) {
         </div>
       </div>
 
-      <p className="spad-card-desc">
-        Dynamic screening notices, parametric outliers, and burn-in milestone events.
-      </p>
-
       <div className="spad-alerts-list">
         {alerts.map((alert) => {
           let severityClass = 'alert-info';
@@ -56,10 +52,6 @@ export default function RecentAlerts({ alerts, onAlertClick }) {
             </div>
           );
         })}
-      </div>
-
-      <div className="spad-alerts-footer">
-        <span className="spad-alerts-sync">Auto-synchronized with test chamber event bus</span>
       </div>
     </div>
   );
