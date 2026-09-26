@@ -126,8 +126,8 @@ export default function ComponentTable({ records = [], onSelectComponent }) {
               {paramColumns.map((col) => (
                 <th key={col.key}>{col.shortName.toUpperCase()} {col.unit ? `(${col.unit})` : ''}</th>
               ))}
-              <th>AI RISK (168h PREDICTED)</th>
-              <th>AI EVIDENCE</th>
+              <th>RF — 168h PREDICTION</th>
+              <th>IF — LOT ANOMALY</th>
               <th>ENGINEERING STATUS</th>
             </tr>
           </thead>
@@ -148,9 +148,61 @@ export default function ComponentTable({ records = [], onSelectComponent }) {
                 if (isSuspect) statusBadgeClass = 'badge-status-suspect';
                 if (isCritical) statusBadgeClass = 'badge-status-critical';
 
-                let riskClass = 'risk-low';
-                if (item.aiRisk > 40) riskClass = 'risk-med';
-                if (item.aiRisk > 75) riskClass = 'risk-high';
+                // Method 1 (Random Forest Prediction) Extraction
+                const m1Params = item.aiAssessment?.prediction?.parameters || {};
+                const m1Param = m1Params.rdson || Object.values(m1Params)[0] || {};
+                const pred168h = typeof m1Param.predicted168h === 'number'
+                  ? m1Param.predicted168h
+                  : (typeof item.predictions?.rdson === 'number'
+                  ? item.predictions.rdson
+                  : (typeof item.predictions?.rdson?.predicted168h === 'number'
+                  ? item.predictions.rdson.predicted168h
+                  : null));
+
+                const rawM1Flag = m1Param.aiFlag || (item.aiAssessment?.prediction?.status === 'FLAGGED' ? 'FLAGGED' : null);
+                let m1Flag = 'NOT_EVALUATED';
+                if (rawM1Flag) {
+                  const s = String(rawM1Flag).toUpperCase().trim();
+                  if (s === 'FLAGGED') m1Flag = 'FLAGGED';
+                  else if (s === 'NOT FLAGGED' || s === 'NOT_FLAGGED' || s === 'PASS' || s === 'NORMAL' || s === 'NOMINAL') m1Flag = 'NOT FLAGGED';
+                } else if (typeof item.aiRisk === 'number') {
+                  m1Flag = item.aiRisk > 40 ? 'FLAGGED' : 'NOT FLAGGED';
+                }
+
+                const riskPercent = typeof m1Param.futureRiskPercent === 'number'
+                  ? m1Param.futureRiskPercent
+                  : (typeof m1Param.futureRiskScore === 'number'
+                  ? Math.round(m1Param.futureRiskScore * 100)
+                  : (typeof item.aiRisk === 'number' ? item.aiRisk : null));
+
+                // Method 2 (Isolation Forest Anomaly) Extraction
+                const m2Params = item.aiAssessment?.lotAnomaly?.parameters || {};
+                const m2Param = m2Params.rdson || Object.values(m2Params)[0] || {};
+
+                let rawIfScore = null;
+                if (typeof m2Param.lotAnomalyScore === 'number') {
+                  rawIfScore = m2Param.lotAnomalyScore;
+                } else if (typeof m2Param.peerComparisonEvidence?.rawScore === 'number') {
+                  rawIfScore = m2Param.peerComparisonEvidence.rawScore;
+                } else if (typeof item.aiAssessment?.lotAnomaly?.score === 'number') {
+                  rawIfScore = item.aiAssessment.lotAnomaly.score;
+                } else if (typeof item.anomalies?.ifScore === 'number') {
+                  rawIfScore = item.anomalies.ifScore;
+                } else if (typeof item.lotAnomalyScore === 'number') {
+                  rawIfScore = item.lotAnomalyScore;
+                }
+
+                let m2Flag = 'NOT_EVALUATED';
+                const rawM2Flag = m2Param.aiFlag ||
+                                  item.aiAssessment?.lotAnomaly?.overallStatus ||
+                                  (item.anomalies?.populationAbnormality !== undefined
+                                    ? (item.anomalies.populationAbnormality ? 'FLAGGED' : 'NOT FLAGGED')
+                                    : null);
+                if (rawM2Flag) {
+                  const s = String(rawM2Flag).toUpperCase().trim();
+                  if (s === 'FLAGGED') m2Flag = 'FLAGGED';
+                  else if (s === 'NOT FLAGGED' || s === 'NOT_FLAGGED' || s === 'ANALYZED' || s === 'NOMINAL' || s === 'NORMAL' || s === 'PASS') m2Flag = 'NOT FLAGGED';
+                }
 
                 return (
                   <tr 
@@ -166,23 +218,62 @@ export default function ComponentTable({ records = [], onSelectComponent }) {
                       const val = extractLatestValue(item.measurements?.[col.key]);
                       return (
                         <td key={col.key} className="spad-td-mono">
-                          {val !== null ? `${val.toFixed(2)} ${col.unit}` : '—'}
+                          {val !== null ? `${val.toFixed(col.unit === 'Ω' ? 3 : 2)} ${col.unit}` : '—'}
                         </td>
                       );
                     })}
+                    {/* Method 1: RF — 168h Prediction */}
                     <td>
-                      <div className="spad-risk-cell">
-                        <span className={`spad-risk-val ${riskClass}`}>{item.aiRisk}%</span>
-                        <div className="spad-risk-mini-bar">
-                          <div
-                            className={`spad-risk-mini-fill ${riskClass}`}
-                            style={{ width: `${item.aiRisk}%` }}
-                          />
+                      <div className="spad-rf-cell" style={{ display: 'flex', flexDirection: 'column', gap: '2px', fontFamily: 'var(--font-mono)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span
+                            style={{
+                              fontSize: '10px',
+                              fontWeight: '700',
+                              padding: '1px 5px',
+                              borderRadius: '3px',
+                              background: m1Flag === 'FLAGGED' ? 'rgba(239, 68, 68, 0.15)' : m1Flag === 'NOT FLAGGED' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(148, 163, 184, 0.15)',
+                              color: m1Flag === 'FLAGGED' ? '#f87171' : m1Flag === 'NOT FLAGGED' ? '#34d399' : '#94a3b8',
+                              border: `1px solid ${m1Flag === 'FLAGGED' ? 'rgba(239, 68, 68, 0.3)' : m1Flag === 'NOT FLAGGED' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(148, 163, 184, 0.25)'}`,
+                            }}
+                          >
+                            {m1Flag}
+                          </span>
+                          {riskPercent !== null && (
+                            <span style={{ fontSize: '11px', fontWeight: '600', color: m1Flag === 'FLAGGED' ? '#f87171' : '#cbd5e1' }}>
+                              {riskPercent}%
+                            </span>
+                          )}
                         </div>
+                        {pred168h !== null && (
+                          <span style={{ fontSize: '10px', color: '#94a3b8' }}>
+                            168h: <span className="text-cyan font-bold">{pred168h.toFixed(3)} Ω</span>
+                          </span>
+                        )}
                       </div>
                     </td>
-                    <td className="spad-td-evidence">
-                      <span className="spad-evidence-pill">{item.evidence}</span>
+                    {/* Method 2: IF — Lot Anomaly */}
+                    <td>
+                      <div className="spad-if-cell" style={{ display: 'flex', flexDirection: 'column', gap: '2px', fontFamily: 'var(--font-mono)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span
+                            style={{
+                              fontSize: '10px',
+                              fontWeight: '700',
+                              padding: '1px 5px',
+                              borderRadius: '3px',
+                              background: m2Flag === 'FLAGGED' ? 'rgba(239, 68, 68, 0.15)' : m2Flag === 'NOT FLAGGED' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(148, 163, 184, 0.15)',
+                              color: m2Flag === 'FLAGGED' ? '#f87171' : m2Flag === 'NOT FLAGGED' ? '#34d399' : '#94a3b8',
+                              border: `1px solid ${m2Flag === 'FLAGGED' ? 'rgba(239, 68, 68, 0.3)' : m2Flag === 'NOT FLAGGED' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(148, 163, 184, 0.25)'}`,
+                            }}
+                          >
+                            {m2Flag}
+                          </span>
+                        </div>
+                        <span style={{ fontSize: '10px', color: '#94a3b8' }}>
+                          Score: <span className="font-bold text-slate">{rawIfScore !== null ? Number(rawIfScore).toFixed(4) : '—'}</span>
+                        </span>
+                      </div>
                     </td>
                     <td>
                       <span className={`spad-status-pill ${statusBadgeClass}`}>

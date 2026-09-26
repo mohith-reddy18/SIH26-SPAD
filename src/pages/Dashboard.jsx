@@ -229,19 +229,85 @@ export default function Dashboard({ onNavigateToComponent, onNavigate, selectedL
   }, [componentRecords]);
 
   const {
-    pipelineStages,
-    systemSubsystems,
-  } = mockDashboardData;
+    pipelineStages = [],
+    systemSubsystems = [],
+  } = mockDashboardData || {};
+
+  // 3. Sync URL query param with modal component state on initial load and when componentRecords update
+  useEffect(() => {
+    if (componentRecords.length > 0) {
+      const params = new URLSearchParams(window.location.search);
+      const urlCompId = params.get('component');
+      if (urlCompId) {
+        const found = componentRecords.find((c) => (c.id || c.componentId) === urlCompId);
+        if (found) {
+          setSelectedModalComponent(found);
+        } else {
+          setSelectedModalComponent(null);
+        }
+      }
+    }
+  }, [componentRecords]);
+
+  // 4. Handle browser Back / Forward history transitions
+  useEffect(() => {
+    const handlePopState = () => {
+      const params = new URLSearchParams(window.location.search);
+      const urlCompId = params.get('component');
+      if (urlCompId && componentRecords.length > 0) {
+        const found = componentRecords.find((c) => (c.id || c.componentId) === urlCompId);
+        if (found) {
+          setSelectedModalComponent(found);
+        } else {
+          setSelectedModalComponent(null);
+        }
+      } else {
+        setSelectedModalComponent(null);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [componentRecords]);
 
   const handleSelectComponent = (component) => {
-    setSelectedModalComponent(component);
+    if (!component) {
+      handleCloseModal();
+      return;
+    }
+    const targetComp = typeof component === 'string'
+      ? componentRecords.find((c) => (c.id || c.componentId) === component)
+      : component;
+
+    if (targetComp) {
+      setSelectedModalComponent(targetComp);
+      const compId = targetComp.id || targetComp.componentId;
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('component') !== compId) {
+        params.set('component', compId);
+        const newQuery = params.toString();
+        const newUrl = `${window.location.pathname}${newQuery ? `?${newQuery}` : ''}`;
+        window.history.pushState({}, '', newUrl);
+      }
+    }
+  };
+
+  const handleCloseModal = () => {
+    setSelectedModalComponent(null);
+    const params = new URLSearchParams(window.location.search);
+    if (params.has('component')) {
+      params.delete('component');
+      const newQuery = params.toString();
+      const newUrl = `${window.location.pathname}${newQuery ? `?${newQuery}` : ''}`;
+      window.history.pushState({}, '', newUrl);
+    }
   };
 
   const handleAlertClick = (alert) => {
     if (alert.type === 'component') {
-      const target = componentRecords.find((c) => c.id === alert.targetId);
+      const target = componentRecords.find((c) => (c.id || c.componentId) === alert.targetId);
       if (target) {
-        setSelectedModalComponent(target);
+        handleSelectComponent(target);
       } else if (onNavigateToComponent) {
         onNavigateToComponent(alert.targetId);
       }
@@ -349,9 +415,9 @@ export default function Dashboard({ onNavigateToComponent, onNavigate, selectedL
       <ComponentDetailModal
         component={selectedModalComponent}
         isOpen={Boolean(selectedModalComponent)}
-        onClose={() => setSelectedModalComponent(null)}
+        onClose={handleCloseModal}
         components={componentRecords}
-        onSelectComponent={(comp) => setSelectedModalComponent(comp)}
+        onSelectComponent={handleSelectComponent}
       />
     </div>
   );
