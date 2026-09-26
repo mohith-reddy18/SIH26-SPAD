@@ -31,7 +31,7 @@ export default function App() {
   const [currentPath, setCurrentPath] = useState(() => {
     return window.location.pathname in PAGE_ROUTES ? window.location.pathname : '/';
   });
-  const [selectedLotId, setSelectedLotId] = useState(null);
+  const [selectedLotId, setSelectedLotId] = useState('NASA-MOSFET-199C');
   const [selectedComponentId, setSelectedComponentId] = useState(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 

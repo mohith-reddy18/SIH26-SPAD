@@ -14,7 +14,8 @@ import './Dashboard.css';
 import { mapScreeningRecord } from '../utils/recordMapping';
 import { API_BASE_URL } from '../config/api';
 
-export default function Dashboard({ onNavigateToComponent, onNavigate, selectedLotId, onSelectLot }) {
+export default function Dashboard({ onNavigateToComponent, onNavigate, selectedLotId = 'NASA-MOSFET-199C', onSelectLot }) {
+  const effectiveLotId = selectedLotId || 'NASA-MOSFET-199C';
   const [selectedModalComponent, setSelectedModalComponent] = useState(null);
   const [componentRecords, setComponentRecords] = useState([]);
   const [backendHistory, setBackendHistory] = useState([]);
@@ -45,21 +46,23 @@ export default function Dashboard({ onNavigateToComponent, onNavigate, selectedL
     loadHistory();
   }, [loadHistory]);
 
-  // 2. Fetch component records whenever selectedLotId changes
+  // 2. Fetch component records strictly for the active selected lot
   const loadComponentRecords = useCallback(async () => {
     setIsLoadingComponents(true);
     setFetchError(null);
 
     try {
-      const queryParam = selectedLotId ? `?lotId=${encodeURIComponent(selectedLotId)}` : '';
+      const queryParam = `?lotId=${encodeURIComponent(effectiveLotId)}`;
       const compRes = await fetch(`${API_BASE_URL}/api/screening${queryParam}`);
 
       if (compRes.ok) {
         const result = await compRes.json();
         if (result.success && Array.isArray(result.data)) {
           const mapped = result.data.map(mapScreeningRecord);
-          setComponentRecords(mapped);
-          setDataSource(mapped.length > 0 ? 'api' : 'empty');
+          // Strict lot-isolation filter: only include components belonging to the effective lot
+          const filtered = mapped.filter((r) => !r.lotId || r.lotId === effectiveLotId);
+          setComponentRecords(filtered);
+          setDataSource(filtered.length > 0 ? 'api' : 'empty');
         } else {
           setComponentRecords([]);
           setDataSource('empty');
@@ -75,7 +78,7 @@ export default function Dashboard({ onNavigateToComponent, onNavigate, selectedL
     } finally {
       setIsLoadingComponents(false);
     }
-  }, [selectedLotId]);
+  }, [effectiveLotId]);
 
   useEffect(() => {
     loadComponentRecords();
@@ -146,25 +149,21 @@ export default function Dashboard({ onNavigateToComponent, onNavigate, selectedL
 
   // Derive selected lot summary from already-loaded history or active component records
   const activeLotSummary = useMemo(() => {
-    const targetLotId = selectedLotId || (componentRecords.length > 0 ? componentRecords[0]?.lotId : null);
-    if (!targetLotId) return null;
-    return backendHistory.find((h) => h.lotId === targetLotId) || null;
-  }, [backendHistory, selectedLotId, componentRecords]);
+    return backendHistory.find((h) => h.lotId === effectiveLotId) || null;
+  }, [backendHistory, effectiveLotId]);
 
   // Primary screening lot context derived coherently from database lot summary and active records
   const screeningContext = useMemo(() => {
-    const activeLotRecords = selectedLotId
-      ? componentRecords.filter((c) => c.lotId === selectedLotId)
-      : componentRecords;
+    const activeLotRecords = componentRecords.filter((c) => !c.lotId || c.lotId === effectiveLotId);
 
     if (activeLotRecords.length > 0) {
       const totalUnits = activeLotRecords.length;
       const normalCount = activeLotRecords.filter((c) => c.engineeringStatus === 'NORMAL').length;
       const anomalyCount = activeLotRecords.filter((c) => c.engineeringStatus === 'SUSPECT' || c.engineeringStatus === 'CRITICAL').length;
       const calculatedYield = totalUnits > 0 ? `${((normalCount / totalUnits) * 100).toFixed(1)}%` : '100.0%';
-      const primaryLotId = selectedLotId || activeLotRecords[0].lotId || 'NO ACTIVE LOT';
-      const hasPredictions = activeLotRecords.some((c) => c.predictions && Object.keys(c.predictions).length > 0);
-      const hasAnomalies = activeLotRecords.some((c) => c.anomalies || c.engineeringStatus !== undefined);
+      const primaryLotId = effectiveLotId;
+      const hasPredictions = activeLotRecords.some((c) => (c.predictions && Object.keys(c.predictions).length > 0) || c.aiAssessment?.prediction);
+      const hasAnomalies = activeLotRecords.some((c) => c.anomalies || c.engineeringStatus !== undefined || c.aiAssessment?.lotAnomaly);
 
       return {
         ...mockDashboardData.screeningContext,
@@ -197,7 +196,7 @@ export default function Dashboard({ onNavigateToComponent, onNavigate, selectedL
 
     return {
       ...mockDashboardData.screeningContext,
-      lotId: selectedLotId || 'NO ACTIVE LOT',
+      lotId: effectiveLotId,
       lotStatus: isLoadingComponents ? 'LOADING' : 'NO ACTIVE LOT',
       totalUnits: 0,
       screenedUnits: 0,
@@ -207,7 +206,7 @@ export default function Dashboard({ onNavigateToComponent, onNavigate, selectedL
       hasAnomalyDetection: false,
       completionRate: '—',
     };
-  }, [componentRecords, selectedLotId, activeLotSummary, isLoadingComponents]);
+  }, [componentRecords, effectiveLotId, activeLotSummary, isLoadingComponents]);
 
   // Derive alerts dynamically from database component records
   const recentAlerts = useMemo(() => {
