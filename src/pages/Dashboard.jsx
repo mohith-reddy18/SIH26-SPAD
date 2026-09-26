@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { mockDashboardData } from '../data/mockData';
 import ScreeningPipeline from '../components/dashboard/ScreeningPipeline';
 import ScreeningHistory from '../components/dashboard/ScreeningHistory';
@@ -12,67 +12,70 @@ import ComponentDetailModal from '../components/dashboard/ComponentDetailModal';
 import './Dashboard.css';
 
 import { mapScreeningRecord } from '../utils/recordMapping';
+import { API_BASE_URL } from '../config/api';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://sih26-spad.onrender.com';
-
-export default function Dashboard({ onNavigateToComponent, onNavigate }) {
+export default function Dashboard({ onNavigateToComponent, onNavigate, selectedLotId, onSelectLot }) {
   const [selectedModalComponent, setSelectedModalComponent] = useState(null);
   const [componentRecords, setComponentRecords] = useState([]);
+  const [backendHistory, setBackendHistory] = useState([]);
   const [dataSource, setDataSource] = useState('loading'); // 'loading' | 'api' | 'empty' | 'offline'
   const [isLoading, setIsLoading] = useState(true);
   const [fetchError, setFetchError] = useState(null);
 
   // Primary data fetch from backend API
-  useEffect(() => {
-    let isMounted = true;
+  const loadDashboardData = useCallback(async () => {
+    setIsLoading(true);
+    setFetchError(null);
 
-    async function loadScreeningRecords() {
-      setIsLoading(true);
-      setFetchError(null);
+    try {
+      const queryParam = selectedLotId ? `?lotId=${encodeURIComponent(selectedLotId)}` : '';
+      const [compRes, histRes] = await Promise.all([
+        fetch(`${API_BASE_URL}/api/screening${queryParam}`),
+        fetch(`${API_BASE_URL}/api/screening/history`).catch(() => null),
+      ]);
 
-      try {
-        const response = await fetch(`${API_BASE_URL}/api/screening`);
-        if (response.ok) {
-          const result = await response.json();
-          if (result.success && Array.isArray(result.data)) {
-            if (isMounted) {
-              const mapped = result.data.map(mapScreeningRecord);
-              setComponentRecords(mapped);
-              setDataSource('api');
-            }
-            return;
-          }
-        }
-        if (isMounted) {
+      if (compRes.ok) {
+        const result = await compRes.json();
+        if (result.success && Array.isArray(result.data)) {
+          const mapped = result.data.map(mapScreeningRecord);
+          setComponentRecords(mapped);
+          setDataSource(mapped.length > 0 ? 'api' : 'empty');
+        } else {
           setDataSource('empty');
         }
-      } catch (err) {
-        if (isMounted) {
-          console.warn('[SPAD] Failed to fetch screening records from backend:', err.message);
-          setFetchError(err.message);
-          setDataSource('offline');
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
+      } else {
+        setDataSource('empty');
+      }
+
+      if (histRes && histRes.ok) {
+        const histResult = await histRes.json();
+        if (histResult.success && Array.isArray(histResult.data)) {
+          setBackendHistory(histResult.data);
         }
       }
+    } catch (err) {
+      console.warn('[SPAD] Failed to fetch screening data from backend:', err.message);
+      setFetchError(err.message || 'Unable to connect to SPAD backend');
+      setDataSource('offline');
+    } finally {
+      setIsLoading(false);
     }
+  }, [selectedLotId]);
 
-    loadScreeningRecords();
+  useEffect(() => {
+    loadDashboardData();
+  }, [loadDashboardData]);
 
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  // Group database records into lot history runs
+  // Combine backend lot history with client records if backend history endpoint is empty
   const screeningHistory = useMemo(() => {
+    if (backendHistory.length > 0) {
+      return backendHistory;
+    }
     if (componentRecords.length === 0) return [];
-    const lotsMap = {};
 
+    const lotsMap = {};
     componentRecords.forEach((rec) => {
-      const lotId = rec.lotId || 'NASA-MOSFET-199C';
+      const lotId = rec.lotId || 'LOT-UNKNOWN';
       if (!lotsMap[lotId]) {
         lotsMap[lotId] = {
           lotId,
@@ -119,7 +122,7 @@ export default function Dashboard({ onNavigateToComponent, onNavigate }) {
         completedAt: lot.updatedAt || lot.createdAt || null,
       };
     });
-  }, [componentRecords]);
+  }, [backendHistory, componentRecords]);
 
   // Primary screening lot context
   const screeningContext = useMemo(() => {
@@ -127,7 +130,7 @@ export default function Dashboard({ onNavigateToComponent, onNavigate }) {
     const normalCount = componentRecords.filter((c) => c.engineeringStatus === 'NORMAL').length;
     const anomalyCount = componentRecords.filter((c) => c.engineeringStatus === 'SUSPECT' || c.engineeringStatus === 'CRITICAL').length;
     const calculatedYield = totalUnits > 0 ? `${((normalCount / totalUnits) * 100).toFixed(1)}%` : '100.0%';
-    const primaryLotId = totalUnits > 0 && componentRecords[0].lotId ? componentRecords[0].lotId : 'NASA-MOSFET-199C';
+    const primaryLotId = selectedLotId || (totalUnits > 0 && componentRecords[0].lotId ? componentRecords[0].lotId : 'NO ACTIVE LOT');
     const hasPredictions = componentRecords.some((c) => c.predictions && Object.keys(c.predictions).length > 0);
     const hasAnomalies = componentRecords.some((c) => c.anomalies || c.engineeringStatus !== undefined);
 
@@ -143,7 +146,7 @@ export default function Dashboard({ onNavigateToComponent, onNavigate }) {
       hasAnomalyDetection: hasAnomalies || totalUnits > 0,
       completionRate: totalUnits > 0 ? '100%' : '—',
     };
-  }, [componentRecords]);
+  }, [componentRecords, selectedLotId]);
 
   // Derive alerts dynamically from database component records
   const recentAlerts = useMemo(() => {
@@ -208,17 +211,49 @@ export default function Dashboard({ onNavigateToComponent, onNavigate }) {
         </div>
       </header>
 
-      {/* Backend API Connection Error Banner */}
-      {fetchError && (
-        <div style={{ padding: '12px 16px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '6px', color: '#fca5a5', fontSize: '13px', marginBottom: '16px' }}>
-          <strong>Backend Connection Notice:</strong> Unable to load live screening records from API ({fetchError}). Ensure backend server is running.
+      {/* Backend API Connection Error Banner (Requirement 8A) */}
+      {dataSource === 'offline' && (
+        <div style={{ padding: '14px 18px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.35)', borderRadius: '6px', color: '#fca5a5', fontSize: '13px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+          <div>
+            <strong>Unable to connect to SPAD backend</strong> ({fetchError || 'Network request failed'}).
+          </div>
+          <button
+            type="button"
+            onClick={loadDashboardData}
+            style={{
+              background: '#ef4444',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '4px',
+              padding: '6px 14px',
+              fontSize: '12px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              fontFamily: 'var(--font-mono)',
+            }}
+          >
+            Retry Connection
+          </button>
+        </div>
+      )}
+
+      {/* Backend Connected but No Data Banner (Requirement 8B) */}
+      {dataSource === 'empty' && !isLoading && (
+        <div style={{ padding: '14px 18px', background: 'rgba(56, 189, 248, 0.06)', border: '1px solid rgba(56, 189, 248, 0.2)', borderRadius: '6px', color: '#94a3b8', fontSize: '13px', marginBottom: '16px' }}>
+          No screening data available in database for active selection.
         </div>
       )}
 
       {/* 2. Screening Result Summary + Screening History (Two-Column Section) */}
       <section className="spad-two-col-grid spad-pipeline-history-grid" aria-label="Screening Result and Run History">
         <ScreeningPipeline stages={pipelineStages} context={screeningContext} />
-        <ScreeningHistory history={screeningHistory} isLoading={isLoading} onNavigate={onNavigate} />
+        <ScreeningHistory
+          history={screeningHistory}
+          isLoading={isLoading}
+          onNavigate={onNavigate}
+          selectedLotId={selectedLotId || screeningContext.lotId}
+          onSelectLot={onSelectLot}
+        />
       </section>
 
       {/* 3. Parameter Trends (Interactive Burn-in Parameter Trajectory) */}

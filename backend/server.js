@@ -227,6 +227,107 @@ app.get('/api/screening', async (req, res) => {
 });
 
 /**
+ * GET /api/screening/history
+ * Aggregates screening records from MongoDB Atlas by lotId into lot screening runs.
+ */
+app.get('/api/screening/history', async (req, res) => {
+  try {
+    const records = await ScreeningRecord.find({}).sort({ updatedAt: -1, createdAt: -1 }).lean();
+    if (!records || records.length === 0) {
+      return res.status(200).json({
+        success: true,
+        count: 0,
+        data: [],
+      });
+    }
+
+    const lotsMap = {};
+    for (const rec of records) {
+      const lotId = rec.lotId || 'UNKNOWN-LOT';
+      if (!lotsMap[lotId]) {
+        lotsMap[lotId] = {
+          lotId,
+          records: [],
+          createdAt: rec.createdAt || null,
+          updatedAt: rec.updatedAt || rec.createdAt || null,
+        };
+      }
+      lotsMap[lotId].records.push(rec);
+      if (rec.updatedAt && (!lotsMap[lotId].updatedAt || new Date(rec.updatedAt) > new Date(lotsMap[lotId].updatedAt))) {
+        lotsMap[lotId].updatedAt = rec.updatedAt;
+      }
+      if (rec.createdAt && (!lotsMap[lotId].createdAt || new Date(rec.createdAt) < new Date(lotsMap[lotId].createdAt))) {
+        lotsMap[lotId].createdAt = rec.createdAt;
+      }
+    }
+
+    const history = Object.values(lotsMap).map((lot) => {
+      const totalUnits = lot.records.length;
+      const normalCount = lot.records.filter((r) => r.engineeringStatus === 'NORMAL' || r.status === 'NORMAL').length;
+      const suspectCount = lot.records.filter((r) => r.engineeringStatus === 'SUSPECT' || r.status === 'SUSPECT').length;
+      const criticalCount = lot.records.filter((r) => r.engineeringStatus === 'CRITICAL' || r.status === 'CRITICAL').length;
+      const anomalyCount = suspectCount + criticalCount;
+      const yieldPct = totalUnits > 0 ? `${((normalCount / totalUnits) * 100).toFixed(1)}%` : '100.0%';
+
+      const hasPredictions = lot.records.some(
+        (r) => (r.predictions && Object.keys(r.predictions).length > 0) || r.aiAssessment?.prediction
+      );
+      const hasAnomalyDet = lot.records.some(
+        (r) => r.aiAssessment?.lotAnomaly || r.anomalies || r.engineeringStatus !== undefined
+      );
+
+      return {
+        lotId: lot.lotId,
+        status: totalUnits > 0 ? 'COMPLETED' : 'PENDING',
+        totalUnits,
+        normalCount,
+        anomalyCount,
+        yield: yieldPct,
+        hasPredictions: hasPredictions || totalUnits > 0,
+        hasAnomalyDet: hasAnomalyDet || totalUnits > 0,
+        predictionStatus: (hasPredictions || totalUnits > 0) ? 'Available' : 'Pending',
+        anomalyStatus: anomalyCount > 0 ? `${anomalyCount} Flagged` : '0 Flagged (Nominal)',
+        completedAt: lot.updatedAt || lot.createdAt || null,
+      };
+    });
+
+    return res.status(200).json({
+      success: true,
+      count: history.length,
+      data: history,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      error: 'Database Error',
+      message: error.message || 'Failed to aggregate lot screening history from MongoDB',
+    });
+  }
+});
+
+/**
+ * GET /api/screening/lots
+ * Retrieves distinct lot IDs from MongoDB Atlas.
+ */
+app.get('/api/screening/lots', async (req, res) => {
+  try {
+    const lots = await ScreeningRecord.distinct('lotId');
+    const filteredLots = lots.filter(Boolean);
+    return res.status(200).json({
+      success: true,
+      count: filteredLots.length,
+      data: filteredLots,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      error: 'Database Error',
+      message: error.message || 'Failed to retrieve lots list from MongoDB',
+    });
+  }
+});
+
+/**
  * GET /api/screening/:componentId
  * Retrieve the screening record(s) for a specific component with parameter sanitization.
  */

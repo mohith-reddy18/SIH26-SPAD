@@ -1,7 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import './Dashboard.css';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://sih26-spad.onrender.com';
+import { API_BASE_URL } from '../config/api';
 
 function getStatusColor(status) {
   if (status === 'NORMAL' || status === 'PASS') return '#10b981';
@@ -12,57 +11,45 @@ function getStatusColor(status) {
 
 import { mapScreeningRecord, getParameterMeta, extractPredictedValue, formatStageLabel } from '../utils/recordMapping';
 
-export default function FailureAnalysis() {
+export default function FailureAnalysis({ selectedLotId, onSelectLot }) {
   const [screeningRecords, setScreeningRecords] = useState([]);
-  const [selectedComponentId, setSelectedComponentId] = useState('TEST-01');
+  const [selectedComponentId, setSelectedComponentId] = useState('');
   const [dataSource, setDataSource] = useState('loading'); // 'loading' | 'api' | 'empty' | 'offline'
   const [isLoading, setIsLoading] = useState(true);
   const [fetchError, setFetchError] = useState(null);
 
   // 1. Fetch screening records from backend API
-  useEffect(() => {
-    let isMounted = true;
+  const loadFailureAnalysisData = useCallback(async () => {
+    setIsLoading(true);
+    setFetchError(null);
 
-    async function loadFailureAnalysisData() {
-      setIsLoading(true);
-      setFetchError(null);
-
-      try {
-        const response = await fetch(`${API_BASE_URL}/api/screening?lotId=NASA-MOSFET-199C`);
-        if (response.ok) {
-          const result = await response.json();
-          if (result.success && Array.isArray(result.data) && result.data.length > 0) {
-            if (isMounted) {
-              setScreeningRecords(result.data);
-              setDataSource('api');
-              const initialId = result.data[0].componentId || result.data[0].id || 'TEST-01';
-              setSelectedComponentId((prev) => prev || initialId);
-            }
-            return;
-          }
-        }
-        if (isMounted) {
-          setDataSource('empty');
-        }
-      } catch (err) {
-        if (isMounted) {
-          console.warn('[SPAD] Failed to fetch screening records from backend:', err.message);
-          setFetchError(err.message);
-          setDataSource('offline');
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
+    try {
+      const query = selectedLotId ? `?lotId=${encodeURIComponent(selectedLotId)}` : '';
+      const response = await fetch(`${API_BASE_URL}/api/screening${query}`);
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success && Array.isArray(result.data) && result.data.length > 0) {
+          setScreeningRecords(result.data);
+          setDataSource('api');
+          const initialId = result.data[0].componentId || result.data[0].id || '';
+          setSelectedComponentId((prev) => (prev && result.data.some((r) => (r.componentId || r.id) === prev) ? prev : initialId));
+          return;
         }
       }
+      setScreeningRecords([]);
+      setDataSource('empty');
+    } catch (err) {
+      console.warn('[SPAD] Failed to fetch screening records from backend:', err.message);
+      setFetchError(err.message || 'Unable to connect to SPAD backend');
+      setDataSource('offline');
+    } finally {
+      setIsLoading(false);
     }
+  }, [selectedLotId]);
 
+  useEffect(() => {
     loadFailureAnalysisData();
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+  }, [loadFailureAnalysisData]);
 
   // 2. Active component resolution
   const activeComponent = useMemo(() => {
@@ -116,10 +103,29 @@ export default function FailureAnalysis() {
         </p>
       </header>
 
-      {/* Backend API Connection Error Banner */}
+      {/* Backend API Connection Error Banner (Requirement 8A) */}
       {fetchError && (
-        <div style={{ padding: '12px 16px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '6px', color: '#fca5a5', fontSize: '13px', marginBottom: '16px' }}>
-          <strong>Backend Connection Notice:</strong> Unable to load live screening records from API ({fetchError}).
+        <div style={{ padding: '14px 18px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.35)', borderRadius: '6px', color: '#fca5a5', fontSize: '13px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'gap', gap: '10px' }}>
+          <div>
+            <strong>Unable to connect to SPAD backend</strong> ({fetchError}).
+          </div>
+          <button
+            type="button"
+            onClick={loadFailureAnalysisData}
+            style={{
+              background: '#ef4444',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '4px',
+              padding: '6px 14px',
+              fontSize: '12px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              fontFamily: 'var(--font-mono)',
+            }}
+          >
+            Retry Connection
+          </button>
         </div>
       )}
 
@@ -137,15 +143,19 @@ export default function FailureAnalysis() {
               onChange={(e) => setSelectedComponentId(e.target.value)}
               disabled={screeningRecords.length === 0}
             >
-              {screeningRecords.map((c) => {
-                const id = c.componentId || c.id;
-                const cStat = c.engineeringStatus || c.status || 'NORMAL';
-                return (
-                  <option key={id} value={id}>
-                    {id} ({cStat})
-                  </option>
-                );
-              })}
+              {screeningRecords.length === 0 ? (
+                <option value="">No components available</option>
+              ) : (
+                screeningRecords.map((c) => {
+                  const id = c.componentId || c.id;
+                  const cStat = c.engineeringStatus || c.status || 'NORMAL';
+                  return (
+                    <option key={id} value={id}>
+                      {id} ({cStat})
+                    </option>
+                  );
+                })
+              )}
             </select>
           </div>
 

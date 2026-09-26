@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import ComponentDetailModal from '../components/dashboard/ComponentDetailModal';
 import { mapScreeningRecord, getNormalizedEngineeringStatus, getParameterMeta, extractLatestValue, formatStageLabel } from '../utils/recordMapping';
+import { API_BASE_URL } from '../config/api';
 
 function SearchIcon() {
   return (
@@ -10,8 +11,6 @@ function SearchIcon() {
     </svg>
   );
 }
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://sih26-spad.onrender.com';
 
 export default function ComponentSearch({ onNavigateToComponent, initialComponentId }) {
   const [components, setComponents] = useState([]);
@@ -24,32 +23,28 @@ export default function ComponentSearch({ onNavigateToComponent, initialComponen
   const [fetchError, setFetchError] = useState(null);
 
   // 1. Fetch component records from backend API (source of truth)
-  useEffect(() => {
-    let isMounted = true;
-
-    async function loadComponents() {
-      setIsLoading(true);
-      try {
-        const response = await fetch(`${API_BASE_URL}/api/screening?lotId=NASA-MOSFET-199C`);
-        if (response.ok) {
-          const result = await response.json();
-          if (result.success && Array.isArray(result.data) && isMounted) {
-            setComponents(result.data.map(mapScreeningRecord));
-          }
+  const loadComponents = useCallback(async () => {
+    setIsLoading(true);
+    setFetchError(null);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/screening`);
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success && Array.isArray(result.data)) {
+          setComponents(result.data.map(mapScreeningRecord));
         }
-      } catch (err) {
-        console.warn('[SPAD] Failed to fetch components list from backend:', err.message);
-      } finally {
-        if (isMounted) setIsLoading(false);
       }
+    } catch (err) {
+      console.warn('[SPAD] Failed to fetch components list from backend:', err.message);
+      setFetchError(err.message || 'Unable to connect to SPAD backend');
+    } finally {
+      setIsLoading(false);
     }
-
-    loadComponents();
-
-    return () => {
-      isMounted = false;
-    };
   }, []);
+
+  useEffect(() => {
+    loadComponents();
+  }, [loadComponents]);
 
   // 2. Fetch individual component detail on click or deep link
   const fetchComponentDetail = async (compItem) => {
@@ -172,6 +167,32 @@ export default function ComponentSearch({ onNavigateToComponent, initialComponen
           Search and query individual components, serial numbers, and screening test history across lot runs.
         </p>
       </header>
+
+      {/* Backend API Connection Error Banner (Requirement 8A) */}
+      {fetchError && (
+        <div style={{ padding: '14px 18px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.35)', borderRadius: '6px', color: '#fca5a5', fontSize: '13px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+          <div>
+            <strong>Unable to connect to SPAD backend</strong> ({fetchError}).
+          </div>
+          <button
+            type="button"
+            onClick={loadComponents}
+            style={{
+              background: '#ef4444',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '4px',
+              padding: '6px 14px',
+              fontSize: '12px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              fontFamily: 'var(--font-mono)',
+            }}
+          >
+            Retry Connection
+          </button>
+        </div>
+      )}
 
       {/* Responsive Search Controls Bar */}
       <div className="spad-card" style={{ padding: '18px 20px', gap: '14px' }}>

@@ -424,8 +424,11 @@ async function predict168h(input) {
       context,
     });
   } else {
-    // Isolated Local Interface Path
-    rawModelOutput = localDevPredict168h({ parameters, engineeringLimits });
+    throw {
+      statusCode: 503,
+      code: 'MODEL_UNAVAILABLE',
+      message: 'The predictive screening model service is currently unavailable. Production inference requires a configured AI_SERVICE_URL.',
+    };
   }
 
   // Validate and normalize model output
@@ -466,8 +469,11 @@ async function detectLotAnomalies(input) {
       context,
     });
   } else {
-    // Isolated Local Interface Path
-    rawModelOutput = localDevDetectLotAnomalies({ targetComponentId, cohort });
+    throw {
+      statusCode: 503,
+      code: 'MODEL_UNAVAILABLE',
+      message: 'The lot anomaly detection model service is currently unavailable. Production inference requires a configured AI_SERVICE_URL.',
+    };
   }
 
   // Validate and normalize model output

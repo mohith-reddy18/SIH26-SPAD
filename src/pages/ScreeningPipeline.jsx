@@ -1,60 +1,53 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import ScreeningPipelineCard from '../components/dashboard/ScreeningPipeline';
 import { getNormalizedEngineeringStatus, formatStageLabel } from '../utils/recordMapping';
+import { API_BASE_URL } from '../config/api';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://sih26-spad.onrender.com';
-
-export default function ScreeningPipeline() {
+export default function ScreeningPipeline({ selectedLotId, onSelectLot }) {
   const [screeningRecords, setScreeningRecords] = useState([]);
-  const [selectedLotId, setSelectedLotId] = useState(null);
+  const [activeLotId, setActiveLotId] = useState(selectedLotId || null);
   const [dataSource, setDataSource] = useState('loading'); // 'loading' | 'api' | 'empty' | 'offline'
   const [isLoading, setIsLoading] = useState(true);
   const [fetchError, setFetchError] = useState(null);
 
-  // Fetch lot-level screening records from backend API
   useEffect(() => {
-    let isMounted = true;
+    if (selectedLotId) {
+      setActiveLotId(selectedLotId);
+    }
+  }, [selectedLotId]);
 
-    async function loadPipelineData() {
-      setIsLoading(true);
-      setFetchError(null);
+  // Fetch lot-level screening records from backend API
+  const loadPipelineData = useCallback(async () => {
+    setIsLoading(true);
+    setFetchError(null);
 
-      try {
-        const response = await fetch(`${API_BASE_URL}/api/screening?lotId=NASA-MOSFET-199C`);
-        if (response.ok) {
-          const result = await response.json();
-          if (result.success && Array.isArray(result.data) && result.data.length > 0) {
-            if (isMounted) {
-              setScreeningRecords(result.data);
-              setDataSource('api');
-              const firstLot = result.data[0].lotId || 'NASA-MOSFET-199C';
-              setSelectedLotId((prev) => prev || firstLot);
-            }
-            return;
-          }
-        }
-        if (isMounted) {
-          setDataSource('empty');
-        }
-      } catch (err) {
-        if (isMounted) {
-          console.warn('[SPAD] Failed to fetch screening records from backend:', err.message);
-          setFetchError(err.message);
-          setDataSource('offline');
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
+    try {
+      const query = selectedLotId ? `?lotId=${encodeURIComponent(selectedLotId)}` : '';
+      const response = await fetch(`${API_BASE_URL}/api/screening${query}`);
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success && Array.isArray(result.data) && result.data.length > 0) {
+          setScreeningRecords(result.data);
+          setDataSource('api');
+          const firstLot = result.data[0].lotId || selectedLotId || 'NO ACTIVE LOT';
+          setActiveLotId((prev) => (prev && result.data.some((r) => r.lotId === prev) ? prev : firstLot));
+          return;
         }
       }
+      setScreeningRecords([]);
+      setDataSource('empty');
+    } catch (err) {
+      console.warn('[SPAD] Failed to fetch screening records from backend:', err.message);
+      setFetchError(err.message || 'Unable to connect to SPAD backend');
+      setDataSource('offline');
+    } finally {
+      setIsLoading(false);
     }
+  }, [selectedLotId]);
 
+  useEffect(() => {
     loadPipelineData();
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+  }, [loadPipelineData]);
 
   // Group screening records by lotId for lot-level pipeline analysis
   const lotsMap = useMemo(() => {
@@ -239,10 +232,29 @@ export default function ScreeningPipeline() {
         </p>
       </header>
 
-      {/* Offline/Error Notice */}
+      {/* Offline/Error Notice (Requirement 8A) */}
       {dataSource === 'offline' && (
-        <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid #ef4444', borderRadius: 8, padding: '12px 16px', marginBottom: 20, color: '#ef4444', fontSize: 13 }}>
-          <strong>API Connection Offline:</strong> Unable to reach {API_BASE_URL}/api/screening ({fetchError}).
+        <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid #ef4444', borderRadius: 8, padding: '12px 16px', marginBottom: 20, color: '#fca5a5', fontSize: 13, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+          <div>
+            <strong>Unable to connect to SPAD backend</strong> ({fetchError}).
+          </div>
+          <button
+            type="button"
+            onClick={loadPipelineData}
+            style={{
+              background: '#ef4444',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '4px',
+              padding: '6px 14px',
+              fontSize: '12px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              fontFamily: 'var(--font-mono)',
+            }}
+          >
+            Retry Connection
+          </button>
         </div>
       )}
 
@@ -253,11 +265,14 @@ export default function ScreeningPipeline() {
           {availableLotIds.map((lId) => (
             <button
               key={lId}
-              onClick={() => setSelectedLotId(lId)}
+              onClick={() => {
+                setActiveLotId(lId);
+                if (typeof onSelectLot === 'function') onSelectLot(lId);
+              }}
               style={{
-                background: selectedLotId === lId ? 'rgba(56, 189, 248, 0.2)' : 'rgba(30, 41, 59, 0.5)',
-                border: `1px solid ${selectedLotId === lId ? '#38bdf8' : 'rgba(148, 163, 184, 0.2)'}`,
-                color: selectedLotId === lId ? '#38bdf8' : '#94a3b8',
+                background: activeLotId === lId ? 'rgba(56, 189, 248, 0.2)' : 'rgba(30, 41, 59, 0.5)',
+                border: `1px solid ${activeLotId === lId ? '#38bdf8' : 'rgba(148, 163, 184, 0.2)'}`,
+                color: activeLotId === lId ? '#38bdf8' : '#94a3b8',
                 borderRadius: 6,
                 padding: '4px 12px',
                 cursor: 'pointer',

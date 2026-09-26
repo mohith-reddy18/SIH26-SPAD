@@ -31,6 +31,7 @@ export default function App() {
   const [currentPath, setCurrentPath] = useState(() => {
     return window.location.pathname in PAGE_ROUTES ? window.location.pathname : '/';
   });
+  const [selectedLotId, setSelectedLotId] = useState(null);
   const [selectedComponentId, setSelectedComponentId] = useState(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -58,6 +59,10 @@ export default function App() {
     handleNavigate('/components');
   };
 
+  const handleSelectLot = (lotId) => {
+    setSelectedLotId(lotId);
+  };
+
   const CurrentPageComponent = PAGE_ROUTES[currentPath] || Dashboard;
 
   return (
@@ -75,7 +80,7 @@ export default function App() {
         {/* Mobile Header Topbar (Visible on < 1024px) */}
         <MobileNavbar 
           onToggleMenu={() => setIsMobileMenuOpen((prev) => !prev)}
-          currentLot="NASA-MOSFET-199C"
+          currentLot={selectedLotId || 'ACTIVE LOT'}
         />
 
         <main className="app-main-content">
@@ -83,6 +88,8 @@ export default function App() {
             onNavigate={handleNavigate}
             onNavigateToComponent={handleNavigateToComponent}
             initialComponentId={selectedComponentId}
+            selectedLotId={selectedLotId}
+            onSelectLot={handleSelectLot}
           />
         </main>
       </div>

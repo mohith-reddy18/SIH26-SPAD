@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './Dashboard.css';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://sih26-spad.onrender.com';
+import { API_BASE_URL } from '../config/api';
 
 export default function SystemSettings() {
   // Live Backend Health State

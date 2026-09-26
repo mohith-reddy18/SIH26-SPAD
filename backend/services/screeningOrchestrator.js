@@ -76,7 +76,10 @@ async function evaluateSingleComponent({ targetDoc, sameLotDocs = [], customLimi
   const cleanCompId = targetDoc.componentId;
   const resolvedLotId = targetDoc.lotId || 'LOT-2026-001';
   const measurements = targetDoc.measurements || {};
-  const engineeringLimits = customLimits || targetDoc.engineeringLimits || {};
+  // Database engineering limits are strictly authoritative
+  const engineeringLimits = (targetDoc.engineeringLimits && typeof targetDoc.engineeringLimits === 'object')
+    ? targetDoc.engineeringLimits
+    : {};
 
   // Ensure target is included in the cohort array
   const cohort = sameLotDocs.some((d) => d.componentId === cleanCompId)

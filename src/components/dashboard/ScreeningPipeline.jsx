@@ -331,13 +331,10 @@ export default function ScreeningPipeline({
                   lineHeight: '1.5',
                 }}
               >
-                <strong style={{ color: '#38bdf8' }}>Predictive Methodology:</strong> The Random Forest workflow evaluates components individually by leveraging <strong>early stress observations</strong> to forecast long-term parameter degradation and detect projected limit breaches before extended burn-in completes.
-              </div>
-
-              {/* 5-Step Explanatory Workflow */}
+                <strong style={{ color: '#38bdf8' }}>Predictive Methodology:</strong> The Random Forest workflow evaluates components individually by leveraging <strong>early stress observations</strong> to forecast long-term parameter degradation and detect projected limit breaches before extended burn-in comple              {/* 7-Step Explanatory Workflow */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 <span style={{ fontSize: '11px', fontWeight: '700', color: '#38bdf8', fontFamily: 'var(--font-mono)', letterSpacing: '0.05em' }}>
-                  METHODOLOGY PIPELINE (5 STEPS):
+                  METHODOLOGY PIPELINE (7 STEPS):
                 </span>
 
                 {/* Step 1 */}
@@ -361,11 +358,11 @@ export default function ScreeningPipeline({
                         1. BASELINE (0hr)
                       </span>
                       <span style={{ fontSize: '10px', color: '#38bdf8', fontFamily: 'var(--font-mono)', background: 'rgba(56, 189, 248, 0.1)', padding: '1px 6px', borderRadius: '3px' }}>
-                        INITIAL STATE
+                        OBSERVED INPUT
                       </span>
                     </div>
                     <p style={{ fontSize: '12px', color: '#cbd5e1', margin: 0, lineHeight: '1.45' }}>
-                      The initial 0hr physical measurements establish the baseline parameters of each component prior to accelerated thermal and electrical stress.
+                      The initial 0hr physical measurements establish the baseline parameters of each component under nominal conditions prior to accelerated stress.
                     </p>
                   </div>
                 </div>
@@ -391,11 +388,11 @@ export default function ScreeningPipeline({
                         2. EARLY GATE (24hr)
                       </span>
                       <span style={{ fontSize: '10px', color: '#38bdf8', fontFamily: 'var(--font-mono)', background: 'rgba(56, 189, 248, 0.1)', padding: '1px 6px', borderRadius: '3px' }}>
-                        EARLY OBSERVATION
+                        OBSERVED INPUT
                       </span>
                     </div>
                     <p style={{ fontSize: '12px', color: '#cbd5e1', margin: 0, lineHeight: '1.45' }}>
-                      The 24hr measurements capture early behavior, initial drift rates, and parameter degradation trends under stress.
+                      The 24hr measurements capture early behavior, initial drift rates, and parameter degradation trends under accelerated thermal and electrical stress.
                     </p>
                   </div>
                 </div>
@@ -418,14 +415,14 @@ export default function ScreeningPipeline({
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', flex: 1 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
                       <span style={{ fontSize: '13px', fontWeight: '700', color: '#f8fafc' }}>
-                        3. RANDOM FOREST — 168hr FUTURE PREDICTION
+                        3. RANDOM FOREST REGRESSION
                       </span>
                       <span style={{ fontSize: '10px', color: '#38bdf8', fontFamily: 'var(--font-mono)', background: 'rgba(56, 189, 248, 0.1)', padding: '1px 6px', borderRadius: '3px' }}>
-                        PREDICTIVE REGRESSION
+                        PREDICTIVE MODEL
                       </span>
                     </div>
                     <p style={{ fontSize: '12px', color: '#cbd5e1', margin: 0, lineHeight: '1.45' }}>
-                      Random Forest uses the early 0hr and 24hr observations to predict future 168hr parameter behavior and projected values.
+                      Random Forest uses the observed 0hr + 24hr information to model non-linear degradation paths and predict future parameter behavior.
                     </p>
                   </div>
                 </div>
@@ -448,14 +445,14 @@ export default function ScreeningPipeline({
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', flex: 1 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
                       <span style={{ fontSize: '13px', fontWeight: '700', color: '#f8fafc' }}>
-                        4. LIMIT TRIAGE
+                        4. 96hr PREDICTION
                       </span>
                       <span style={{ fontSize: '10px', color: '#38bdf8', fontFamily: 'var(--font-mono)', background: 'rgba(56, 189, 248, 0.1)', padding: '1px 6px', borderRadius: '3px' }}>
-                        SPECIFICATION CHECK
+                        PREDICTED STAGE
                       </span>
                     </div>
                     <p style={{ fontSize: '12px', color: '#cbd5e1', margin: 0, lineHeight: '1.45' }}>
-                      The predicted future behavior can be evaluated against valid engineering limits when an applicable limit is available to assess risk of non-compliance.
+                      The 66.7% normalized stage is represented as the 96hr predicted stage when the actual model/data output provides it. It is never an artificial linear interpolation.
                     </p>
                   </div>
                 </div>
@@ -469,19 +466,79 @@ export default function ScreeningPipeline({
                     background: 'rgba(15, 23, 42, 0.65)',
                     border: '1px solid rgba(255, 255, 255, 0.06)',
                     borderRadius: '6px',
-                    borderLeft: '4px solid #10b981',
+                    borderLeft: '4px solid #38bdf8',
                   }}
                 >
-                  <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', fontFamily: 'var(--font-mono)', fontSize: '13px', flexShrink: 0 }}>
+                  <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', fontFamily: 'var(--font-mono)', fontSize: '13px', flexShrink: 0 }}>
                     5
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', flex: 1 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
                       <span style={{ fontSize: '13px', fontWeight: '700', color: '#f8fafc' }}>
-                        5. PREDICTION STATUS
+                        5. 168hr PREDICTION
+                      </span>
+                      <span style={{ fontSize: '10px', color: '#38bdf8', fontFamily: 'var(--font-mono)', background: 'rgba(56, 189, 248, 0.1)', padding: '1px 6px', borderRadius: '3px' }}>
+                        PREDICTED HORIZON
+                      </span>
+                    </div>
+                    <p style={{ fontSize: '12px', color: '#cbd5e1', margin: 0, lineHeight: '1.45' }}>
+                      The 100% normalized stage is the 168hr predicted stage representing forecasted burn-in milestone values.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Step 6 */}
+                <div
+                  style={{
+                    display: 'flex',
+                    gap: '12px',
+                    padding: '12px 14px',
+                    background: 'rgba(15, 23, 42, 0.65)',
+                    border: '1px solid rgba(255, 255, 255, 0.06)',
+                    borderRadius: '6px',
+                    borderLeft: '4px solid #38bdf8',
+                  }}
+                >
+                  <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', fontFamily: 'var(--font-mono)', fontSize: '13px', flexShrink: 0 }}>
+                    6
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', flex: 1 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
+                      <span style={{ fontSize: '13px', fontWeight: '700', color: '#f8fafc' }}>
+                        6. LIMIT TRIAGE
+                      </span>
+                      <span style={{ fontSize: '10px', color: '#38bdf8', fontFamily: 'var(--font-mono)', background: 'rgba(56, 189, 248, 0.1)', padding: '1px 6px', borderRadius: '3px' }}>
+                        DATABASE LIMIT CHECK
+                      </span>
+                    </div>
+                    <p style={{ fontSize: '12px', color: '#cbd5e1', margin: 0, lineHeight: '1.45' }}>
+                      Compares model-derived future behavior against the authoritative engineering limit from the database when applicable to assess risk of non-compliance.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Step 7 */}
+                <div
+                  style={{
+                    display: 'flex',
+                    gap: '12px',
+                    padding: '12px 14px',
+                    background: 'rgba(15, 23, 42, 0.65)',
+                    border: '1px solid rgba(255, 255, 255, 0.06)',
+                    borderRadius: '6px',
+                    borderLeft: '4px solid #10b981',
+                  }}
+                >
+                  <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', fontFamily: 'var(--font-mono)', fontSize: '13px', flexShrink: 0 }}>
+                    7
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', flex: 1 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
+                      <span style={{ fontSize: '13px', fontWeight: '700', color: '#f8fafc' }}>
+                        7. PREDICTION STATUS
                       </span>
                       <span style={{ fontSize: '10px', color: '#10b981', fontFamily: 'var(--font-mono)', background: 'rgba(16, 185, 129, 0.15)', padding: '1px 6px', borderRadius: '3px' }}>
-                        AI DISPOSITION
+                        AI ADVISORY
                       </span>
                     </div>
                     <p style={{ fontSize: '12px', color: '#cbd5e1', margin: 0, lineHeight: '1.45' }}>
@@ -511,14 +568,14 @@ export default function ScreeningPipeline({
                 </div>
                 <div>
                   <span style={{ color: '#64748b', display: 'block', fontSize: '10px' }}>INPUT FEATURES</span>
-                  <span style={{ color: '#38bdf8', fontWeight: '600' }}>0hr Baseline + 24hr Early Gate</span>
+                  <span style={{ color: '#38bdf8', fontWeight: '600' }}>0hr Baseline + 24hr Early Gate [Observed]</span>
                 </div>
                 <div>
                   <span style={{ color: '#64748b', display: 'block', fontSize: '10px' }}>TARGET HORIZON</span>
-                  <span style={{ color: '#f8fafc', fontWeight: '600' }}>168hr Parameter Prediction</span>
+                  <span style={{ color: '#f8fafc', fontWeight: '600' }}>96hr &amp; 168hr Stages [Predicted]</span>
                 </div>
                 <div>
-                  <span style={{ color: '#64748b', display: 'block', fontSize: '10px' }}>POSSIBLE STATUSES</span>
+                  <span style={{ color: '#64748b', display: 'block', fontSize: '10px' }}>AI DISPOSITIONS</span>
                   <span style={{ color: '#10b981', fontWeight: '600' }}>FLAGGED / NOT FLAGGED</span>
                 </div>
               </div>
@@ -598,13 +655,13 @@ export default function ScreeningPipeline({
                   </span>
                   <strong style={{ color: '#a78bfa' }}>Cohort-Level Novelty Methodology:</strong>
                 </div>
-                Isolation Forest operates at the <strong>lot level</strong>. Components are screened one-by-one first. Once all components in the current lot are screened, Isolation Forest is executed across the entire same-lot cohort to detect statistical and multivariate anomalies.
+                Isolation Forest operates at the <strong>lot level</strong>. Components are screened one-by-one first. Once the eligible same-lot screening set is available, Isolation Forest executes across the peer cohort to detect statistical and multivariate anomalies.
               </div>
 
-              {/* 6-Step Explanatory Workflow */}
+              {/* 7-Step Explanatory Workflow */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 <span style={{ fontSize: '11px', fontWeight: '700', color: '#a78bfa', fontFamily: 'var(--font-mono)', letterSpacing: '0.05em' }}>
-                  METHODOLOGY PIPELINE (6 STEPS):
+                  METHODOLOGY PIPELINE (7 STEPS):
                 </span>
 
                 {/* Step 1 */}
@@ -628,7 +685,7 @@ export default function ScreeningPipeline({
                         1. COMPLETE INDIVIDUAL COMPONENT SCREENING
                       </span>
                       <span style={{ fontSize: '10px', color: '#a78bfa', fontFamily: 'var(--font-mono)', background: 'rgba(167, 139, 250, 0.1)', padding: '1px 6px', borderRadius: '3px' }}>
-                        INDIVIDUAL SCREENING
+                        INDIVIDUAL GATES
                       </span>
                     </div>
                     <p style={{ fontSize: '12px', color: '#cbd5e1', margin: 0, lineHeight: '1.45' }}>
@@ -662,7 +719,7 @@ export default function ScreeningPipeline({
                       </span>
                     </div>
                     <p style={{ fontSize: '12px', color: '#cbd5e1', margin: 0, lineHeight: '1.45' }}>
-                      Only eligible comparable components from the same lot are used as peers to prevent cross-lot distribution distortion.
+                      Collect eligible components belonging strictly to the same manufacturing lot to prevent cross-lot distribution contamination.
                     </p>
                   </div>
                 </div>
@@ -692,7 +749,7 @@ export default function ScreeningPipeline({
                       </span>
                     </div>
                     <p style={{ fontSize: '12px', color: '#cbd5e1', margin: 0, lineHeight: '1.45' }}>
-                      A minimum cohort of 3 comparable components is required; otherwise the anomaly result is <strong>NOT_EVALUATED</strong> due to insufficient sample size for statistical isolation.
+                      At least 3 comparable eligible components are required for the prototype lot-level peer comparison.
                     </p>
                   </div>
                 </div>
@@ -715,14 +772,14 @@ export default function ScreeningPipeline({
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', flex: 1 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
                       <span style={{ fontSize: '13px', fontWeight: '700', color: '#f8fafc' }}>
-                        4. RUN ISOLATION FOREST ACROSS SAME-LOT PEERS
+                        4. INSUFFICIENT COHORT DISPOSITION
                       </span>
                       <span style={{ fontSize: '10px', color: '#a78bfa', fontFamily: 'var(--font-mono)', background: 'rgba(167, 139, 250, 0.1)', padding: '1px 6px', borderRadius: '3px' }}>
-                        NOVELTY ISOLATION
+                        SAMPLE GUARD
                       </span>
                     </div>
                     <p style={{ fontSize: '12px', color: '#cbd5e1', margin: 0, lineHeight: '1.45' }}>
-                      Isolation Forest analyzes the eligible peer cohort to identify unusual trajectory and signature patterns using multidimensional tree partitioning.
+                      If the minimum cohort is not available (&lt; 3 components), the model produces <strong>NOT_EVALUATED</strong> to prevent spurious anomaly detections on inadequate sample sizes.
                     </p>
                   </div>
                 </div>
@@ -745,14 +802,14 @@ export default function ScreeningPipeline({
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', flex: 1 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
                       <span style={{ fontSize: '13px', fontWeight: '700', color: '#f8fafc' }}>
-                        5. CALCULATE ANOMALY SCORES AND PEER COMPARISON
+                        5. RUN ISOLATION FOREST ACROSS SAME-LOT PEERS
                       </span>
                       <span style={{ fontSize: '10px', color: '#a78bfa', fontFamily: 'var(--font-mono)', background: 'rgba(167, 139, 250, 0.1)', padding: '1px 6px', borderRadius: '3px' }}>
-                        PEER EVIDENCE
+                        TREE PARTITIONING
                       </span>
                     </div>
                     <p style={{ fontSize: '12px', color: '#cbd5e1', margin: 0, lineHeight: '1.45' }}>
-                      The model produces continuous anomaly evidence and peer-comparison information reflecting deviation from cohort distributions.
+                      Isolation Forest analyzes the eligible peer cohort to identify unusual trajectory and signature patterns using multidimensional tree partitioning.
                     </p>
                   </div>
                 </div>
@@ -766,23 +823,53 @@ export default function ScreeningPipeline({
                     background: 'rgba(15, 23, 42, 0.65)',
                     border: '1px solid rgba(255, 255, 255, 0.06)',
                     borderRadius: '6px',
-                    borderLeft: '4px solid #10b981',
+                    borderLeft: '4px solid #a78bfa',
                   }}
                 >
-                  <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', fontFamily: 'var(--font-mono)', fontSize: '13px', flexShrink: 0 }}>
+                  <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(167, 139, 250, 0.15)', color: '#a78bfa', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', fontFamily: 'var(--font-mono)', fontSize: '13px', flexShrink: 0 }}>
                     6
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', flex: 1 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
                       <span style={{ fontSize: '13px', fontWeight: '700', color: '#f8fafc' }}>
-                        6. PRODUCE FINAL AI STATUS
+                        6. CALCULATE ANOMALY SCORE &amp; EVIDENCE
                       </span>
-                      <span style={{ fontSize: '10px', color: '#10b981', fontFamily: 'var(--font-mono)', background: 'rgba(16, 185, 129, 0.15)', padding: '1px 6px', borderRadius: '3px' }}>
-                        AI DISPOSITION
+                      <span style={{ fontSize: '10px', color: '#a78bfa', fontFamily: 'var(--font-mono)', background: 'rgba(167, 139, 250, 0.1)', padding: '1px 6px', borderRadius: '3px' }}>
+                        PEER EVIDENCE
                       </span>
                     </div>
                     <p style={{ fontSize: '12px', color: '#cbd5e1', margin: 0, lineHeight: '1.45' }}>
-                      Assigns the final AI status: <strong>FLAGGED</strong> (isolated trajectory anomaly), <strong>NOT FLAGGED</strong> (conforms with peer baseline), or <strong>NOT_EVALUATED</strong> (insufficient cohort size).
+                      Calculates the continuous anomaly score and peer-comparison evidence reflecting isolation path lengths and cohort variance.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Step 7 */}
+                <div
+                  style={{
+                    display: 'flex',
+                    gap: '12px',
+                    padding: '12px 14px',
+                    background: 'rgba(15, 23, 42, 0.65)',
+                    border: '1px solid rgba(255, 255, 255, 0.06)',
+                    borderRadius: '6px',
+                    borderLeft: '4px solid #10b981',
+                  }}
+                >
+                  <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', fontFamily: 'var(--font-mono)', fontSize: '13px', flexShrink: 0 }}>
+                    7
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', flex: 1 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
+                      <span style={{ fontSize: '13px', fontWeight: '700', color: '#f8fafc' }}>
+                        7. PRODUCE FINAL AI STATUS
+                      </span>
+                      <span style={{ fontSize: '10px', color: '#10b981', fontFamily: 'var(--font-mono)', background: 'rgba(16, 185, 129, 0.15)', padding: '1px 6px', borderRadius: '3px' }}>
+                        AI ADVISORY
+                      </span>
+                    </div>
+                    <p style={{ fontSize: '12px', color: '#cbd5e1', margin: 0, lineHeight: '1.45' }}>
+                      Produces the final AI status: <strong>FLAGGED</strong> (isolated trajectory anomaly), <strong>NOT FLAGGED</strong> (conforms with peer baseline), or <strong>NOT_EVALUATED</strong> (insufficient cohort size).
                     </p>
                   </div>
                 </div>
@@ -815,7 +902,7 @@ export default function ScreeningPipeline({
                   <span style={{ color: '#f8fafc', fontWeight: '600' }}>Cohort Size &ge; 3 Units</span>
                 </div>
                 <div>
-                  <span style={{ color: '#64748b', display: 'block', fontSize: '10px' }}>POSSIBLE STATUSES</span>
+                  <span style={{ color: '#64748b', display: 'block', fontSize: '10px' }}>AI DISPOSITIONS</span>
                   <span style={{ color: '#10b981', fontWeight: '600' }}>FLAGGED / NOT FLAGGED / NOT_EVALUATED</span>
                 </div>
               </div>

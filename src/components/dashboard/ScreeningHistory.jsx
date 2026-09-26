@@ -21,6 +21,8 @@ export default function ScreeningHistory({
   history = [],
   isLoading = false,
   onNavigate,
+  selectedLotId,
+  onSelectLot,
 }) {
   const handleViewAll = () => {
     if (typeof onNavigate === 'function') {
@@ -104,26 +106,30 @@ export default function ScreeningHistory({
           history.map((item) => {
             const isSuccess = item.status === 'COMPLETED';
             const hasAnomalies = item.anomalyCount > 0;
+            const isSelected = selectedLotId && selectedLotId === item.lotId;
 
             return (
               <div
                 key={item.lotId}
                 className="spad-history-item"
+                onClick={() => typeof onSelectLot === 'function' && onSelectLot(item.lotId)}
                 style={{
-                  background: 'rgba(15, 23, 42, 0.6)',
-                  border: '1px solid rgba(255, 255, 255, 0.06)',
+                  background: isSelected ? 'rgba(56, 189, 248, 0.12)' : 'rgba(15, 23, 42, 0.6)',
+                  border: isSelected ? '1px solid rgba(56, 189, 248, 0.5)' : '1px solid rgba(255, 255, 255, 0.06)',
                   borderRadius: '6px',
                   padding: '10px 12px',
                   display: 'flex',
                   flexDirection: 'column',
                   gap: '6px',
+                  cursor: typeof onSelectLot === 'function' ? 'pointer' : 'default',
                   transition: 'border-color 0.15s ease, background 0.15s ease',
                 }}
+                title={typeof onSelectLot === 'function' ? `Click to view Lot ${item.lotId}` : undefined}
               >
                 {/* Lot Header Row */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontSize: '12.5px', fontWeight: '700', color: '#f8fafc', fontFamily: 'var(--font-mono)' }}>
+                    <span style={{ fontSize: '12.5px', fontWeight: '700', color: isSelected ? '#38bdf8' : '#f8fafc', fontFamily: 'var(--font-mono)' }}>
                       {item.lotId}
                     </span>
                     <span

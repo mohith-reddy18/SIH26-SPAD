@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { mockScreeningContext } from '../../data/mockData';
 import { getParameterMeta, extractPredictedValue, formatStageLabel } from '../../utils/recordMapping';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://sih26-spad.onrender.com';
+import { API_BASE_URL } from '../../config/api';
 
 // Helper for semantic status colors
 function getStatusColor(status) {
