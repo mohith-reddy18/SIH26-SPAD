@@ -11,34 +11,48 @@ function getStatusColor(status) {
   return '#38bdf8';
 }
 
-// Helper to extract observed checkpoints and optional AI forecast
+// Helper to extract observed checkpoints and optional AI predicted trajectory
 function extractTrajectory(data, predictionVal) {
   if (data === null || data === undefined) {
     return typeof predictionVal === 'number' && !isNaN(predictionVal) ? [predictionVal] : [];
   }
   if (typeof data === 'number' && !isNaN(data)) {
-    return typeof predictionVal === 'number' && !isNaN(predictionVal) ? [data, predictionVal] : [data];
+    return [data];
   }
   if (Array.isArray(data)) {
     const numData = data.filter((v) => typeof v === 'number' && !isNaN(v));
     if (numData.length === 0) {
       return typeof predictionVal === 'number' && !isNaN(predictionVal) ? [predictionVal] : [];
     }
-    if (typeof predictionVal === 'number' && !isNaN(predictionVal)) {
-      // If data already has full trajectory including prediction point
-      if (numData.length > 2 && Math.abs(numData[numData.length - 1] - predictionVal) < 0.0001) {
-        return numData;
-      }
-      return [...numData, predictionVal];
+    // If we already have 4 points (0hr, 24hr, 96hr, 168hr), never append beyond 168hr
+    if (numData.length >= 4) {
+      return numData.slice(0, 4);
     }
-    return numData;
+    if (typeof predictionVal === 'number' && !isNaN(predictionVal)) {
+      if (numData.length === 3) {
+        return [...numData, predictionVal];
+      }
+      if (numData.length < 3) {
+        return [...numData, predictionVal].slice(0, 4);
+      }
+    }
+    return numData.slice(0, 4);
   }
   if (typeof data === 'object') {
-    const vals = Object.values(data).filter((v) => typeof v === 'number' && !isNaN(v));
-    if (typeof predictionVal === 'number' && !isNaN(predictionVal)) {
-      return [...vals, predictionVal];
+    const v0 = data['0h'] ?? data['0hr'] ?? data['0H'] ?? data['0%'];
+    const v24 = data['24h'] ?? data['24hr'] ?? data['24H'] ?? data['33%'] ?? data['33.3%'] ?? data['33.33%'];
+    const v96 = data['96h'] ?? data['96hr'] ?? data['96H'] ?? data['66%'] ?? data['66.7%'] ?? data['66.67%'];
+    const v168 = data['168h'] ?? data['168hr'] ?? data['168H'] ?? data['100%'] ?? (typeof predictionVal === 'number' ? predictionVal : undefined);
+    
+    const stageVals = [v0, v24, v96, v168].filter((v) => typeof v === 'number' && !isNaN(v));
+    if (stageVals.length > 0) {
+      return stageVals.slice(0, 4);
     }
-    return vals;
+    const vals = Object.values(data).filter((v) => typeof v === 'number' && !isNaN(v));
+    if (typeof predictionVal === 'number' && !isNaN(predictionVal) && vals.length < 4) {
+      return [...vals, predictionVal].slice(0, 4);
+    }
+    return vals.slice(0, 4);
   }
   return [];
 }
@@ -310,29 +324,8 @@ export default function ParameterTrends({
   const minVal = Math.max(0, dataMin * 0.82);
   const maxVal = dataMax * 1.15;
 
-  // Derive dynamic checkpoints from actual measurements
-  const rawDataForCheckpoints =
-    activeComponent.measurements?.[activeSpec.key] ||
-    activeComponent.measurements?.[activeSpec.id];
-
-  const checkpoints = useMemo(() => {
-    if (rawDataForCheckpoints && typeof rawDataForCheckpoints === 'object' && !Array.isArray(rawDataForCheckpoints)) {
-      const keys = Object.keys(rawDataForCheckpoints);
-      const mappedKeys = keys.map(formatStageLabel);
-      if (typeof dynamicPrediction === 'number') {
-        return [...mappedKeys, 'Predicted (168hr)'];
-      }
-      return mappedKeys.length > 0 ? mappedKeys : ['0hr', '24hr', '96hr', '168hr'];
-    }
-    if (Array.isArray(rawDataForCheckpoints)) {
-      const len = rawDataForCheckpoints.length + (typeof dynamicPrediction === 'number' && rawDataForCheckpoints.length <= 2 ? 1 : 0);
-      if (len === 4) return ['0hr', '24hr', '96hr', '168hr'];
-      if (len === 3) return ['0hr', '24hr', '168hr [Forecast]'];
-      if (len === 2) return ['0hr', '24hr'];
-      if (len === 1) return ['Baseline (0hr)'];
-    }
-    return ['0hr', '24hr', '96hr', '168hr'];
-  }, [rawDataForCheckpoints, dynamicPrediction]);
+  // Dynamic checkpoints: 0hr [OBSERVED], 24hr [OBSERVED], 96hr [PREDICTED], 168hr [PREDICTED]
+  const checkpoints = useMemo(() => ['0hr', '24hr', '96hr', '168hr'], []);
 
   const getX = (index) => padding.left + (index / (Math.max(1, checkpoints.length - 1))) * chartW;
   const getY = (val) => padding.top + chartH - ((val - minVal) / (maxVal - minVal || 1)) * chartH;
@@ -464,7 +457,7 @@ export default function ParameterTrends({
                 Active Lot: {currentLotId} ({lotComponents.length > 0 ? lotComponents.length : components.length} Components)
               </span>
               <span className="spad-trends-desc">
-                Population Trajectories (0h & 24h Observed → 168h AI Forecast) vs. Healthy Reference
+                Population Trajectories (0h &amp; 24h Observed → 96h &amp; 168h AI Predicted) vs. Healthy Reference
               </span>
             </div>
           </div>
@@ -514,9 +507,8 @@ export default function ParameterTrends({
           {/* Vertical Checkpoint Lines & Stage Markers */}
           {checkpoints.map((cp, i) => {
             const x = getX(i);
-            const isForecast = cp === '168hr' || cp === '168h' || String(cp).includes('168') || String(cp).includes('Forecast');
-            const isPredicted96 = cp === '96hr' || cp === '96h' || String(cp).includes('96');
-            const stageAnnotation = isForecast ? '[FORECAST]' : (isPredicted96 ? '[PREDICTED]' : '[OBSERVED]');
+            const isPredicted = cp === '96hr' || cp === '96h' || String(cp).includes('96') || cp === '168hr' || cp === '168h' || String(cp).includes('168') || String(cp).toLowerCase().includes('predicted');
+            const stageAnnotation = isPredicted ? '[PREDICTED]' : '[OBSERVED]';
 
             return (
               <g key={cp}>
@@ -525,14 +517,14 @@ export default function ParameterTrends({
                   y1={padding.top}
                   x2={x}
                   y2={padding.top + chartH}
-                  stroke={isForecast ? 'rgba(56, 189, 248, 0.18)' : 'rgba(255, 255, 255, 0.06)'}
-                  strokeDasharray={isForecast ? '3 3' : 'none'}
+                  stroke={isPredicted ? 'rgba(56, 189, 248, 0.18)' : 'rgba(255, 255, 255, 0.06)'}
+                  strokeDasharray={isPredicted ? '3 3' : 'none'}
                 />
                 <text
                   x={x}
                   y={padding.top + chartH + 16}
                   textAnchor="middle"
-                  fill={isForecast ? '#38bdf8' : '#f8fafc'}
+                  fill={isPredicted ? '#38bdf8' : '#f8fafc'}
                   fontSize="11"
                   fontWeight="700"
                   fontFamily="var(--font-mono)"
@@ -543,7 +535,7 @@ export default function ParameterTrends({
                   x={x}
                   y={padding.top + chartH + 28}
                   textAnchor="middle"
-                  fill={isForecast ? 'rgba(56, 189, 248, 0.75)' : (isPredicted96 ? 'rgba(56, 189, 248, 0.75)' : '#64748b')}
+                  fill={isPredicted ? 'rgba(56, 189, 248, 0.75)' : '#64748b'}
                   fontSize="8"
                   fontWeight="600"
                   fontFamily="var(--font-mono)"
@@ -637,7 +629,7 @@ export default function ParameterTrends({
                 {series.data.map((val, idx) => {
                   const cx = getX(idx);
                   const cy = getY(val);
-                  const isForecast = checkpoints[idx] === '168hr' || checkpoints[idx] === '168h' || String(checkpoints[idx]).includes('168') || String(checkpoints[idx]).includes('Forecast');
+                  const isPredicted = checkpoints[idx] === '96hr' || checkpoints[idx] === '96h' || String(checkpoints[idx]).includes('96') || checkpoints[idx] === '168hr' || checkpoints[idx] === '168h' || String(checkpoints[idx]).includes('168') || String(checkpoints[idx]).toLowerCase().includes('predicted');
                   const pointKey = `${series.id}-${idx}`;
                   const isPointHovered = hoveredPoint && hoveredPoint.key === pointKey;
 
@@ -647,11 +639,11 @@ export default function ParameterTrends({
                         cx={cx}
                         cy={cy}
                         r={isPointHovered ? 6 : (series.isComponent ? (isHoveredComp ? 4.5 : 3) : 3)}
-                        fill={isForecast && series.isComponent ? '#0b1324' : series.color}
+                        fill={isPredicted && series.isComponent ? '#0b1324' : series.color}
                         fillOpacity={series.opacity !== undefined ? series.opacity : 1}
                         stroke={series.color}
                         strokeOpacity={series.opacity !== undefined ? series.opacity : 1}
-                        strokeWidth={isForecast && series.isComponent ? 2.5 : 1.5}
+                        strokeWidth={isPredicted && series.isComponent ? 2.5 : 1.5}
                         style={{ cursor: 'pointer', transition: 'all 0.15s ease' }}
                         onMouseEnter={(e) => {
                           e.stopPropagation();
@@ -663,7 +655,7 @@ export default function ParameterTrends({
                             componentId: series.componentId,
                             val: typeof val === 'number' ? val.toFixed(2) : val,
                             checkpoint: checkpoints[idx],
-                            isForecast,
+                            isPredicted,
                             unit: activeSpec.unit,
                             paramName: activeSpec.shortName || activeSpec.name,
                             status: series.status,
@@ -696,21 +688,21 @@ export default function ParameterTrends({
                 height="54"
                 rx="4"
                 fill="#0b1324"
-                stroke={hoveredPoint.isForecast ? 'rgba(56, 189, 248, 0.7)' : 'rgba(56, 189, 248, 0.35)'}
+                stroke={hoveredPoint.isPredicted ? 'rgba(56, 189, 248, 0.7)' : 'rgba(56, 189, 248, 0.35)'}
                 strokeWidth="1"
                 filter="drop-shadow(0 4px 12px rgba(0,0,0,0.7))"
               />
               <text x="10" y="15" fill="#38bdf8" fontSize="10.5" fontWeight="700" fontFamily="var(--font-mono)">
                 {hoveredPoint.componentId === 'Healthy Reference'
                   ? 'Baseline Reference'
-                  : `Component: ${hoveredPoint.componentId} ${hoveredPoint.isForecast ? '(168hr Forecast)' : ''}`}
+                  : `Component: ${hoveredPoint.componentId} ${hoveredPoint.isPredicted ? `(${hoveredPoint.checkpoint} Predicted)` : ''}`}
               </text>
               <text x="10" y="29" fill="#f8fafc" fontSize="10" fontWeight="600" fontFamily="var(--font-mono)">
-                {hoveredPoint.checkpoint} {hoveredPoint.isForecast ? '[AI Prediction]' : '[Observed]'} | {hoveredPoint.paramName}: {hoveredPoint.val} {hoveredPoint.unit}
+                {hoveredPoint.checkpoint} {hoveredPoint.isPredicted ? '[AI Prediction]' : '[Observed]'} | {hoveredPoint.paramName}: {hoveredPoint.val} {hoveredPoint.unit}
               </text>
               <text x="10" y="44" fill="#94a3b8" fontSize="9" fontFamily="var(--font-mono)">
-                {hoveredPoint.isForecast ? 'AI 168hr Status: ' : 'Status: '}
-                <tspan fill={hoveredPoint.isForecast ? '#38bdf8' : getStatusColor(hoveredPoint.status)} fontWeight="700">
+                {hoveredPoint.isPredicted ? `AI ${hoveredPoint.checkpoint} Status: ` : 'Status: '}
+                <tspan fill={hoveredPoint.isPredicted ? '#38bdf8' : getStatusColor(hoveredPoint.status)} fontWeight="700">
                   {hoveredPoint.status}
                 </tspan>
               </text>
