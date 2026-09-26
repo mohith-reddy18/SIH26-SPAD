@@ -80,6 +80,7 @@ export default function App() {
 
         <main className="app-main-content">
           <CurrentPageComponent 
+            onNavigate={handleNavigate}
             onNavigateToComponent={handleNavigateToComponent}
             initialComponentId={selectedComponentId}
           />

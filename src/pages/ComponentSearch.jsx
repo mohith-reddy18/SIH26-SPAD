@@ -102,6 +102,9 @@ export default function ComponentSearch({ onNavigateToComponent, initialComponen
     }
   }, [initialComponentId]);
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
+
   // Filter components dynamically from live backend data
   const filteredComponents = useMemo(() => {
     return components.filter((comp) => {
@@ -117,6 +120,22 @@ export default function ComponentSearch({ onNavigateToComponent, initialComponen
       return matchesSearch && matchesFilter;
     });
   }, [components, searchTerm, activeParamFilter]);
+
+  // Reset pagination to page 1 on filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, activeParamFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredComponents.length / ITEMS_PER_PAGE));
+  const safeCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
+
+  const paginatedComponents = useMemo(() => {
+    const startIndex = (safeCurrentPage - 1) * ITEMS_PER_PAGE;
+    return filteredComponents.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [filteredComponents, safeCurrentPage]);
+
+  const startItem = filteredComponents.length === 0 ? 0 : (safeCurrentPage - 1) * ITEMS_PER_PAGE + 1;
+  const endItem = Math.min(safeCurrentPage * ITEMS_PER_PAGE, filteredComponents.length);
 
   const handleRowClick = (item) => {
     fetchComponentDetail(item);
@@ -208,14 +227,14 @@ export default function ComponentSearch({ onNavigateToComponent, initialComponen
                     Loading components from database...
                   </td>
                 </tr>
-              ) : filteredComponents.length === 0 ? (
+              ) : paginatedComponents.length === 0 ? (
                 <tr>
                   <td colSpan={totalCols} className="spad-table-empty">
                     {searchTerm ? `No components matching "${searchTerm}".` : 'No component records found in database.'}
                   </td>
                 </tr>
               ) : (
-                filteredComponents.map((item) => {
+                paginatedComponents.map((item) => {
                   const normalizedStatus = getNormalizedEngineeringStatus(item);
                   let statusBadgeClass = 'badge-status-normal';
                   if (normalizedStatus === 'SUSPECT') statusBadgeClass = 'badge-status-suspect';
@@ -230,6 +249,7 @@ export default function ComponentSearch({ onNavigateToComponent, initialComponen
                       key={item.id || item.componentId} 
                       className="spad-table-row"
                       onClick={() => handleRowClick(item)}
+                      style={{ cursor: 'pointer' }}
                     >
                       <td className="spad-td-mono font-bold text-cyan">{item.id || item.componentId}</td>
                       <td className="spad-td-mono text-muted">{item.lotId}</td>
@@ -259,6 +279,106 @@ export default function ComponentSearch({ onNavigateToComponent, initialComponen
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Pagination Controls */}
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '12px',
+            marginTop: '14px',
+            paddingTop: '12px',
+            borderTop: '1px solid rgba(255, 255, 255, 0.05)',
+          }}
+        >
+          <span style={{ fontSize: '12px', color: '#94a3b8', fontFamily: 'var(--font-mono)' }}>
+            Showing <strong>{startItem}–{endItem}</strong> of <strong>{filteredComponents.length}</strong> components
+            {components.length !== filteredComponents.length && ` (${components.length} total)`}
+          </span>
+
+          {totalPages > 1 && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                fontFamily: 'var(--font-mono)',
+              }}
+              role="navigation"
+              aria-label="Component search pagination"
+            >
+              <button
+                type="button"
+                disabled={safeCurrentPage <= 1}
+                onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                style={{
+                  padding: '4px 10px',
+                  fontSize: '11.5px',
+                  fontWeight: '600',
+                  borderRadius: '4px',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  background: safeCurrentPage <= 1 ? 'rgba(15, 23, 42, 0.5)' : 'rgba(30, 41, 59, 0.8)',
+                  color: safeCurrentPage <= 1 ? '#475569' : '#e2e8f0',
+                  cursor: safeCurrentPage <= 1 ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.15s ease',
+                }}
+                aria-label="Previous Page"
+              >
+                &larr; Prev
+              </button>
+
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => {
+                const isActive = pageNum === safeCurrentPage;
+                return (
+                  <button
+                    key={pageNum}
+                    type="button"
+                    onClick={() => setCurrentPage(pageNum)}
+                    style={{
+                      minWidth: '28px',
+                      height: '28px',
+                      padding: '0 6px',
+                      fontSize: '11.5px',
+                      fontWeight: '700',
+                      borderRadius: '4px',
+                      border: `1px solid ${isActive ? '#38bdf8' : 'rgba(255, 255, 255, 0.08)'}`,
+                      background: isActive ? 'rgba(56, 189, 248, 0.2)' : 'rgba(15, 23, 42, 0.6)',
+                      color: isActive ? '#38bdf8' : '#94a3b8',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                    }}
+                    aria-label={`Page ${pageNum}`}
+                    aria-current={isActive ? 'page' : undefined}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
+
+              <button
+                type="button"
+                disabled={safeCurrentPage >= totalPages}
+                onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                style={{
+                  padding: '4px 10px',
+                  fontSize: '11.5px',
+                  fontWeight: '600',
+                  borderRadius: '4px',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  background: safeCurrentPage >= totalPages ? 'rgba(15, 23, 42, 0.5)' : 'rgba(30, 41, 59, 0.8)',
+                  color: safeCurrentPage >= totalPages ? '#475569' : '#e2e8f0',
+                  cursor: safeCurrentPage >= totalPages ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.15s ease',
+                }}
+                aria-label="Next Page"
+              >
+                Next &rarr;
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

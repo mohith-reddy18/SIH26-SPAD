@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { mockDashboardData } from '../data/mockData';
-import StatCards from '../components/dashboard/StatCards';
 import ScreeningPipeline from '../components/dashboard/ScreeningPipeline';
-import EvidencePathways from '../components/dashboard/EvidencePathways';
+import ScreeningHistory from '../components/dashboard/ScreeningHistory';
 import ParameterTrends from '../components/dashboard/ParameterTrends';
 import ComponentTable from '../components/dashboard/ComponentTable';
 import SystemStatus from '../components/dashboard/SystemStatus';
@@ -16,7 +15,7 @@ import { mapScreeningRecord } from '../utils/recordMapping';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://sih26-spad.onrender.com';
 
-export default function Dashboard({ onNavigateToComponent }) {
+export default function Dashboard({ onNavigateToComponent, onNavigate }) {
   const [selectedModalComponent, setSelectedModalComponent] = useState(null);
   const [componentRecords, setComponentRecords] = useState([]);
   const [dataSource, setDataSource] = useState('loading'); // 'loading' | 'api' | 'empty' | 'offline'
@@ -32,7 +31,7 @@ export default function Dashboard({ onNavigateToComponent }) {
       setFetchError(null);
 
       try {
-        const response = await fetch(`${API_BASE_URL}/api/screening?lotId=NASA-MOSFET-199C`);
+        const response = await fetch(`${API_BASE_URL}/api/screening`);
         if (response.ok) {
           const result = await response.json();
           if (result.success && Array.isArray(result.data)) {
@@ -67,30 +66,62 @@ export default function Dashboard({ onNavigateToComponent }) {
     };
   }, []);
 
-  // Summary statistics calculated dynamically from actual engineeringStatus
-  const summaryStats = useMemo(() => {
-    const totalComponents = componentRecords.length;
-    const normalCount = componentRecords.filter((c) => c.engineeringStatus === 'NORMAL').length;
-    const suspectCount = componentRecords.filter((c) => c.engineeringStatus === 'SUSPECT').length;
-    const criticalCount = componentRecords.filter((c) => c.engineeringStatus === 'CRITICAL').length;
+  // Group database records into lot history runs
+  const screeningHistory = useMemo(() => {
+    if (componentRecords.length === 0) return [];
+    const lotsMap = {};
 
-    // Calculate unique lots processed from database records
-    const uniqueLots = new Set(componentRecords.map((c) => c.lotId).filter(Boolean));
-    const lotsProcessed = uniqueLots.size || (totalComponents > 0 ? 1 : 0);
+    componentRecords.forEach((rec) => {
+      const lotId = rec.lotId || 'NASA-MOSFET-199C';
+      if (!lotsMap[lotId]) {
+        lotsMap[lotId] = {
+          lotId,
+          records: [],
+          createdAt: rec.createdAt || null,
+          updatedAt: rec.updatedAt || rec.createdAt || null,
+        };
+      }
+      lotsMap[lotId].records.push(rec);
+      if (rec.updatedAt && (!lotsMap[lotId].updatedAt || new Date(rec.updatedAt) > new Date(lotsMap[lotId].updatedAt))) {
+        lotsMap[lotId].updatedAt = rec.updatedAt;
+      }
+      if (rec.createdAt && (!lotsMap[lotId].createdAt || new Date(rec.createdAt) < new Date(lotsMap[lotId].createdAt))) {
+        lotsMap[lotId].createdAt = rec.createdAt;
+      }
+    });
 
-    return {
-      totalComponents,
-      normal: normalCount,
-      suspect: suspectCount,
-      critical: criticalCount,
-      passed: normalCount,
-      hold: suspectCount,
-      rejected: criticalCount,
-      lotsProcessed,
-    };
+    return Object.values(lotsMap).map((lot) => {
+      const totalUnits = lot.records.length;
+      const normalCount = lot.records.filter((r) => r.engineeringStatus === 'NORMAL').length;
+      const suspectCount = lot.records.filter((r) => r.engineeringStatus === 'SUSPECT').length;
+      const criticalCount = lot.records.filter((r) => r.engineeringStatus === 'CRITICAL').length;
+      const anomalyCount = suspectCount + criticalCount;
+      const yieldPct = totalUnits > 0 ? `${((normalCount / totalUnits) * 100).toFixed(1)}%` : '100.0%';
+
+      const hasPredictions = lot.records.some(
+        (r) => (r.predictions && Object.keys(r.predictions).length > 0) || r.aiAssessment?.prediction
+      );
+      const hasAnomalyDet = lot.records.some(
+        (r) => r.aiAssessment?.lotAnomaly || r.anomalies || r.engineeringStatus !== undefined
+      );
+
+      return {
+        lotId: lot.lotId,
+        status: totalUnits > 0 ? 'COMPLETED' : 'PENDING',
+        totalUnits,
+        normalCount,
+        anomalyCount,
+        yield: yieldPct,
+        hasPredictions: hasPredictions || totalUnits > 0,
+        hasAnomalyDet: hasAnomalyDet || totalUnits > 0,
+        predictionStatus: (hasPredictions || totalUnits > 0) ? 'Available' : 'Pending',
+        anomalyStatus: anomalyCount > 0 ? `${anomalyCount} Flagged` : '0 Flagged (Nominal)',
+        completedAt: lot.updatedAt || lot.createdAt || null,
+      };
+    });
   }, [componentRecords]);
 
-  // Screening lot context
+  // Primary screening lot context
   const screeningContext = useMemo(() => {
     const totalUnits = componentRecords.length;
     const normalCount = componentRecords.filter((c) => c.engineeringStatus === 'NORMAL').length;
@@ -137,7 +168,6 @@ export default function Dashboard({ onNavigateToComponent }) {
 
   const {
     pipelineStages,
-    evidencePathways,
     systemSubsystems,
   } = mockDashboardData;
 
@@ -185,18 +215,13 @@ export default function Dashboard({ onNavigateToComponent }) {
         </div>
       )}
 
-      {/* 2. Five Summary Metrics Cards */}
-      <section aria-label="Screening Summary Cards">
-        <StatCards summaryStats={summaryStats} />
-      </section>
-
-      {/* 3. Screening Pipeline + Evidence Pathways (Two-Column Section) */}
-      <section className="spad-two-col-grid spad-pipeline-evidence-grid" aria-label="Pipeline and AI Reasoning">
+      {/* 2. Screening Result Summary + Screening History (Two-Column Section) */}
+      <section className="spad-two-col-grid spad-pipeline-history-grid" aria-label="Screening Result and Run History">
         <ScreeningPipeline stages={pipelineStages} context={screeningContext} />
-        <EvidencePathways pathways={evidencePathways} />
+        <ScreeningHistory history={screeningHistory} isLoading={isLoading} onNavigate={onNavigate} />
       </section>
 
-      {/* 4. Parameter Trends (Interactive Burn-in Parameter Trajectory) */}
+      {/* 3. Parameter Trends (Interactive Burn-in Parameter Trajectory) */}
       <section aria-label="Parametric Trends and Degradation">
         <ParameterTrends
           components={componentRecords}
@@ -204,7 +229,7 @@ export default function Dashboard({ onNavigateToComponent }) {
         />
       </section>
 
-      {/* 5. ML Model 1: Random Forest — Future Prediction */}
+      {/* 4. ML Model 1: Random Forest — Future Prediction */}
       <section aria-label="Random Forest — Future Prediction">
         <RandomForestPrediction
           records={componentRecords}
@@ -212,7 +237,7 @@ export default function Dashboard({ onNavigateToComponent }) {
         />
       </section>
 
-      {/* 6. ML Model 2: Isolation Forest — Anomaly Detection */}
+      {/* 5. ML Model 2: Isolation Forest — Anomaly Detection */}
       <section aria-label="Isolation Forest — Anomaly Detection">
         <LotAnomalyDetection
           records={componentRecords}
@@ -225,13 +250,13 @@ export default function Dashboard({ onNavigateToComponent }) {
         <ComponentTable records={componentRecords} onSelectComponent={handleSelectComponent} />
       </section>
 
-      {/* 6. System Status + Recent Alerts (Two-Column Section) */}
+      {/* 7. System Status + Recent Alerts (Two-Column Section) */}
       <section className="spad-two-col-grid" aria-label="System Health and Event Stream">
         <SystemStatus subsystems={systemSubsystems} />
         <RecentAlerts alerts={recentAlerts} onAlertClick={handleAlertClick} />
       </section>
 
-      {/* 7. Detailed Component Analysis & SHAP Explainability Dialog */}
+      {/* 8. Detailed Component Analysis & SHAP Explainability Dialog */}
       <ComponentDetailModal
         component={selectedModalComponent}
         isOpen={Boolean(selectedModalComponent)}
