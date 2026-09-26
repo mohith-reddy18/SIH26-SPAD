@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { mockScreeningContext } from '../../data/mockData';
-import { getParameterMeta, extractPredictedValue, formatStageLabel } from '../../utils/recordMapping';
+import { getParameterMeta, extractPredictedValue } from '../../utils/recordMapping';
 import { API_BASE_URL } from '../../config/api';
 
 // Helper for semantic status colors
@@ -61,14 +61,12 @@ export default function ParameterTrends({
   components = [],
   context = mockScreeningContext,
 }) {
-  // 1. Interactive State Management
-  const [viewMode, setViewMode] = useState('component'); // 'component' | 'lot'
+  // 1. Interactive State Management (Component-specific only)
   const [selectedComponentId, setSelectedComponentId] = useState(
     () => components?.[0]?.id || components?.[0]?.componentId || ''
   );
   const [selectedParamKey, setSelectedParamKey] = useState('');
   const [hoveredPoint, setHoveredPoint] = useState(null);
-  const [hoveredCompId, setHoveredCompId] = useState(null);
 
   // Keep selectedComponentId in sync when components load
   useEffect(() => {
@@ -123,7 +121,7 @@ export default function ParameterTrends({
 
   // Active Component resolution: Live API record primary, prop fallback secondary
   const activeComponent = useMemo(() => {
-    const fallback = components.find((c) => c.id === selectedComponentId) || components[0] || {};
+    const fallback = components.find((c) => (c.id || c.componentId) === selectedComponentId) || components[0] || {};
     if (liveComponentData) {
       return {
         ...fallback,
@@ -202,26 +200,26 @@ export default function ParameterTrends({
     return val !== null ? val : undefined;
   }, [activeComponent, activeSpec]);
 
-  // 6. Selected Component Status
+  // 6. Selected Component Status & Trajectory Data Points
   const selectedStatus = activeComponent.status || 'NORMAL';
   const currentLotId = context?.lotId || activeComponent.lotId || 'NASA-MOSFET-199C';
-  const lotComponents = components.filter((c) => c.lotId === currentLotId);
 
-  // 7. Trajectory Series Construction
+  const rawCompData =
+    activeComponent.measurements?.[activeSpec.key] ||
+    activeComponent.measurements?.[activeSpec.id] ||
+    [];
+
+  const compData = useMemo(() => {
+    return extractTrajectory(rawCompData, dynamicPrediction);
+  }, [rawCompData, dynamicPrediction]);
+
+  // 7. Trajectory Series Construction (Component + Healthy Reference Baseline)
   const healthyTrajectory = activeSpec.healthyRef && activeSpec.healthyRef.length > 0
     ? extractTrajectory(activeSpec.healthyRef)
     : [];
 
-  let activeSeries = [];
-  if (viewMode === 'component') {
-    const rawCompData =
-      activeComponent.measurements?.[activeSpec.key] ||
-      activeComponent.measurements?.[activeSpec.id] ||
-      [];
-
-    const compData = extractTrajectory(rawCompData, dynamicPrediction);
-
-    activeSeries = [
+  const activeSeries = useMemo(() => {
+    return [
       ...(activeComponent.id && compData.length > 0
         ? [
             {
@@ -255,53 +253,7 @@ export default function ParameterTrends({
           ]
         : []),
     ];
-  } else {
-    // Lot Overview Mode: Plot all components belonging to the active lot
-    const targetLotComponents = lotComponents.length > 0 ? lotComponents : components;
-
-    activeSeries = targetLotComponents.map((comp) => {
-      const isSelected = comp.id === activeComponent.id;
-      const measurementsObj = isSelected ? activeComponent.measurements : comp.measurements;
-      const predictionsObj = isSelected ? activeComponent.predictions : comp.predictions;
-      const rawCompData =
-        measurementsObj?.[activeSpec.key] ||
-        measurementsObj?.[activeSpec.id] ||
-        [];
-
-      const pred = predictionsObj?.[`${activeSpec.key}_168h`] ?? predictionsObj?.[`${activeSpec.id}_168h`];
-      const compData = extractTrajectory(rawCompData, pred);
-      const cStatus = isSelected ? selectedStatus : (comp.status || 'NORMAL');
-      const isHovered = hoveredCompId === comp.id;
-
-      return {
-        id: comp.id,
-        label: `${comp.id} — ${cStatus}`,
-        componentId: comp.id,
-        data: compData,
-        color: getStatusColor(cStatus),
-        strokeWidth: isHovered ? 3.0 : isSelected ? 2.6 : 1.6,
-        opacity: hoveredCompId ? (isHovered ? 1.0 : 0.22) : isSelected ? 1.0 : 0.65,
-        dashed: false,
-        status: cStatus,
-        isComponent: true,
-      };
-    });
-
-    if (healthyTrajectory.length > 0) {
-      activeSeries.push({
-        id: 'healthy-ref',
-        label: 'Healthy Reference',
-        componentId: 'Healthy Reference',
-        data: healthyTrajectory,
-        color: '#64748b',
-        strokeWidth: 1.8,
-        opacity: hoveredCompId ? 0.35 : 1.0,
-        dashed: true,
-        status: 'NOMINAL',
-        isComponent: false,
-      });
-    }
-  }
+  }, [activeComponent.id, selectedStatus, compData, healthyTrajectory]);
 
   // 8. SVG Chart Dimensions & Scaling
   const width = 860;
@@ -341,138 +293,134 @@ export default function ParameterTrends({
 
   return (
     <div className="spad-card spad-trends-card">
-      {/* 1. Header with View Mode Switcher */}
+      {/* 1. Header */}
       <div className="spad-card-header spad-trends-header">
         <div className="spad-card-title-group">
           <span className="spad-card-section-label">RANDOM FOREST — FUTURE PREDICTION</span>
           <h2 className="spad-card-title">Random Forest — Future Prediction</h2>
         </div>
-
-        {/* View Mode Toggle: [ Component View ] [ Lot Overview ] */}
-        <div className="spad-mode-tabs" role="group" aria-label="Viewing Mode">
-          <button
-            type="button"
-            className={`spad-mode-btn ${viewMode === 'component' ? 'active' : ''}`}
-            onClick={() => {
-              setViewMode('component');
-              setHoveredCompId(null);
-            }}
-          >
-            Component View
-          </button>
-          <button
-            type="button"
-            className={`spad-mode-btn ${viewMode === 'lot' ? 'active' : ''}`}
-            onClick={() => {
-              setViewMode('lot');
-              setHoveredCompId(null);
-            }}
-          >
-            Lot Overview
-          </button>
-        </div>
       </div>
 
       {/* 2. Dynamic Control and Summary Meta Bar */}
       <div className="spad-trends-meta-bar">
-        {viewMode === 'component' ? (
-          <div className="spad-trends-component-controls">
-            <div className="spad-comp-selector-group">
-              <label htmlFor="component-select" className="spad-comp-select-label">
-                Component:
-              </label>
-              <select
-                id="component-select"
-                className="spad-comp-select-input"
-                value={activeComponent.id || ''}
-                onChange={(e) => setSelectedComponentId(e.target.value)}
-              >
-                {components.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.id} ({c.status || 'NORMAL'})
+        <div className="spad-trends-component-controls">
+          <div className="spad-comp-selector-group">
+            <label htmlFor="component-select" className="spad-comp-select-label">
+              Component:
+            </label>
+            <select
+              id="component-select"
+              className="spad-comp-select-input"
+              value={activeComponent.id || ''}
+              onChange={(e) => setSelectedComponentId(e.target.value)}
+            >
+              {components.map((c) => {
+                const cId = c.id || c.componentId;
+                return (
+                  <option key={cId} value={cId}>
+                    {cId} ({c.status || 'NORMAL'})
                   </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="spad-comp-selector-group">
-              <label htmlFor="param-select" className="spad-comp-select-label">
-                Parameter:
-              </label>
-              <select
-                id="param-select"
-                className="spad-comp-select-input"
-                value={activeSpec.key || activeSpec.id}
-                onChange={(e) => setSelectedParamKey(e.target.value)}
-              >
-                {availableParams.map((param) => {
-                  const pKey = param.key || param.id;
-                  return (
-                    <option key={pKey} value={pKey}>
-                      {param.name}
-                    </option>
-                  );
-                })}
-              </select>
-            </div>
-
-            {/* Compact Component Summary derived from activeComponent data */}
-            <div className="spad-comp-compact-summary">
-              <span className="spad-summary-pill-id">{activeComponent.id}</span>
-              <span className="spad-summary-pill-lot">Lot: {activeComponent.lotId}</span>
-              <span
-                className={`spad-summary-pill-status status-${selectedStatus.toLowerCase()}`}
-              >
-                Status: {selectedStatus}
-              </span>
-              <span className="spad-summary-pill-risk">
-                AI Status: {activeComponent.aiStatus || (typeof activeComponent.aiAssessment === 'string' ? activeComponent.aiAssessment : activeComponent.aiAssessment?.overallStatus) || 'NOT_EVALUATED'}
-              </span>
-            </div>
+                );
+              })}
+            </select>
           </div>
-        ) : (
-          <div className="spad-trends-component-controls">
-            <div className="spad-comp-selector-group">
-              <label htmlFor="param-select-lot" className="spad-comp-select-label">
-                Parameter:
-              </label>
-              <select
-                id="param-select-lot"
-                className="spad-comp-select-input"
-                value={activeSpec.key || activeSpec.id}
-                onChange={(e) => setSelectedParamKey(e.target.value)}
-              >
-                {availableParams.map((param) => {
-                  const pKey = param.key || param.id;
-                  return (
-                    <option key={pKey} value={pKey}>
-                      {param.name}
-                    </option>
-                  );
-                })}
-              </select>
-            </div>
-            <div className="spad-trends-lot-summary">
-              <span className="spad-summary-pill-lot">
-                Active Lot: {currentLotId} ({lotComponents.length > 0 ? lotComponents.length : components.length} Components)
-              </span>
-              <span className="spad-trends-desc">
-                Population Trajectories (0h &amp; 24h Observed → 96h &amp; 168h AI Predicted) vs. Healthy Reference
-              </span>
-            </div>
+
+          <div className="spad-comp-selector-group">
+            <label htmlFor="param-select" className="spad-comp-select-label">
+              Parameter:
+            </label>
+            <select
+              id="param-select"
+              className="spad-comp-select-input"
+              value={activeSpec.key || activeSpec.id}
+              onChange={(e) => setSelectedParamKey(e.target.value)}
+            >
+              {availableParams.map((param) => {
+                const pKey = param.key || param.id;
+                return (
+                  <option key={pKey} value={pKey}>
+                    {param.name}
+                  </option>
+                );
+              })}
+            </select>
           </div>
+
+          {/* Compact Component Summary derived from activeComponent data */}
+          <div className="spad-comp-compact-summary">
+            <span className="spad-summary-pill-id">{activeComponent.id || '—'}</span>
+            <span className="spad-summary-pill-lot">Lot: {activeComponent.lotId || currentLotId}</span>
+            <span
+              className={`spad-summary-pill-status status-${selectedStatus.toLowerCase()}`}
+            >
+              Status: {selectedStatus}
+            </span>
+            <span className="spad-summary-pill-risk">
+              AI Status: {activeComponent.aiStatus || (typeof activeComponent.aiAssessment === 'string' ? activeComponent.aiAssessment : activeComponent.aiAssessment?.overallStatus) || 'NOT_EVALUATED'}
+            </span>
+          </div>
+        </div>
+
+        {typeof dynamicLimit === 'number' && (
+          <span className="spad-spec-badge">
+            MAX SPEC LIMIT:{' '}
+            <strong>
+              {dynamicLimit.toFixed(2)} {activeSpec.unit}
+            </strong>
+          </span>
         )}
-
-        <span className="spad-spec-badge">
-          MAX SPEC LIMIT:{' '}
-          <strong>
-            {typeof dynamicLimit === 'number' ? dynamicLimit.toFixed(2) : '—'}{' '}
-            {activeSpec.unit}
-          </strong>
-        </span>
       </div>
 
-      {/* 3. Interactive SVG Chart Container */}
+      {/* 3. Checkpoint Metric Cards Strip */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+          gap: '8px',
+          padding: '8px 12px',
+          margin: '0 0 10px 0',
+          background: 'rgba(15, 23, 42, 0.55)',
+          border: '1px solid rgba(255, 255, 255, 0.05)',
+          borderRadius: '4px',
+          fontFamily: 'var(--font-mono)',
+          fontSize: '11px',
+        }}
+      >
+        <div>
+          <span style={{ color: '#64748b', fontSize: '10px', display: 'block' }}>0hr [OBSERVED]</span>
+          <span style={{ color: '#f8fafc', fontWeight: '700' }}>
+            {compData[0] !== undefined ? `${Number(compData[0]).toFixed(3)} ${activeSpec.unit}` : '—'}
+          </span>
+        </div>
+        <div>
+          <span style={{ color: '#64748b', fontSize: '10px', display: 'block' }}>24hr [OBSERVED]</span>
+          <span style={{ color: '#f8fafc', fontWeight: '700' }}>
+            {compData[1] !== undefined ? `${Number(compData[1]).toFixed(3)} ${activeSpec.unit}` : '—'}
+          </span>
+        </div>
+        <div>
+          <span style={{ color: '#38bdf8', fontSize: '10px', display: 'block' }}>96hr [PREDICTED]</span>
+          <span style={{ color: '#38bdf8', fontWeight: '700' }}>
+            {compData[2] !== undefined ? `${Number(compData[2]).toFixed(3)} ${activeSpec.unit}` : '—'}
+          </span>
+        </div>
+        <div>
+          <span style={{ color: '#38bdf8', fontSize: '10px', display: 'block' }}>168hr [PREDICTED]</span>
+          <span style={{ color: '#38bdf8', fontWeight: '700' }}>
+            {compData[3] !== undefined ? `${Number(compData[3]).toFixed(3)} ${activeSpec.unit}` : '—'}
+          </span>
+        </div>
+        {typeof dynamicLimit === 'number' && (
+          <div>
+            <span style={{ color: '#ef4444', fontSize: '10px', display: 'block' }}>SPEC LIMIT</span>
+            <span style={{ color: '#f87171', fontWeight: '700' }}>
+              {dynamicLimit.toFixed(2)} {activeSpec.unit}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* 4. Interactive SVG Chart Container */}
       <div className="spad-chart-wrapper">
         <svg
           className="spad-trend-svg"
@@ -599,27 +547,13 @@ export default function ParameterTrends({
           {/* Trajectory Series Polylines */}
           {activeSeries.map((series) => {
             const points = series.data.map((val, idx) => `${getX(idx)},${getY(val)}`).join(' ');
-            const isHoveredComp = hoveredCompId === series.componentId;
 
             return (
-              <g
-                key={series.id}
-                style={{ cursor: series.isComponent ? 'pointer' : 'default' }}
-                onMouseEnter={() => {
-                  if (series.isComponent && viewMode === 'lot') {
-                    setHoveredCompId(series.componentId);
-                  }
-                }}
-                onMouseLeave={() => {
-                  if (viewMode === 'lot') {
-                    setHoveredCompId(null);
-                  }
-                }}
-              >
+              <g key={series.id}>
                 <polyline
                   fill="none"
                   stroke={series.color}
-                  strokeWidth={series.strokeWidth || 2}
+                  strokeWidth={series.strokeWidth || 2.8}
                   strokeOpacity={series.opacity !== undefined ? series.opacity : 1}
                   strokeDasharray={series.dashed ? '4 3' : 'none'}
                   points={points}
@@ -638,7 +572,7 @@ export default function ParameterTrends({
                       <circle
                         cx={cx}
                         cy={cy}
-                        r={isPointHovered ? 6 : (series.isComponent ? (isHoveredComp ? 4.5 : 3) : 3)}
+                        r={isPointHovered ? 6 : 4}
                         fill={isPredicted && series.isComponent ? '#0b1324' : series.color}
                         fillOpacity={series.opacity !== undefined ? series.opacity : 1}
                         stroke={series.color}
@@ -647,13 +581,10 @@ export default function ParameterTrends({
                         style={{ cursor: 'pointer', transition: 'all 0.15s ease' }}
                         onMouseEnter={(e) => {
                           e.stopPropagation();
-                          if (series.isComponent && viewMode === 'lot') {
-                            setHoveredCompId(series.componentId);
-                          }
                           setHoveredPoint({
                             key: pointKey,
                             componentId: series.componentId,
-                            val: typeof val === 'number' ? val.toFixed(2) : val,
+                            val: typeof val === 'number' ? val.toFixed(3) : val,
                             checkpoint: checkpoints[idx],
                             isPredicted,
                             unit: activeSpec.unit,
@@ -711,117 +642,46 @@ export default function ParameterTrends({
         </svg>
       </div>
 
-      {/* 4. Chart Legend */}
+      {/* 5. Chart Legend */}
       <div className="spad-chart-legend" aria-label="Chart Series Legend">
-        {viewMode === 'lot' ? (
-          <>
-            <div className="spad-legend-item">
-              <span
-                className="spad-legend-dot"
-                style={{
-                  width: '14px',
-                  height: '3px',
-                  backgroundColor: '#10b981',
-                  borderRadius: '1px',
-                }}
-              />
-              <span className="spad-legend-label">NORMAL Population</span>
-            </div>
-            <div className="spad-legend-item">
-              <span
-                className="spad-legend-dot"
-                style={{
-                  width: '14px',
-                  height: '3px',
-                  backgroundColor: '#f59e0b',
-                  borderRadius: '1px',
-                }}
-              />
-              <span className="spad-legend-label">SUSPECT Population</span>
-            </div>
-            <div className="spad-legend-item">
-              <span
-                className="spad-legend-dot"
-                style={{
-                  width: '14px',
-                  height: '3px',
-                  backgroundColor: '#ef4444',
-                  borderRadius: '1px',
-                }}
-              />
-              <span className="spad-legend-label">CRITICAL Population</span>
-            </div>
-            <div className="spad-legend-item">
-              <span
-                className="spad-legend-dot"
-                style={{
-                  width: '14px',
-                  height: '0px',
-                  borderTop: '2px dashed #64748b',
-                  backgroundColor: 'transparent',
-                }}
-              />
-              <span className="spad-legend-label">Healthy Reference</span>
-            </div>
-            {typeof dynamicLimit === 'number' && (
-              <div className="spad-legend-item">
-                <span
-                  className="spad-legend-dot"
-                  style={{
-                    width: '14px',
-                    height: '0px',
-                    borderTop: '2px dashed #ef4444',
-                    backgroundColor: 'transparent',
-                  }}
-                />
-                <span className="spad-legend-label">
-                  Engineering Limit ({dynamicLimit.toFixed(2)} {activeSpec.unit})
-                </span>
-              </div>
-            )}
-          </>
-        ) : (
-          <>
-            {activeSeries.map((series) => (
-              <div key={series.id} className="spad-legend-item">
-                <span
-                  className="spad-legend-dot"
-                  style={
-                    series.dashed
-                      ? {
-                          width: '14px',
-                          height: '0px',
-                          borderTop: `2px dashed ${series.color}`,
-                          backgroundColor: 'transparent',
-                        }
-                      : {
-                          width: '14px',
-                          height: '3px',
-                          backgroundColor: series.color,
-                          borderRadius: '1px',
-                        }
-                  }
-                />
-                <span className="spad-legend-label">{series.label}</span>
-              </div>
-            ))}
-            {typeof dynamicLimit === 'number' && (
-              <div className="spad-legend-item">
-                <span
-                  className="spad-legend-dot"
-                  style={{
-                    width: '14px',
-                    height: '0px',
-                    borderTop: '2px dashed #ef4444',
-                    backgroundColor: 'transparent',
-                  }}
-                />
-                <span className="spad-legend-label">
-                  Engineering Limit ({dynamicLimit.toFixed(2)} {activeSpec.unit})
-                </span>
-              </div>
-            )}
-          </>
+        {activeSeries.map((series) => (
+          <div key={series.id} className="spad-legend-item">
+            <span
+              className="spad-legend-dot"
+              style={
+                series.dashed
+                  ? {
+                      width: '14px',
+                      height: '0px',
+                      borderTop: `2px dashed ${series.color}`,
+                      backgroundColor: 'transparent',
+                    }
+                  : {
+                      width: '14px',
+                      height: '3px',
+                      backgroundColor: series.color,
+                      borderRadius: '1px',
+                    }
+              }
+            />
+            <span className="spad-legend-label">{series.label}</span>
+          </div>
+        ))}
+        {typeof dynamicLimit === 'number' && (
+          <div className="spad-legend-item">
+            <span
+              className="spad-legend-dot"
+              style={{
+                width: '14px',
+                height: '0px',
+                borderTop: '2px dashed #ef4444',
+                backgroundColor: 'transparent',
+              }}
+            />
+            <span className="spad-legend-label">
+              Engineering Limit ({dynamicLimit.toFixed(2)} {activeSpec.unit})
+            </span>
+          </div>
         )}
       </div>
     </div>
