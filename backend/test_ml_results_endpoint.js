@@ -195,7 +195,104 @@ async function runTests() {
     assert.strictEqual(res7.data.recordsCount, 2);
     assert.strictEqual(res7.data.records[0].componentId, 'TEST-01');
     assert.strictEqual(res7.data.records[1].componentId, 'TEST-02');
-    console.log('[PASS] Multi-component batch normalized successfully');
+    // 8. SPAD V4 Notebook Production Payload Verification
+    console.log('\n--- TEST 8: Full SPAD V4 Notebook Production Payload ---');
+    const notebookPayload = {
+      lotId: 'NASA-MOSFET-199C',
+      results: [
+        {
+          Test_ID: 'TEST-10',
+          componentId: 'TEST-10',
+          RDS0: 1.688,
+          RDS33: 1.792,
+          Delta_RDS_0_33: 0.104,
+          Module_A_IF_Score: -0.0125, // Preserved raw negative score
+          Module_A_Novelty_Percentile: 92.4,
+          Module_A_Anomaly: 'FLAGGED',
+          Module_A_Flag: 'FLAGGED',
+          Module_A_IF_Scores: {
+            '0': 0.035,
+            '33': -0.0125,
+            '66': -0.045,
+            '100': -0.089,
+          },
+          Module_A_Novelty_Percentiles: {
+            '0': 78.0,
+            '33': 92.4,
+            '66': 96.5,
+            '100': 99.1,
+          },
+          Predicted_RDS100: 2.145,
+          Forecast_Residual: -0.012,
+          Absolute_Forecast_Error: 0.012,
+          Relative_Error_Percent: 0.559,
+          Engineering_Limit_Ohm: 8.0,
+          Provisional_Min_Current_A: 0.15,
+          Max_RDS_Instantaneous_Ohm: 2.21,
+          Limit_Exceedance_Count: 0,
+          Limit_Exceedance_Runs: 0,
+          Limit_Exceedance_Margin_Ohm: 5.79,
+          Limit_Exceedance_Flag: 'NOT FLAGGED',
+          Engineering_Status: 'NOT FLAGGED',
+          Overall_Status: 'NOT FLAGGED',
+        },
+        {
+          Test_ID: 'TEST-13',
+          componentId: 'TEST-13',
+          RDS0: 1.625,
+          RDS33: 1.710,
+          Delta_RDS_0_33: 0.085,
+          Module_A_IF_Score: 0.048,
+          Module_A_Novelty_Percentile: 65.2,
+          Module_A_Anomaly: 'NOT FLAGGED', // Early stage 33% is NOT FLAGGED
+          Module_A_Flag: 'NOT FLAGGED',
+          Module_A_IF_Scores: {
+            '0': 0.052,
+            '33': 0.048,
+            '66': -0.021,
+            '100': -0.065,
+          },
+          Module_A_Novelty_Percentiles: {
+            '0': 50.0,
+            '33': 65.2,
+            '66': 94.0,
+            '100': 98.2,
+          },
+          Predicted_RDS100: 2.050,
+          Forecast_Residual: 0.005,
+          Absolute_Forecast_Error: 0.005,
+          Relative_Error_Percent: 0.243,
+          Engineering_Limit_Ohm: 8.0,
+          Provisional_Min_Current_A: 0.15,
+          Max_RDS_Instantaneous_Ohm: 2.10,
+          Limit_Exceedance_Count: 0,
+          Limit_Exceedance_Runs: 0,
+          Limit_Exceedance_Margin_Ohm: 5.90,
+          Limit_Exceedance_Flag: 'NOT FLAGGED',
+          Engineering_Status: 'NOT FLAGGED',
+          Overall_Status: 'NOT FLAGGED',
+        },
+      ],
+    };
+
+    const res8 = await postJson(notebookPayload);
+    assert.strictEqual(res8.status, 200);
+    assert.strictEqual(res8.data.success, true);
+    assert.strictEqual(res8.data.recordsCount, 2);
+
+    const test10 = res8.data.records[0].normalizedRecord;
+    assert.strictEqual(test10.componentId, 'TEST-10');
+    assert.strictEqual(test10.aiAssessment.lotAnomaly.parameters.rdson.lotAnomalyScore, -0.0125);
+    assert.strictEqual(test10.aiAssessment.lotAnomaly.parameters.rdson.aiFlag, 'FLAGGED');
+    assert.strictEqual(test10.aiAssessment.overallStatus, 'FLAGGED');
+    assert.strictEqual(test10.engineeringStatus, 'NOT_EVALUATED', 'Engineering status stays NOT_EVALUATED without authoritative DB limits');
+
+    const test13 = res8.data.records[1].normalizedRecord;
+    assert.strictEqual(test13.componentId, 'TEST-13');
+    assert.strictEqual(test13.aiAssessment.lotAnomaly.parameters.rdson.lotAnomalyScore, 0.048);
+    assert.strictEqual(test13.aiAssessment.lotAnomaly.parameters.rdson.aiFlag, 'NOT FLAGGED');
+    assert.strictEqual(test13.aiAssessment.overallStatus, 'NOT FLAGGED');
+    console.log('[PASS] Full SPAD V4 Notebook production payload normalized perfectly (TEST-10 FLAGGED, TEST-13 NOT FLAGGED)');
 
     console.log('\n====================================================================');
     console.log('=== ALL POST /api/ai/results TESTS PASSED SUCCESSFULLY! ===');

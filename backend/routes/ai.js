@@ -568,7 +568,8 @@ router.post('/results', async (req, res) => {
                 modelEvidence: {
                   forecastResidual: (item.Forecast_Residual !== undefined && item.Forecast_Residual !== null) ? item.Forecast_Residual : null,
                   absoluteForecastError: (item.Absolute_Forecast_Error !== undefined && item.Absolute_Forecast_Error !== null) ? item.Absolute_Forecast_Error : null,
-                  forecastErrorRatio: (item.Forecast_Error_Ratio !== undefined && item.Forecast_Error_Ratio !== null) ? item.Forecast_Error_Ratio : null,
+                  forecastErrorRatio: (item.Forecast_Error_Ratio !== undefined && item.Forecast_Error_Ratio !== null) ? item.Forecast_Error_Ratio : ((item.Relative_Error_Percent !== undefined && item.Relative_Error_Percent !== null) ? item.Relative_Error_Percent / 100 : null),
+                  relativeErrorPercent: (item.Relative_Error_Percent !== undefined && item.Relative_Error_Percent !== null) ? item.Relative_Error_Percent : null,
                   pythonDelta: (item.Delta_RDS_0_33 !== undefined && item.Delta_RDS_0_33 !== null) ? item.Delta_RDS_0_33 : null,
                 },
               },
@@ -589,6 +590,8 @@ router.post('/results', async (req, res) => {
                 peerComparisonEvidence: {
                   rawScore: item.Module_A_IF_Score,
                   noveltyPercentile: (item.Module_A_Novelty_Percentile !== undefined && item.Module_A_Novelty_Percentile !== null) ? item.Module_A_Novelty_Percentile : null,
+                  ...(item.Module_A_IF_Scores && typeof item.Module_A_IF_Scores === 'object' ? { stageScores: item.Module_A_IF_Scores } : {}),
+                  ...(item.Module_A_Novelty_Percentiles && typeof item.Module_A_Novelty_Percentiles === 'object' ? { stagePercentiles: item.Module_A_Novelty_Percentiles } : {}),
                 },
               },
             },
