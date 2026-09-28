@@ -276,8 +276,17 @@ export default function ParameterTrends({
   const minVal = Math.max(0, dataMin * 0.82);
   const maxVal = dataMax * 1.15;
 
-  // Dynamic checkpoints: 0hr [OBSERVED], 24hr [OBSERVED], 96hr [PREDICTED], 168hr [PREDICTED]
-  const checkpoints = useMemo(() => ['0hr', '24hr', '96hr', '168hr'], []);
+  // Dynamic checkpoints: 0% [OBSERVED], 33.3% [OBSERVED], 66.7% [PREDICTED], 100% [PREDICTED]
+  // Authoritative NASA V1 mapping: 0% -> 0hr, 33.3% -> 24hr, 66.7% -> 96hr, 100% -> 168hr
+  const checkpoints = useMemo(
+    () => [
+      { key: '0hr', label: '0%', isPredicted: false, annotation: '[OBSERVED]' },
+      { key: '24hr', label: '33.3%', isPredicted: false, annotation: '[OBSERVED]' },
+      { key: '96hr', label: '66.7%', isPredicted: true, annotation: '[PREDICTED]' },
+      { key: '168hr', label: '100%', isPredicted: true, annotation: '[PREDICTED]' },
+    ],
+    []
+  );
 
   const getX = (index) => padding.left + (index / (Math.max(1, checkpoints.length - 1))) * chartW;
   const getY = (val) => padding.top + chartH - ((val - minVal) / (maxVal - minVal || 1)) * chartH;
@@ -396,11 +405,11 @@ export default function ParameterTrends({
           {/* Vertical Checkpoint Lines & Stage Markers */}
           {checkpoints.map((cp, i) => {
             const x = getX(i);
-            const isPredicted = cp === '96hr' || cp === '96h' || String(cp).includes('96') || cp === '168hr' || cp === '168h' || String(cp).includes('168') || String(cp).toLowerCase().includes('predicted');
-            const stageAnnotation = isPredicted ? '[PREDICTED]' : '[OBSERVED]';
+            const isPredicted = cp.isPredicted;
+            const stageAnnotation = cp.annotation;
 
             return (
-              <g key={cp}>
+              <g key={cp.key || cp.label || i}>
                 <line
                   x1={x}
                   y1={padding.top}
@@ -418,7 +427,7 @@ export default function ParameterTrends({
                   fontWeight="700"
                   fontFamily="var(--font-mono)"
                 >
-                  {cp}
+                  {cp.label}
                 </text>
                 <text
                   x={x}
@@ -504,7 +513,9 @@ export default function ParameterTrends({
                 {series.data.map((val, idx) => {
                   const cx = getX(idx);
                   const cy = getY(val);
-                  const isPredicted = checkpoints[idx] === '96hr' || checkpoints[idx] === '96h' || String(checkpoints[idx]).includes('96') || checkpoints[idx] === '168hr' || checkpoints[idx] === '168h' || String(checkpoints[idx]).includes('168') || String(checkpoints[idx]).toLowerCase().includes('predicted');
+                  const cpObj = checkpoints[idx] || {};
+                  const isPredicted = Boolean(cpObj.isPredicted);
+                  const cpLabel = cpObj.label || (isPredicted ? '100%' : '0%');
                   const pointKey = `${series.id}-${idx}`;
                   const isPointHovered = hoveredPoint && hoveredPoint.key === pointKey;
 
@@ -526,7 +537,7 @@ export default function ParameterTrends({
                             key: pointKey,
                             componentId: series.componentId,
                             val: typeof val === 'number' ? val.toFixed(3) : val,
-                            checkpoint: checkpoints[idx],
+                            checkpoint: cpLabel,
                             isPredicted,
                             unit: activeSpec.unit,
                             paramName: activeSpec.shortName || activeSpec.name,

@@ -528,27 +528,27 @@ export default function ComponentDetailModal({
             {/* Timeline Progress Bar / Nodes */}
             <div style={{ display: 'grid', gridTemplateColumns: pred96h !== null ? 'repeat(4, 1fr)' : 'repeat(3, 1fr)', gap: '8px', marginBottom: '14px' }}>
               <div style={{ background: 'rgba(15, 23, 42, 0.6)', border: '1px solid rgba(56, 189, 248, 0.12)', borderRadius: '6px', padding: '8px 10px', textAlign: 'center' }}>
-                <div style={{ fontSize: '9.5px', color: '#94a3b8', fontWeight: '600', textTransform: 'uppercase' }}>0hr [OBSERVED]</div>
+                <div style={{ fontSize: '9.5px', color: '#94a3b8', fontWeight: '600', textTransform: 'uppercase' }}>0% [OBSERVED]</div>
                 <div style={{ fontSize: '13px', fontWeight: '700', color: '#38bdf8', fontFamily: 'var(--font-mono)', marginTop: '2px' }}>
                   {obs0h !== null ? `${obs0h.toFixed(3)} Ω` : '—'}
                 </div>
               </div>
               <div style={{ background: 'rgba(15, 23, 42, 0.6)', border: '1px solid rgba(56, 189, 248, 0.12)', borderRadius: '6px', padding: '8px 10px', textAlign: 'center' }}>
-                <div style={{ fontSize: '9.5px', color: '#94a3b8', fontWeight: '600', textTransform: 'uppercase' }}>24hr [OBSERVED]</div>
+                <div style={{ fontSize: '9.5px', color: '#94a3b8', fontWeight: '600', textTransform: 'uppercase' }}>33.3% [OBSERVED]</div>
                 <div style={{ fontSize: '13px', fontWeight: '700', color: '#38bdf8', fontFamily: 'var(--font-mono)', marginTop: '2px' }}>
                   {obs24h !== null ? `${obs24h.toFixed(3)} Ω` : '—'}
                 </div>
               </div>
               {pred96h !== null && (
                 <div style={{ background: 'rgba(15, 23, 42, 0.6)', border: '1px solid rgba(56, 189, 248, 0.12)', borderRadius: '6px', padding: '8px 10px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '9.5px', color: '#94a3b8', fontWeight: '600', textTransform: 'uppercase' }}>96hr [PREDICTED]</div>
+                  <div style={{ fontSize: '9.5px', color: '#94a3b8', fontWeight: '600', textTransform: 'uppercase' }}>66.7% [PREDICTED]</div>
                   <div style={{ fontSize: '13px', fontWeight: '700', color: '#f59e0b', fontFamily: 'var(--font-mono)', marginTop: '2px' }}>
                     {`${pred96h.toFixed(3)} Ω`}
                   </div>
                 </div>
               )}
               <div style={{ background: 'rgba(15, 23, 42, 0.6)', border: '1px solid rgba(56, 189, 248, 0.12)', borderRadius: '6px', padding: '8px 10px', textAlign: 'center' }}>
-                <div style={{ fontSize: '9.5px', color: '#94a3b8', fontWeight: '600', textTransform: 'uppercase' }}>168hr [PREDICTED]</div>
+                <div style={{ fontSize: '9.5px', color: '#94a3b8', fontWeight: '600', textTransform: 'uppercase' }}>100% [PREDICTED]</div>
                 <div style={{ fontSize: '13px', fontWeight: '700', color: '#a855f7', fontFamily: 'var(--font-mono)', marginTop: '2px' }}>
                   {pred168h !== null ? `${pred168h.toFixed(3)} Ω` : '—'}
                 </div>
