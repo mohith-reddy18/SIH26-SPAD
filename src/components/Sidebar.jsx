@@ -131,17 +131,27 @@ function SpadLogo() {
   );
 }
 
+function ScreeningInputIcon({ className }) {
+  return (
+    <svg className={className} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <polyline points="17 8 12 3 7 8" />
+      <line x1="12" x2="12" y1="3" y2="15" />
+    </svg>
+  );
+}
+
 /**
  * NAVIGATION ITEMS SPECIFICATION
- * EXACT ORDER:
  * 1. Dashboard
  * 2. Component Search
- * 3. Screening Pipeline
- * 4. Model Performance
- * 5. Observability Study
- * 6. Reports
- * 7. Failure Analysis
- * 8. System Settings
+ * 3. Screening Input
+ * 4. Screening Pipeline
+ * 5. Model Performance
+ * 6. Observability Study
+ * 7. Reports
+ * 8. Failure Analysis
+ * 9. System Settings
  */
 export const NAV_ITEMS = [
   {
@@ -157,6 +167,13 @@ export const NAV_ITEMS = [
     path: '/components',
     icon: SearchIcon,
     code: 'NAV-02',
+  },
+  {
+    id: 'screening-input',
+    label: 'Screening Input',
+    path: '/screening-input',
+    icon: ScreeningInputIcon,
+    code: 'NAV-INPUT',
   },
   {
     id: 'screening-pipeline',

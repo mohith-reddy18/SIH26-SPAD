@@ -78,8 +78,25 @@ async function evaluateSingleComponent({ targetDoc, sameLotDocs = [], customLimi
   const measurements = targetDoc.measurements || {};
   // Database engineering limits are strictly authoritative
   const engineeringLimits = (targetDoc.engineeringLimits && typeof targetDoc.engineeringLimits === 'object')
-    ? targetDoc.engineeringLimits
+    ? { ...targetDoc.engineeringLimits }
     : {};
+
+  // Merge custom / operator-supplied limits for parameters that do not have database catalog limits
+  if (customLimits && typeof customLimits === 'object') {
+    for (const [paramKey, limitVal] of Object.entries(customLimits)) {
+      if (
+        !engineeringLimits[paramKey] ||
+        engineeringLimits[paramKey].source === 'SUPPLIED' ||
+        engineeringLimits[paramKey].source === 'USER_ENGINEERING_INPUT' ||
+        engineeringLimits[paramKey].source === 'AI_ESTIMATED_BOUNDARY' ||
+        engineeringLimits[paramKey].source === 'NONE_AVAILABLE'
+      ) {
+        engineeringLimits[paramKey] = typeof limitVal === 'object'
+          ? limitVal
+          : { limitValue: limitVal, direction: 'UPPER', source: 'SUPPLIED' };
+      }
+    }
+  }
 
   // Ensure target is included in the cohort array
   const cohort = sameLotDocs.some((d) => d.componentId === cleanCompId)

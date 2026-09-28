@@ -105,13 +105,146 @@ const ScreeningRecord = require('./models/ScreeningRecord');
 const { runScreeningOrchestration } = require('./services/screeningOrchestrator');
 
 /**
+ * Parses uploaded dataset content (.CSV or .JSON) into canonical telemetry structures.
+ */
+function parseDatasetContent(content, fallbackLotId) {
+  if (!content) return [];
+  if (Array.isArray(content)) return content;
+  if (typeof content === 'object') return [content];
+
+  const text = String(content).trim();
+  if (!text) return [];
+
+  // 1. JSON parsing
+  if (text.startsWith('[') || text.startsWith('{')) {
+    try {
+      const parsed = JSON.parse(text);
+      const items = Array.isArray(parsed) ? parsed : [parsed];
+      return items.map((item) => {
+        const compId = item.Test_ID || item.componentId || item.Component_ID || item.id || item.Sample_ID;
+        const lot = item.lotId || fallbackLotId;
+        const measurements = item.measurements ? { ...item.measurements } : {};
+
+        const rds0 = item.RDS0 ?? item.val0h ?? measurements.rdson?.['0h'] ?? item['0h'] ?? item[0];
+        const rds33 = item.RDS33 ?? item.val24h ?? measurements.rdson?.['24h'] ?? item['24h'] ?? item[24];
+        if (typeof rds0 === 'number' || typeof rds33 === 'number') {
+          measurements.rdson = {
+            unit: 'Ω',
+            '0h': typeof rds0 === 'number' ? rds0 : null,
+            '24h': typeof rds33 === 'number' ? rds33 : null,
+          };
+        }
+
+        // Generic other parameters in item if present
+        ['iddq', 'leakage', 'delay', 'v_th', 'temp', 'freq', 'vgs', 'vds'].forEach((pk) => {
+          const v0 = item[`${pk}_0h`] ?? item[`${pk}0`] ?? (item[pk] && typeof item[pk] === 'object' ? item[pk]['0h'] : undefined);
+          const v24 = item[`${pk}_24h`] ?? item[`${pk}24`] ?? (item[pk] && typeof item[pk] === 'object' ? item[pk]['24h'] : undefined);
+          if (typeof v0 === 'number' || typeof v24 === 'number') {
+            const unit = pk.includes('rds') ? 'Ω' : pk.includes('temp') ? '°C' : pk.startsWith('v') ? 'V' : pk.includes('freq') ? 'Hz' : pk === 'iddq' ? 'mA' : pk.includes('leak') ? 'µA' : pk.includes('delay') ? 'ns' : '';
+            measurements[pk] = {
+              unit,
+              '0h': typeof v0 === 'number' ? v0 : null,
+              '24h': typeof v24 === 'number' ? v24 : null,
+            };
+          }
+        });
+
+        return {
+          componentId: String(compId || '').trim(),
+          lotId: String(lot || fallbackLotId || '').trim(),
+          stage: item.stage || '24h',
+          measurements: Object.keys(measurements).length > 0 ? measurements : undefined,
+        };
+      }).filter((r) => r.componentId);
+    } catch {
+      // Fall through to CSV parsing
+    }
+  }
+
+  // 2. CSV parsing
+  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  if (lines.length < 2) return [];
+
+  const headers = lines[0].split(',').map((h) => h.trim().replace(/^["']|["']$/g, ''));
+  const compIdIdx = headers.findIndex((h) => /^(Test_ID|componentId|Component_ID|id|Sample_ID)$/i.test(h));
+  const lotIdIdx = headers.findIndex((h) => /^(lotId|Lot_ID|lot)$/i.test(h));
+  const rds0Idx = headers.findIndex((h) => /^(RDS0|0h|val0h|rdson_0h|0)$/i.test(h));
+  const rds33Idx = headers.findIndex((h) => /^(RDS33|24h|val24h|rdson_24h|24)$/i.test(h));
+
+  const records = [];
+  for (let i = 1; i < lines.length; i++) {
+    const cols = lines[i].split(',').map((c) => c.trim().replace(/^["']|["']$/g, ''));
+    if (cols.length === 0 || !cols[0]) continue;
+
+    const rawCompId = compIdIdx !== -1 ? cols[compIdIdx] : cols[0];
+    if (!rawCompId) continue;
+
+    const rowLotId = lotIdIdx !== -1 ? cols[lotIdIdx] : fallbackLotId;
+    const v0 = rds0Idx !== -1 ? parseFloat(cols[rds0Idx]) : NaN;
+    const v24 = rds33Idx !== -1 ? parseFloat(cols[rds33Idx]) : NaN;
+
+    const measurements = {};
+    if (!isNaN(v0) || !isNaN(v24)) {
+      measurements.rdson = {
+        unit: 'Ω',
+        '0h': !isNaN(v0) ? v0 : null,
+        '24h': !isNaN(v24) ? v24 : null,
+      };
+    }
+
+    // Additional parameter column scan
+    headers.forEach((h, hIdx) => {
+      const match = h.match(/^([a-zA-Z_]+)_(0h|24h|0|24)$/i);
+      if (match) {
+        const paramBase = match[1].toLowerCase();
+        const timepoint = match[2].toLowerCase().includes('0') ? '0h' : '24h';
+        const val = parseFloat(cols[hIdx]);
+        if (!isNaN(val)) {
+          if (!measurements[paramBase]) {
+            const unit = paramBase.includes('rds') ? 'Ω' : paramBase.includes('temp') ? '°C' : paramBase.startsWith('v') ? 'V' : paramBase.includes('freq') ? 'Hz' : paramBase === 'iddq' ? 'mA' : paramBase.includes('leak') ? 'µA' : paramBase.includes('delay') ? 'ns' : '';
+            measurements[paramBase] = { unit, '0h': null, '24h': null };
+          }
+          measurements[paramBase][timepoint] = val;
+        }
+      }
+    });
+
+    records.push({
+      componentId: String(rawCompId).trim(),
+      lotId: String(rowLotId || fallbackLotId).trim(),
+      stage: '24h',
+      measurements,
+    });
+  }
+
+  return records;
+}
+
+/**
  * POST /api/screening/run
  * Execute full end-to-end screening orchestration flow:
- * Component -> Load Data & Cohort -> Method 1 + Method 2 -> Engineering Status -> Overall AI Status -> Persist -> Return
+ * Component/Lot -> Ingest Dataset if provided -> Load Data & Cohort -> Method 1 + Method 2 -> Engineering Status -> Overall AI Status -> Persist -> Return
  */
 app.post('/api/screening/run', async (req, res) => {
   try {
-    const { componentId, lotId, engineeringLimits, context } = req.body || {};
+    const { componentId, lotId, engineeringLimits, context, datasetContent, dataset, records } = req.body || {};
+    
+    // Ingest dataset records into MongoDB if supplied with the screening run
+    const rawContent = datasetContent || dataset || records;
+    if (rawContent) {
+      const parsedRecords = parseDatasetContent(rawContent, lotId);
+      if (parsedRecords && parsedRecords.length > 0) {
+        const bulkOps = parsedRecords.map((rec) => ({
+          updateOne: {
+            filter: { componentId: rec.componentId, lotId: rec.lotId },
+            update: { $set: rec },
+            upsert: true,
+          },
+        }));
+        await ScreeningRecord.bulkWrite(bulkOps);
+      }
+    }
+
     const result = await runScreeningOrchestration({
       componentId,
       lotId,

@@ -5,6 +5,7 @@ import MobileNavbar from './components/MobileNavbar';
 import ScreeningHistory from './components/dashboard/ScreeningHistory';
 import Dashboard from './pages/Dashboard';
 import ComponentSearch from './pages/ComponentSearch';
+import ScreeningInput from './pages/ScreeningInput';
 import ScreeningPipeline from './pages/ScreeningPipeline';
 import ModelPerformance from './pages/ModelPerformance';
 import ObservabilityStudy from './pages/ObservabilityStudy';
@@ -17,6 +18,8 @@ import { API_BASE_URL } from './config/api';
 const PAGE_ROUTES = {
   '/': Dashboard,
   '/dashboard': Dashboard,
+  '/screening-input': ScreeningInput,
+  '/input': ScreeningInput,
   '/components': ComponentSearch,
   '/component-search': ComponentSearch,
   '/screening-pipeline': ScreeningPipeline,
