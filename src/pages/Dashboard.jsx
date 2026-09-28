@@ -177,7 +177,7 @@ export default function Dashboard({
       const normalCount = activeLotRecords.filter((c) => c.engineeringStatus === 'NORMAL').length;
       const anomalyCount = activeLotRecords.filter((c) => c.engineeringStatus === 'SUSPECT' || c.engineeringStatus === 'CRITICAL').length;
       const calculatedYield = totalUnits > 0 ? `${((normalCount / totalUnits) * 100).toFixed(1)}%` : '100.0%';
-      const primaryLotId = effectiveLotId;
+      const primaryLotId = effectiveLotId || (activeLotRecords.length > 0 ? activeLotRecords[0].lotId : 'NO ACTIVE LOT');
       const hasPredictions = activeLotRecords.some((c) => (c.predictions && Object.keys(c.predictions).length > 0) || c.aiAssessment?.prediction);
       const hasAnomalies = activeLotRecords.some((c) => c.anomalies || c.engineeringStatus !== undefined || c.aiAssessment?.lotAnomaly);
 
@@ -212,7 +212,7 @@ export default function Dashboard({
 
     return {
       ...mockDashboardData.screeningContext,
-      lotId: effectiveLotId,
+      lotId: effectiveLotId || 'NO ACTIVE LOT',
       lotStatus: isLoadingComponents ? 'LOADING' : 'NO ACTIVE LOT',
       totalUnits: 0,
       screenedUnits: 0,

@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const ScreeningRecord = require('../models/ScreeningRecord');
 const aiService = require('../services/aiService');
 const {
   rateOfChangePerHour,
@@ -611,12 +612,51 @@ router.post('/results', async (req, res) => {
       });
     }
 
-    // Step 1: Dry-run response only. No MongoDB writes performed.
+    // Persistence Control:
+    // Enabled via SPAD_AI_RESULTS_PERSIST environment variable (or request override).
+    // When disabled (default), operates in safe dry-run mode (0 MongoDB writes).
+    const isPersistenceEnabled =
+      process.env.SPAD_AI_RESULTS_PERSIST === 'true' ||
+      process.env.SPAD_AI_RESULTS_PERSIST === '1' ||
+      req.query?.persist === 'true' ||
+      req.body?.persist === true;
+
+    let writeResult = null;
+    if (isPersistenceEnabled && normalizedRecords.length > 0) {
+      const bulkOps = normalizedRecords.map((rec) => ({
+        updateOne: {
+          filter: {
+            componentId: rec.componentId,
+            lotId: rec.lotId,
+          },
+          update: {
+            $set: rec.normalizedRecord,
+          },
+          upsert: true,
+        },
+      }));
+
+      writeResult = await ScreeningRecord.bulkWrite(bulkOps);
+    }
+
+    const recordsWritten = writeResult
+      ? (writeResult.upsertedCount || 0) +
+        (writeResult.modifiedCount || 0) +
+        (writeResult.insertedCount || 0) +
+        (writeResult.matchedCount || 0)
+      : 0;
+
     return res.status(200).json({
       success: true,
-      message: 'AI results payload validated and normalized successfully (dry-run)',
+      message: isPersistenceEnabled
+        ? 'AI results payload validated, normalized, and persisted successfully'
+        : 'AI results payload validated and normalized successfully (dry-run)',
       lotId: cleanLotId,
       recordsCount: normalizedRecords.length,
+      persistence: {
+        enabled: isPersistenceEnabled,
+        recordsWritten: isPersistenceEnabled ? recordsWritten : 0,
+      },
       records: normalizedRecords,
     });
   } catch (error) {

@@ -7,7 +7,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://localhost:5000',
+        target: 'https://sih26-spad.onrender.com',
         changeOrigin: true,
       },
     },
