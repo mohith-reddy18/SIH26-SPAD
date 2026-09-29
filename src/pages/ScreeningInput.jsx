@@ -29,7 +29,7 @@ function formatFileSize(bytes) {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
 }
 
-export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId }) {
+export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId, onRefreshHistory }) {
   // 1. File Upload State
   const [selectedFile, setSelectedFile] = useState(null);
   const [fileContent, setFileContent] = useState(null);
@@ -422,8 +422,12 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId 
         fileName: selectedFile.name,
         fileType: selectedFile.type || 'text/csv',
         fileSize: selectedFile.size,
+        dataset: fileContent,
         datasetContent: fileContent,
         context: {
+          fileName: selectedFile.name,
+          fileType: selectedFile.type || 'text/csv',
+          fileSize: selectedFile.size,
           submittedAt: new Date().toISOString(),
           parametersConfigured: parameterLimits.map((p) => p.key),
         },
@@ -446,9 +450,12 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId 
       setRunResult(data);
       setRunStatus('COMPLETED');
 
-      // Update active lot in parent state
+      // Update active lot in parent state & refresh history
       if (onSelectLot) {
         onSelectLot(cleanLotId);
+      }
+      if (onRefreshHistory) {
+        onRefreshHistory();
       }
     } catch (err) {
       setRunError(err.message || 'An error occurred during screening analysis.');
@@ -797,7 +804,7 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId 
           {runStatus === 'PROCESSING' ? (
             <>
               <span className="spad-spinner" aria-hidden="true" />
-              <span>RUNNING ML SCREENING ANALYSIS...</span>
+              <span>Running screening analysis...</span>
             </>
           ) : runStatus === 'COMPLETED' ? (
             <>
@@ -822,7 +829,7 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId 
             <div className="spad-panel-title-group">
               <span className="spad-spinner" style={{ width: '14px', height: '14px' }} />
               <span style={{ fontSize: '13px', fontWeight: 700, color: '#38bdf8' }}>
-                SPAD ML PIPELINE ACTIVE
+                Running screening analysis...
               </span>
             </div>
             <div className="spad-processing-steps">

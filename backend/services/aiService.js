@@ -423,6 +423,8 @@ async function predict168h(input) {
       engineeringLimits,
       context,
     });
+  } else if (process.env.NODE_ENV === 'test' || process.env.ALLOW_LOCAL_AI_INTERFACE === 'true') {
+    rawModelOutput = localDevPredict168h({ parameters, engineeringLimits });
   } else {
     throw {
       statusCode: 503,
@@ -468,6 +470,8 @@ async function detectLotAnomalies(input) {
       cohort,
       context,
     });
+  } else if (process.env.NODE_ENV === 'test' || process.env.ALLOW_LOCAL_AI_INTERFACE === 'true') {
+    rawModelOutput = localDevDetectLotAnomalies({ targetComponentId, cohort });
   } else {
     throw {
       statusCode: 503,

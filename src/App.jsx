@@ -150,6 +150,7 @@ export default function App() {
               onSelectLot={handleSelectLot}
               screeningHistory={screeningHistory}
               isLoadingHistory={isLoadingHistory}
+              onRefreshHistory={loadHistory}
             />
           </main>
 

@@ -227,12 +227,67 @@ function parseDatasetContent(content, fallbackLotId) {
  */
 app.post('/api/screening/run', async (req, res) => {
   try {
-    const { componentId, lotId, engineeringLimits, context, datasetContent, dataset, records } = req.body || {};
-    
+    const {
+      componentId,
+      lotId,
+      engineeringLimits,
+      context,
+      datasetContent,
+      dataset,
+      records,
+      fileName,
+      fileType,
+      fileSize,
+    } = req.body || {};
+
+    const cleanCompId = typeof componentId === 'string' && componentId.trim() ? componentId.trim() : null;
+    const cleanLotId = typeof lotId === 'string' && lotId.trim() ? lotId.trim() : null;
+
+    if (!cleanCompId && !cleanLotId) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Either "lotId" or "componentId" is required for screening analysis',
+          timestamp: new Date().toISOString(),
+        },
+      });
+    }
+
+    // Validate engineeringLimits format if supplied
+    if (engineeringLimits !== undefined && engineeringLimits !== null) {
+      if (typeof engineeringLimits !== 'object' || Array.isArray(engineeringLimits)) {
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Field "engineeringLimits" must be an object containing parameter-specific limits',
+            timestamp: new Date().toISOString(),
+          },
+        });
+      }
+
+      for (const [paramKey, limitObj] of Object.entries(engineeringLimits)) {
+        if (limitObj !== null && limitObj !== undefined) {
+          const val = typeof limitObj === 'object' ? limitObj.limitValue : limitObj;
+          if (val !== undefined && val !== null && (typeof val !== 'number' || isNaN(val) || !isFinite(val) || val <= 0)) {
+            return res.status(400).json({
+              success: false,
+              error: {
+                code: 'VALIDATION_ERROR',
+                message: `Invalid engineering limit value for parameter "${paramKey}"`,
+                timestamp: new Date().toISOString(),
+              },
+            });
+          }
+        }
+      }
+    }
+
     // Ingest dataset records into MongoDB if supplied with the screening run
     const rawContent = datasetContent || dataset || records;
     if (rawContent) {
-      const parsedRecords = parseDatasetContent(rawContent, lotId);
+      const parsedRecords = parseDatasetContent(rawContent, cleanLotId);
       if (parsedRecords && parsedRecords.length > 0) {
         const bulkOps = parsedRecords.map((rec) => ({
           updateOne: {
@@ -242,14 +297,34 @@ app.post('/api/screening/run', async (req, res) => {
           },
         }));
         await ScreeningRecord.bulkWrite(bulkOps);
+      } else if (typeof rawContent === 'string' && rawContent.trim().length > 0) {
+        // Content was provided but failed parsing
+        const existingCount = cleanLotId ? await ScreeningRecord.countDocuments({ lotId: cleanLotId }) : 0;
+        if (existingCount === 0) {
+          return res.status(400).json({
+            success: false,
+            error: {
+              code: 'INVALID_DATASET_FORMAT',
+              message: 'Failed to parse valid telemetry records from the provided dataset',
+              timestamp: new Date().toISOString(),
+            },
+          });
+        }
       }
     }
 
+    const mergedContext = {
+      ...(context && typeof context === 'object' ? context : {}),
+      ...(fileName ? { fileName } : {}),
+      ...(fileType ? { fileType } : {}),
+      ...(fileSize !== undefined ? { fileSize } : {}),
+    };
+
     const result = await runScreeningOrchestration({
-      componentId,
-      lotId,
+      componentId: cleanCompId,
+      lotId: cleanLotId,
       customLimits: engineeringLimits,
-      context,
+      context: mergedContext,
     });
     return res.status(200).json(result);
   } catch (error) {

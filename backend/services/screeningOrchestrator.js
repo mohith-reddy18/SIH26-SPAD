@@ -84,12 +84,14 @@ async function evaluateSingleComponent({ targetDoc, sameLotDocs = [], customLimi
   // Merge custom / operator-supplied limits for parameters that do not have database catalog limits
   if (customLimits && typeof customLimits === 'object') {
     for (const [paramKey, limitVal] of Object.entries(customLimits)) {
+      const isCustomDbCatalog = typeof limitVal === 'object' && String(limitVal.source || '').toUpperCase() === 'DATABASE_CATALOG';
       if (
         !engineeringLimits[paramKey] ||
         engineeringLimits[paramKey].source === 'SUPPLIED' ||
         engineeringLimits[paramKey].source === 'USER_ENGINEERING_INPUT' ||
         engineeringLimits[paramKey].source === 'AI_ESTIMATED_BOUNDARY' ||
-        engineeringLimits[paramKey].source === 'NONE_AVAILABLE'
+        engineeringLimits[paramKey].source === 'NONE_AVAILABLE' ||
+        isCustomDbCatalog
       ) {
         engineeringLimits[paramKey] = typeof limitVal === 'object'
           ? limitVal
