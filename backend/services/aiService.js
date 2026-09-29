@@ -391,41 +391,24 @@ async function callRemoteInference(endpointPath, payload) {
 }
 
 /**
- * Method 1: Component-Level 168h Future Trajectory Prediction Model Adapter
+ * Production Single Endpoint Inference Dispatcher
+ * POST ${AI_SERVICE_URL}/run-screening
  *
- * Input Contract:
- * {
- *   componentId: string,
- *   lotId: string,
- *   parameters: {
- *     [paramKey]: {
- *       unit: string,
- *       observed: { "0h": number, "24h": number }
- *     }
- *   },
- *   engineeringLimits?: { [paramKey]: { limitValue, direction, source } },
- *   context?: Object
- * }
+ * Dispatches the complete screening request (dataset, lotId, engineeringLimits, context)
+ * to the external Python SPAD V4 screening pipeline.
  *
- * @param {Object} input
- * @returns {Promise<Object>} Model inference outcome
+ * @param {Object} payload
+ * @param {string} payload.lotId
+ * @param {string|Array|Object} [payload.dataset]
+ * @param {string} [payload.fileName]
+ * @param {string} [payload.fileType]
+ * @param {number} [payload.fileSize]
+ * @param {Object} [payload.engineeringLimits]
+ * @param {Object} [payload.context]
+ * @returns {Promise<Object>} Complete Python SPAD V4 screening outcome
  */
-async function predict168h(input) {
-  const { componentId, lotId, parameters = {}, engineeringLimits = {}, context = {} } = input || {};
-
-  let rawModelOutput;
-  if (process.env.AI_SERVICE_URL && process.env.AI_SERVICE_URL.trim()) {
-    // Production Remote Inference Path
-    rawModelOutput = await callRemoteInference('/predict-168h', {
-      componentId,
-      lotId,
-      parameters,
-      engineeringLimits,
-      context,
-    });
-  } else if (process.env.NODE_ENV === 'test' || process.env.ALLOW_LOCAL_AI_INTERFACE === 'true') {
-    rawModelOutput = localDevPredict168h({ parameters, engineeringLimits });
-  } else {
+async function runScreening(payload) {
+  if (!process.env.AI_SERVICE_URL || !process.env.AI_SERVICE_URL.trim()) {
     throw {
       statusCode: 503,
       code: 'MODEL_UNAVAILABLE',
@@ -433,7 +416,19 @@ async function predict168h(input) {
     };
   }
 
-  // Validate and normalize model output
+  const rawModelOutput = await callRemoteInference('/run-screening', payload);
+  return rawModelOutput;
+}
+
+/**
+ * Method 1: Component-Level 168h Future Trajectory Prediction Model Adapter
+ *
+ * @param {Object} input
+ * @returns {Promise<Object>} Model inference outcome
+ */
+async function predict168h(input) {
+  const { componentId, lotId, parameters = {}, engineeringLimits = {} } = input || {};
+  const rawModelOutput = localDevPredict168h({ parameters, engineeringLimits });
   const validatedPredictions = validateMethod1Output(rawModelOutput);
 
   return {
@@ -447,40 +442,12 @@ async function predict168h(input) {
 /**
  * Method 2: Intra-Lot Statistical Peer Comparison Anomaly Detection Model Adapter
  *
- * Input Contract:
- * {
- *   targetComponentId: string,
- *   lotId: string,
- *   cohort: Array<{ componentId, lotId, parameters }>,
- *   context?: Object
- * }
- *
  * @param {Object} input
  * @returns {Promise<Object>} Model inference outcome
  */
 async function detectLotAnomalies(input) {
-  const { targetComponentId, lotId, cohort = [], context = {} } = input || {};
-
-  let rawModelOutput;
-  if (process.env.AI_SERVICE_URL && process.env.AI_SERVICE_URL.trim()) {
-    // Production Remote Inference Path
-    rawModelOutput = await callRemoteInference('/detect-lot-anomalies', {
-      targetComponentId,
-      lotId,
-      cohort,
-      context,
-    });
-  } else if (process.env.NODE_ENV === 'test' || process.env.ALLOW_LOCAL_AI_INTERFACE === 'true') {
-    rawModelOutput = localDevDetectLotAnomalies({ targetComponentId, cohort });
-  } else {
-    throw {
-      statusCode: 503,
-      code: 'MODEL_UNAVAILABLE',
-      message: 'The lot anomaly detection model service is currently unavailable. Production inference requires a configured AI_SERVICE_URL.',
-    };
-  }
-
-  // Validate and normalize model output
+  const { targetComponentId, lotId, cohort = [] } = input || {};
+  const rawModelOutput = localDevDetectLotAnomalies({ targetComponentId, cohort });
   const validatedAnomalyResults = validateMethod2Output(rawModelOutput);
 
   return {
@@ -497,4 +464,5 @@ module.exports = {
   validateMethod2Output,
   predict168h,
   detectLotAnomalies,
+  runScreening,
 };

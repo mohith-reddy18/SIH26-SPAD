@@ -321,6 +321,248 @@ async function evaluateSingleComponent({ targetDoc, sameLotDocs = [], customLimi
 }
 
 /**
+ * Normalizes and persists results returned from external Python SPAD V4 screening pipeline.
+ */
+async function processRemoteScreeningRun({ lotId, componentId, customLimits = null, context = {}, rawDataset, fileName, fileType, fileSize }) {
+  const cleanLotId = lotId.trim();
+
+  // 1. Dispatch single request to external Python service: POST ${AI_SERVICE_URL}/run-screening
+  const payload = {
+    lotId: cleanLotId,
+    ...(componentId ? { componentId } : {}),
+    dataset: rawDataset,
+    fileName: fileName || context?.fileName || null,
+    fileType: fileType || context?.fileType || null,
+    fileSize: fileSize !== undefined ? fileSize : (context?.fileSize !== undefined ? context.fileSize : null),
+    engineeringLimits: customLimits || {},
+    context: {
+      ...(context && typeof context === 'object' ? context : {}),
+      ...(fileName ? { fileName } : {}),
+      ...(fileType ? { fileType } : {}),
+      ...(fileSize !== undefined ? { fileSize } : {}),
+    },
+  };
+
+  const rawOutput = await aiService.runScreening(payload);
+
+  if (!rawOutput || typeof rawOutput !== 'object') {
+    throw {
+      statusCode: 502,
+      code: 'MODEL_OUTPUT_INVALID',
+      message: 'External Python screening service returned an invalid or empty response',
+    };
+  }
+
+  const results = rawOutput.results || rawOutput.data || (Array.isArray(rawOutput) ? rawOutput : [rawOutput]);
+  if (!Array.isArray(results) || results.length === 0) {
+    throw {
+      statusCode: 502,
+      code: 'MODEL_OUTPUT_INVALID',
+      message: 'External Python screening service response is missing "results" array',
+    };
+  }
+
+  const evaluatedRecords = [];
+
+  for (let i = 0; i < results.length; i++) {
+    const item = results[i];
+    if (!item || typeof item !== 'object') continue;
+
+    const rawTestId = item.Test_ID ?? item.componentId ?? item.Component_ID ?? item.id ?? item.Sample_ID;
+    if (!rawTestId) continue;
+    const compId = String(rawTestId).trim();
+
+    // 2. Fetch existing document from MongoDB to check for authoritative DB limits
+    const existingDoc = await ScreeningRecord.findOne({ componentId: compId, lotId: cleanLotId }).lean();
+    const authoritativeLimits = (existingDoc?.engineeringLimits && typeof existingDoc.engineeringLimits === 'object')
+      ? { ...existingDoc.engineeringLimits }
+      : {};
+
+    // Merge request-level limits for parameters without DATABASE_CATALOG limit (preserving DB authority)
+    if (customLimits && typeof customLimits === 'object') {
+      for (const [paramKey, limitVal] of Object.entries(customLimits)) {
+        const isCustomDb = typeof limitVal === 'object' && String(limitVal.source || '').toUpperCase() === 'DATABASE_CATALOG';
+        if (
+          !authoritativeLimits[paramKey] ||
+          authoritativeLimits[paramKey].source === 'SUPPLIED' ||
+          authoritativeLimits[paramKey].source === 'USER_ENGINEERING_INPUT' ||
+          authoritativeLimits[paramKey].source === 'AI_ESTIMATED_BOUNDARY' ||
+          authoritativeLimits[paramKey].source === 'NONE_AVAILABLE' ||
+          isCustomDb
+        ) {
+          authoritativeLimits[paramKey] = typeof limitVal === 'object'
+            ? limitVal
+            : { limitValue: limitVal, direction: 'UPPER', source: 'SUPPLIED' };
+        }
+      }
+    }
+
+    // 3. Telemetry extraction (0h, 24h)
+    const val0h = item.RDS0 ?? item.val0h ?? item['0h'] ?? item.measurements?.rdson?.['0h'];
+    const val24h = item.RDS33 ?? item.val24h ?? item['24h'] ?? item.measurements?.rdson?.['24h'];
+    const measurements = item.measurements ? { ...item.measurements } : {};
+    if (typeof val0h === 'number' || typeof val24h === 'number') {
+      measurements.rdson = {
+        unit: authoritativeLimits.rdson?.unit || 'Ω',
+        '0h': typeof val0h === 'number' ? val0h : null,
+        '24h': typeof val24h === 'number' ? val24h : null,
+      };
+    }
+
+    // 4. Random Forest Method 1 Prediction
+    const predicted168h = item.Predicted_RDS100 ?? item.predicted168h ?? (item.aiAssessment?.prediction?.parameters?.rdson?.predicted168h ?? null);
+    const roc = rateOfChangePerHour(val0h, val24h);
+    let calculatedMargin = null;
+    const rdsonLim = authoritativeLimits.rdson;
+    if (rdsonLim && typeof rdsonLim.limitValue === 'number' && typeof predicted168h === 'number') {
+      calculatedMargin = projectedMargin(predicted168h, rdsonLim.limitValue, rdsonLim.direction || 'UPPER');
+    }
+
+    let rfFlag = 'NOT_EVALUATED';
+    const rawRfFlag = item.Module_B_Anomaly ?? item.Module_B_Flag ?? item.aiFlag ?? item.aiAssessment?.prediction?.parameters?.rdson?.aiFlag;
+    if (rawRfFlag === 1 || rawRfFlag === true || (typeof rawRfFlag === 'string' && rawRfFlag.trim().toUpperCase() === 'FLAGGED')) {
+      rfFlag = 'FLAGGED';
+    } else if (rawRfFlag === 0 || rawRfFlag === false || (typeof rawRfFlag === 'string' && rawRfFlag.trim().toUpperCase().includes('NOT'))) {
+      rfFlag = 'NOT FLAGGED';
+    }
+
+    // 5. Isolation Forest Method 2 Lot Anomaly
+    const lotAnomalyScore = item.Module_A_IF_Score ?? item.lotAnomalyScore ?? (item.aiAssessment?.lotAnomaly?.parameters?.rdson?.lotAnomalyScore ?? null);
+    let ifFlag = 'NOT_EVALUATED';
+    const rawIfFlag = item.Module_A_Anomaly ?? item.Module_A_Flag ?? item.aiAssessment?.lotAnomaly?.parameters?.rdson?.aiFlag;
+    if (rawIfFlag === 1 || rawIfFlag === true || (typeof rawIfFlag === 'string' && rawIfFlag.trim().toUpperCase() === 'FLAGGED')) {
+      ifFlag = 'FLAGGED';
+    } else if (rawIfFlag === 0 || rawIfFlag === false || (typeof rawIfFlag === 'string' && rawIfFlag.trim().toUpperCase().includes('NOT'))) {
+      ifFlag = 'NOT FLAGGED';
+    }
+
+    // 6. Deterministic engineering & overall status
+    const calculatedEngineeringStatus = engineeringStatus(measurements, authoritativeLimits);
+    const calculatedOverallStatus = overallStatus([rfFlag, ifFlag]);
+
+    // 7. Canonical ScreeningRecord
+    const canonicalRecord = {
+      componentId: compId,
+      lotId: cleanLotId,
+      stage: item.stage || '24h',
+      measurements,
+      engineeringLimits: authoritativeLimits,
+      engineeringStatus: calculatedEngineeringStatus,
+      aiAssessment: {
+        overallStatus: calculatedOverallStatus,
+        prediction: {
+          status: typeof predicted168h === 'number' ? 'PREDICTED' : 'UNSUPPORTED_PARAMETER',
+          method: 'FUTURE_PREDICTION',
+          modelMetadata: rawOutput.modelMetadata || aiService.getModelMetadata(),
+          parameters: {
+            rdson: {
+              status: typeof predicted168h === 'number' ? 'PREDICTED' : 'UNSUPPORTED_PARAMETER',
+              unit: authoritativeLimits.rdson?.unit || 'Ω',
+              observed: { '0h': val0h, '24h': val24h },
+              predicted168h,
+              rateOfChangePerHour: roc,
+              engineeringLimit: rdsonLim || null,
+              projectedMargin: calculatedMargin,
+              limitBreachProbability: item.limitBreachProbability ?? null,
+              futureRiskScore: item.futureRiskScore ?? (rfFlag === 'FLAGGED' ? 0.85 : 0.15),
+              futureRiskPercent: item.futureRiskPercent ?? null,
+              aiFlag: rfFlag,
+              modelEvidence: {
+                forecastResidual: (item.Forecast_Residual !== undefined && item.Forecast_Residual !== null) ? item.Forecast_Residual : null,
+                absoluteForecastError: (item.Absolute_Forecast_Error !== undefined && item.Absolute_Forecast_Error !== null) ? item.Absolute_Forecast_Error : null,
+                relativeErrorPercent: (item.Relative_Error_Percent !== undefined && item.Relative_Error_Percent !== null) ? item.Relative_Error_Percent : null,
+                pythonDelta: (item.Delta_RDS_0_33 !== undefined && item.Delta_RDS_0_33 !== null) ? item.Delta_RDS_0_33 : null,
+              },
+            },
+          },
+        },
+        lotAnomaly: {
+          status: lotAnomalyScore !== null ? 'ANALYZED' : 'NOT_EVALUATED',
+          method: 'LOT_ANOMALY_DETECTION',
+          cohortQuality: results.length >= 3 ? 'SUFFICIENT' : 'INSUFFICIENT',
+          componentsAnalyzed: results.length,
+          eligiblePeersCount: Math.max(0, results.length - 1),
+          parameters: {
+            rdson: {
+              status: lotAnomalyScore !== null ? 'ANALYZED' : 'NOT_EVALUATED',
+              observed: { '0h': val0h, '24h': val24h },
+              lotAnomalyScore,
+              peerComparisonEvidence: {
+                rawScore: lotAnomalyScore,
+                noveltyPercentile: (item.Module_A_Novelty_Percentile !== undefined && item.Module_A_Novelty_Percentile !== null) ? item.Module_A_Novelty_Percentile : null,
+                ...(item.Module_A_IF_Scores ? { stageScores: item.Module_A_IF_Scores } : {}),
+                ...(item.Module_A_Novelty_Percentiles ? { stagePercentiles: item.Module_A_Novelty_Percentiles } : {}),
+              },
+              divergenceType: item.divergenceType ?? (ifFlag === 'FLAGGED' ? 'ELEVATED_OUTLIER' : 'NOMINAL'),
+              aiFlag: ifFlag,
+            },
+          },
+        },
+        explanation: item.explanation || item.modelExplanation || null,
+      },
+      status: calculatedEngineeringStatus,
+      aiRisk: calculatedOverallStatus === 'FLAGGED' ? 85 : 15,
+      riskScore: calculatedOverallStatus === 'FLAGGED' ? 0.85 : 0.15,
+    };
+
+    evaluatedRecords.push(canonicalRecord);
+  }
+
+  // 8. Persist all records to MongoDB
+  if (evaluatedRecords.length > 0) {
+    const bulkOps = evaluatedRecords.map((rec) => ({
+      updateOne: {
+        filter: { componentId: rec.componentId, lotId: rec.lotId },
+        update: { $set: rec },
+        upsert: true,
+      },
+    }));
+    await ScreeningRecord.bulkWrite(bulkOps);
+  }
+
+  // 9. Derive summary metrics
+  let normalCount = 0;
+  let suspectCount = 0;
+  let criticalCount = 0;
+  let aiFlaggedCount = 0;
+  let aiNotFlaggedCount = 0;
+  let aiNotEvaluatedCount = 0;
+
+  for (const rec of evaluatedRecords) {
+    const eng = rec.engineeringStatus;
+    if (eng === 'NORMAL') normalCount++;
+    else if (eng === 'SUSPECT') suspectCount++;
+    else if (eng === 'CRITICAL') criticalCount++;
+
+    const ai = rec.aiAssessment?.overallStatus;
+    if (ai === 'FLAGGED') aiFlaggedCount++;
+    else if (ai === 'NOT FLAGGED') aiNotFlaggedCount++;
+    else aiNotEvaluatedCount++;
+  }
+
+  const totalComponents = evaluatedRecords.length;
+  const engineeringYield = Number(currentYield(evaluatedRecords).toFixed(2));
+
+  return {
+    success: true,
+    message: 'Lot screening orchestration completed successfully',
+    lotId: cleanLotId,
+    summary: {
+      totalComponents,
+      evaluatedCount: totalComponents,
+      normalCount,
+      suspectCount,
+      criticalCount,
+      aiFlaggedCount,
+      aiNotFlaggedCount,
+      aiNotEvaluatedCount,
+      engineeringYield,
+    },
+    data: evaluatedRecords,
+  };
+}
+
+/**
  * Executes full screening orchestration flow for a single component or an entire lot.
  *
  * @param {Object} params
@@ -328,9 +570,26 @@ async function evaluateSingleComponent({ targetDoc, sameLotDocs = [], customLimi
  * @param {string} [params.lotId]
  * @param {Object} [params.customLimits]
  * @param {Object} [params.context]
+ * @param {string|Array|Object} [params.datasetContent]
+ * @param {string|Array|Object} [params.dataset]
+ * @param {string|Array|Object} [params.records]
+ * @param {string} [params.fileName]
+ * @param {string} [params.fileType]
+ * @param {number} [params.fileSize]
  * @returns {Promise<Object>} Combined screening evaluation outcome or lot summary
  */
-async function runScreeningOrchestration({ componentId, lotId, customLimits = null, context = {} }) {
+async function runScreeningOrchestration({
+  componentId,
+  lotId,
+  customLimits = null,
+  context = {},
+  datasetContent,
+  dataset,
+  records,
+  fileName,
+  fileType,
+  fileSize,
+}) {
   // Validation: if componentId is explicitly passed, it must not be empty/whitespace
   if (componentId !== undefined && componentId !== null) {
     if (typeof componentId !== 'string' || !componentId.trim()) {
@@ -358,7 +617,23 @@ async function runScreeningOrchestration({ componentId, lotId, customLimits = nu
     };
   }
 
-  // --- MODE 1: Whole Lot Screening Orchestration ---
+  // --- Remote Production Path via POST ${AI_SERVICE_URL}/run-screening ---
+  if (process.env.AI_SERVICE_URL && process.env.AI_SERVICE_URL.trim()) {
+    const rawDataset = datasetContent || dataset || records || context?.dataset || null;
+    return await processRemoteScreeningRun({
+      lotId: cleanLotId,
+      componentId: cleanCompId,
+      customLimits,
+      context,
+      rawDataset,
+      fileName,
+      fileType,
+      fileSize,
+    });
+  }
+
+  // --- Local / Test Mode Fallback ---
+  // MODE 1: Whole Lot Screening Orchestration
   if (!cleanCompId && cleanLotId) {
     const lotDocs = await ScreeningRecord.find({ lotId: cleanLotId }).lean();
 
@@ -425,7 +700,7 @@ async function runScreeningOrchestration({ componentId, lotId, customLimits = nu
     };
   }
 
-  // --- MODE 2: Single Component Screening Orchestration ---
+  // MODE 2: Single Component Screening Orchestration
   const query = { componentId: cleanCompId };
   if (cleanLotId) query.lotId = cleanLotId;
 
@@ -461,4 +736,5 @@ async function runScreeningOrchestration({ componentId, lotId, customLimits = nu
 module.exports = {
   runScreeningOrchestration,
   evaluateSingleComponent,
+  processRemoteScreeningRun,
 };
