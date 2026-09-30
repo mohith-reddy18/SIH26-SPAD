@@ -26,6 +26,8 @@
  *    isolated deterministic evaluation engine for local testing.
  */
 
+const fs = require('fs');
+const { openAsBlob } = require('fs');
 const ALLOWED_AI_FLAGS = Object.freeze(['FLAGGED', 'NOT FLAGGED', 'NOT_EVALUATED']);
 
 /**
@@ -443,7 +445,13 @@ async function runScreening(payload) {
   const resolvedFileName = fileName || file?.originalname || (typeof targetFile === 'string' ? 'dataset.csv' : 'screening_dataset.zip');
   const resolvedFileType = fileType || file?.mimetype || (resolvedFileName.endsWith('.zip') ? 'application/zip' : 'application/octet-stream');
 
-  if (targetFile) {
+  if (file && file.path && fs.existsSync(file.path)) {
+    const blob = await openAsBlob(file.path, { type: resolvedFileType });
+    formData.append('file', blob, resolvedFileName);
+  } else if (typeof targetFile === 'string' && fs.existsSync(targetFile)) {
+    const blob = await openAsBlob(targetFile, { type: resolvedFileType });
+    formData.append('file', blob, resolvedFileName);
+  } else if (targetFile) {
     if (targetFile.buffer && Buffer.isBuffer(targetFile.buffer)) {
       const blob = new Blob([targetFile.buffer], { type: resolvedFileType });
       formData.append('file', blob, resolvedFileName);

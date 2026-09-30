@@ -79,15 +79,28 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
         if (json.success && Array.isArray(json.parameters)) {
           setParameterLimits(json.parameters);
           setFileInsights((prev) => ({
-            type: prev?.type || (file.name.toLowerCase().endsWith('.zip') ? 'NASA Dataset Archive (.ZIP)' : 'Telemetry Dataset'),
-            unitsDetected: prev?.unitsDetected || 'Valid Telemetry',
-            status: `${json.parameters.length} Params Detected`,
+            type: prev?.type || (file.name.toLowerCase().endsWith('.zip') ? 'NASA Dataset Archive (.ZIP)' : file.name.toLowerCase().endsWith('.mat') ? 'MATLAB Matrix (.MAT)' : 'Telemetry Dataset'),
+            unitsDetected: prev?.unitsDetected || (file.name.toLowerCase().endsWith('.zip') ? 'Multi-file Archive' : file.name.toLowerCase().endsWith('.mat') ? 'Binary Matrix' : 'Valid Telemetry'),
+            status: json.parameters.length > 0
+              ? `${json.parameters.length} Params Detected`
+              : file.name.toLowerCase().endsWith('.mat')
+              ? 'Standalone .MAT'
+              : '0 Params Detected',
           }));
           return;
         }
+      } else {
+        const errJson = await res.json().catch(() => ({}));
+        setFormErrors((prev) => ({
+          ...prev,
+          general: errJson.error?.message || `Parameter detection request failed (HTTP ${res.status}).`,
+        }));
       }
-    } catch {
-      // Fallback
+    } catch (err) {
+      setFormErrors((prev) => ({
+        ...prev,
+        general: err.message || 'Failed to communicate with parameter detection service.',
+      }));
     } finally {
       setIsDetectingParams(false);
     }
@@ -263,7 +276,9 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
     }
 
     if (parameterLimits.length === 0) {
-      errors.general = 'No telemetry parameters detected in the uploaded dataset to screen.';
+      errors.general = selectedFile?.name?.toLowerCase()?.endsWith('.mat')
+        ? 'Direct parameter extraction is not supported for standalone .MAT binary files. Please upload the complete screening dataset archive (.ZIP containing MOSFET CSV + MAT files) or a CSV/JSON telemetry file.'
+        : 'No telemetry parameters detected in the uploaded dataset to screen.';
     }
 
     parameterLimits.forEach((param, idx) => {
@@ -423,6 +438,7 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
                 </div>
 
                 <div className="spad-format-chips">
+                  <span className="spad-format-chip">.ZIP</span>
                   <span className="spad-format-chip">.CSV</span>
                   <span className="spad-format-chip">.JSON</span>
                   <span className="spad-format-chip">.MAT</span>
@@ -602,9 +618,15 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
                     {isDetectingParams ? (
                       <span>Detecting dataset engineering parameters...</span>
                     ) : selectedFile ? (
-                      <span>No supported engineering parameters detected in the uploaded file.</span>
+                      selectedFile.name.toLowerCase().endsWith('.mat') ? (
+                        <span>
+                          Direct telemetry parameter extraction is not supported for standalone .MAT binary files. Automatic parameter detection is supported for .ZIP archives containing telemetry tables (CSV/JSON) or standalone CSV/JSON files.
+                        </span>
+                      ) : (
+                        <span>No recognized telemetry parameter columns detected in the uploaded file.</span>
+                      )
                     ) : (
-                      <span>Upload a screening dataset (.ZIP, .CSV, .JSON, .MAT) to automatically detect telemetry parameters.</span>
+                      <span>Upload a screening dataset archive (.ZIP) or telemetry table (.CSV / .JSON) to automatically detect engineering parameters.</span>
                     )}
                   </div>
                 ) : (

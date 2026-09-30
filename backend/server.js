@@ -1,3 +1,6 @@
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
@@ -17,11 +20,80 @@ const corsOptions = corsOrigin && corsOrigin.trim() !== '*'
 app.use(cors(corsOptions));
 app.use(express.json({ limit: '2mb' }));
 
-// In-memory multer instance for handling uploaded datasets (ZIP, CSV, JSON, MAT)
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB max file size
+// Streamed disk storage for uploaded datasets (avoids Node RAM exhaustion for multi-GB files)
+const uploadDir = path.join(os.tmpdir(), 'spad-uploads');
+try {
+  fs.mkdirSync(uploadDir, { recursive: true });
+} catch {
+  // Directory initialized on demand
+}
+
+const diskStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    try {
+      if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir, { recursive: true });
+      }
+      cb(null, uploadDir);
+    } catch (err) {
+      cb(err);
+    }
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+    const safeExt = path.extname(file.originalname || '') || '';
+    cb(null, `spad-${uniqueSuffix}${safeExt}`);
+  },
 });
+
+// Multer without arbitrary application-level fileSize limits (streamed safely to disk)
+const upload = multer({
+  storage: diskStorage,
+});
+
+/**
+ * Express middleware wrapper for multer single-file streaming upload with robust error handling.
+ */
+function handleUploadSingle(fieldName) {
+  const uploadMiddleware = upload.single(fieldName);
+  return (req, res, next) => {
+    uploadMiddleware(req, res, (err) => {
+      if (err instanceof multer.MulterError) {
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: 'UPLOAD_ERROR',
+            message: `Upload error: ${err.message}`,
+            timestamp: new Date().toISOString(),
+          },
+        });
+      } else if (err) {
+        const isStorageError = err.code === 'ENOSPC' || err.code === 'EACCES';
+        const statusCode = isStorageError ? 507 : 400;
+        return res.status(statusCode).json({
+          success: false,
+          error: {
+            code: isStorageError ? 'INSUFFICIENT_STORAGE' : 'UPLOAD_ERROR',
+            message: isStorageError
+              ? 'Server storage capacity exceeded while streaming uploaded dataset.'
+              : (err.message || 'File upload failed'),
+            timestamp: new Date().toISOString(),
+          },
+        });
+      }
+      next();
+    });
+  };
+}
+
+/**
+ * Helper to safely clean up temporary upload files from disk.
+ */
+function cleanupTempFile(filePath) {
+  if (filePath && typeof filePath === 'string') {
+    fs.unlink(filePath, () => {});
+  }
+}
 
 // MongoDB Atlas Connection
 if (MONGODB_URI) {
@@ -233,22 +305,29 @@ const { detectParametersFromDataset, CANONICAL_PARAM_DEFINITIONS } = require('./
  * POST /api/screening/detect-parameters
  * Analyzes uploaded dataset structure (ZIP, CSV, JSON, MAT) to extract only the parameters actually present,
  * and attaches lot-specific authoritative database engineering limits where available.
+ * Inspects file stream/headers on disk without loading multi-GB into Node RAM.
  */
-app.post('/api/screening/detect-parameters', upload.single('file'), async (req, res) => {
+app.post('/api/screening/detect-parameters', handleUploadSingle('file'), async (req, res) => {
+  const file = req.file || null;
+  const tempFilePath = file?.path;
+
   try {
-    const file = req.file || null;
     const fileName = file?.originalname || req.body?.fileName || '';
     const lotId = req.body?.lotId || '';
     const cleanLotId = typeof lotId === 'string' ? lotId.trim() : '';
     const dataset = req.body?.datasetContent || req.body?.dataset || null;
 
-    // 1. Detect actual parameter keys present in the dataset
-    const detectedKeys = detectParametersFromDataset({
+    // 1. Detect actual parameter keys present in the dataset (strictly from CSV/JSON headers or ZIP contents)
+    const detectedResult = detectParametersFromDataset({
       file,
+      filePath: tempFilePath,
       dataset,
       datasetContent: dataset,
       fileName,
     });
+    const detectedKeys = Array.isArray(detectedResult) ? detectedResult : (detectedResult.detectedKeys || []);
+    const formatStatus = detectedResult.formatStatus || (detectedKeys.length > 0 ? 'DETECTED' : 'NO_PARAMETERS_FOUND');
+    const message = detectedResult.message || '';
 
     // 2. Fetch authoritative database limits for the selected lot if available
     let dbLimits = {};
@@ -312,6 +391,8 @@ app.post('/api/screening/detect-parameters', upload.single('file'), async (req, 
       lotId: cleanLotId,
       fileName: fileName || file?.originalname || null,
       detectedCount: parameters.length,
+      formatStatus,
+      message,
       parameters,
     });
   } catch (error) {
@@ -322,6 +403,8 @@ app.post('/api/screening/detect-parameters', upload.single('file'), async (req, 
         message: error.message || 'Failed to detect parameters from the provided dataset',
       },
     });
+  } finally {
+    cleanupTempFile(tempFilePath);
   }
 });
 
@@ -331,7 +414,10 @@ app.post('/api/screening/detect-parameters', upload.single('file'), async (req, 
  * Accepts either multipart/form-data (with file, lotId, engineeringLimits, context)
  * or application/json (for programmatic/test invocations).
  */
-app.post('/api/screening/run', upload.single('file'), async (req, res) => {
+app.post('/api/screening/run', handleUploadSingle('file'), async (req, res) => {
+  const file = req.file || null;
+  const tempFilePath = file?.path;
+
   try {
     const {
       componentId,
@@ -357,18 +443,21 @@ app.post('/api/screening/run', upload.single('file'), async (req, res) => {
       }
     }
 
-    const file = req.file || null;
     const fileName = file?.originalname || req.body?.fileName || null;
     const fileType = file?.mimetype || req.body?.fileType || null;
     const fileSize = file?.size !== undefined ? file.size : req.body?.fileSize;
     let datasetContent = req.body?.datasetContent || req.body?.dataset;
 
-    // If a text file (CSV/JSON) was uploaded as multipart, extract content if datasetContent not already provided
-    if (file && !datasetContent && (file.mimetype?.includes('csv') || file.mimetype?.includes('json') || fileName?.endsWith('.csv') || fileName?.endsWith('.json'))) {
+    // If small text file (< 5MB) was uploaded as multipart, extract content for MongoDB ingestion
+    if (file && !datasetContent && file.size < 5 * 1024 * 1024 && (file.mimetype?.includes('csv') || file.mimetype?.includes('json') || fileName?.endsWith('.csv') || fileName?.endsWith('.json'))) {
       try {
-        datasetContent = file.buffer.toString('utf-8');
+        if (file.path && fs.existsSync(file.path)) {
+          datasetContent = fs.readFileSync(file.path, 'utf-8');
+        } else if (file.buffer) {
+          datasetContent = file.buffer.toString('utf-8');
+        }
       } catch {
-        // Retain binary buffer
+        // Retain file stream
       }
     }
 
@@ -478,6 +567,8 @@ app.post('/api/screening/run', upload.single('file'), async (req, res) => {
         timestamp: new Date().toISOString(),
       },
     });
+  } finally {
+    cleanupTempFile(tempFilePath);
   }
 });
 

@@ -93,7 +93,132 @@ console.log('=== RUNNING DATASET PARAMETER DETECTION UNIT TESTS ===\n');
 
   console.log('4. Unknown CSV Detection Result:', detected);
   assert.strictEqual(detected.length, 0, 'Should return empty array when no recognized parameters exist');
+  assert.strictEqual(detected.formatStatus, 'NO_PARAMETERS_FOUND');
   console.log('   ✓ Empty / unknown detection returned 0 items cleanly.\n');
+}
+
+// 5. Test Standalone MATLAB .mat binary file (must NOT fabricate parameters)
+{
+  const matBinary = Buffer.from('MATLAB 5.0 MAT-file, Platform: PCWIN64, Created on: Mon Oct 12 2020');
+  const detected = detectParametersFromDataset({ file: matBinary, fileName: 'Test_9_run_7.mat' });
+
+  console.log('5. Standalone .MAT Detection Result:', detected);
+  assert.strictEqual(detected.length, 0, 'Should NOT fabricate parameters for standalone .mat binary');
+  assert.strictEqual(detected.formatStatus, 'UNSUPPORTED_BINARY_FORMAT');
+  assert.ok(detected.message.includes('not supported for standalone MATLAB .MAT binary files'));
+  console.log('   ✓ Standalone .MAT correctly returns UNSUPPORTED_BINARY_FORMAT without fabricated parameters.\n');
+}
+
+// 6. Test ZIP containing only raw .mat files (no CSV metadata)
+{
+  const innerMatName = 'Test_9_run_7.mat';
+  const nameBuffer = Buffer.from(innerMatName, 'utf-8');
+  const dataBuffer = Buffer.from('MATLAB binary data stream');
+  const compressed = zlib.deflateRawSync(dataBuffer);
+
+  const header = Buffer.alloc(30);
+  header.writeUInt32LE(0x04034b50, 0);
+  header.writeUInt16LE(20, 4);
+  header.writeUInt16LE(0, 6);
+  header.writeUInt16LE(8, 8);
+  header.writeUInt16LE(0, 10);
+  header.writeUInt16LE(0, 12);
+  header.writeUInt32LE(0, 14);
+  header.writeUInt32LE(compressed.length, 18);
+  header.writeUInt32LE(dataBuffer.length, 22);
+  header.writeUInt16LE(nameBuffer.length, 26);
+  header.writeUInt16LE(0, 28);
+
+  const zipBuffer = Buffer.concat([header, nameBuffer, compressed]);
+  const detected = detectParametersFromDataset({ file: zipBuffer, fileName: 'raw_mat_files.zip' });
+
+  console.log('6. Binary-only ZIP Detection Result:', detected);
+  assert.strictEqual(detected.length, 0, 'Should NOT fabricate parameters for ZIP containing only .mat');
+  assert.strictEqual(detected.formatStatus, 'NO_PARAMETERS_FOUND');
+  console.log('   ✓ Binary-only ZIP correctly returns NO_PARAMETERS_FOUND without fabricated parameters.\n');
+}
+
+// 7. Test Disk-Based CSV Streaming Inspection (using filePath)
+{
+  const fs = require('fs');
+  const path = require('path');
+  const os = require('os');
+
+  const tmpCsv = path.join(os.tmpdir(), `test_stream_${Date.now()}.csv`);
+  fs.writeFileSync(tmpCsv, 'device_id,RDS(on),v_th,IDDQ,random_col\nDEV-001,0.25,2.1,0.005,100\n');
+
+  try {
+    const detected = detectParametersFromDataset({ filePath: tmpCsv, fileName: 'telemetry.csv' });
+    console.log('7. Disk CSV Detection Result:', detected);
+    assert.strictEqual(detected.length, 3);
+    assert.ok(detected.includes('rdson'));
+    assert.ok(detected.includes('v_th'));
+    assert.ok(detected.includes('iddq'));
+    console.log('   ✓ Disk-based CSV streaming header inspection passed.\n');
+  } finally {
+    fs.unlinkSync(tmpCsv);
+  }
+}
+
+// 8. Test Disk-Based ZIP Inspection (using filePath)
+{
+  const fs = require('fs');
+  const path = require('path');
+  const os = require('os');
+
+  const innerCsv = 'Run_ID,RDSon,Temperature,Gate_Voltage\n1,0.34,199,10\n2,0.35,200,10';
+  const innerName = 'MOSFET_199_200C_RDSon_RunLevel.csv';
+  const nameBuffer = Buffer.from(innerName, 'utf-8');
+  const dataBuffer = Buffer.from(innerCsv, 'utf-8');
+  const compressed = zlib.deflateRawSync(dataBuffer);
+
+  const header = Buffer.alloc(30);
+  header.writeUInt32LE(0x04034b50, 0);
+  header.writeUInt16LE(20, 4);
+  header.writeUInt16LE(0, 6);
+  header.writeUInt16LE(8, 8);
+  header.writeUInt16LE(0, 10);
+  header.writeUInt16LE(0, 12);
+  header.writeUInt32LE(0, 14);
+  header.writeUInt32LE(compressed.length, 18);
+  header.writeUInt32LE(dataBuffer.length, 22);
+  header.writeUInt16LE(nameBuffer.length, 26);
+  header.writeUInt16LE(0, 28);
+
+  const zipBuffer = Buffer.concat([header, nameBuffer, compressed]);
+  const tmpZip = path.join(os.tmpdir(), `test_stream_${Date.now()}.zip`);
+  fs.writeFileSync(tmpZip, zipBuffer);
+
+  try {
+    const detected = detectParametersFromDataset({ filePath: tmpZip, fileName: 'dataset.zip' });
+    console.log('8. Disk ZIP Detection Result:', detected);
+    assert.ok(detected.includes('rdson'));
+    assert.ok(detected.includes('temp'));
+    assert.ok(detected.includes('vgs'));
+    console.log('   ✓ Disk-based ZIP streaming inspection passed.\n');
+  } finally {
+    fs.unlinkSync(tmpZip);
+  }
+}
+
+// 9. Test Disk-Based Standalone MAT Inspection (using filePath)
+{
+  const fs = require('fs');
+  const path = require('path');
+  const os = require('os');
+
+  const tmpMat = path.join(os.tmpdir(), `Test_9_run_7_${Date.now()}.mat`);
+  fs.writeFileSync(tmpMat, Buffer.from('MATLAB 5.0 MAT-file stream'));
+
+  try {
+    const detected = detectParametersFromDataset({ filePath: tmpMat, fileName: 'Test_9_run_7.mat' });
+    console.log('9. Disk MAT Detection Result:', detected);
+    assert.strictEqual(detected.length, 0);
+    assert.strictEqual(detected.formatStatus, 'UNSUPPORTED_BINARY_FORMAT');
+    console.log('   ✓ Disk-based MAT inspection correctly returns UNSUPPORTED_BINARY_FORMAT without RAM load.\n');
+  } finally {
+    fs.unlinkSync(tmpMat);
+  }
 }
 
 console.log('=== ALL UNIT TESTS PASSED SUCCESSFULLY! ===');

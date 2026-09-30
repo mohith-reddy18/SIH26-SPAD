@@ -1,3 +1,5 @@
+const fs = require('fs');
+const path = require('path');
 const zlib = require('zlib');
 
 /**
@@ -117,7 +119,7 @@ function detectFromJson(jsonInput) {
             detected.add('delay');
           } else if (lk.includes('v_th') || lk.includes('vth')) {
             detected.add('v_th');
-          } else {
+          } else if (CANONICAL_PARAM_DEFINITIONS[k]) {
             detected.add(k);
           }
         });
@@ -131,7 +133,145 @@ function detectFromJson(jsonInput) {
 }
 
 /**
+ * Reads the first line of a CSV file from disk without buffering the file into memory.
+ */
+function readFirstLineFromFile(filePath, maxBytes = 65536) {
+  let fd;
+  try {
+    fd = fs.openSync(filePath, 'r');
+    const buffer = Buffer.alloc(maxBytes);
+    const bytesRead = fs.readSync(fd, buffer, 0, maxBytes, 0);
+    if (bytesRead <= 0) return '';
+    const text = buffer.toString('utf-8', 0, bytesRead);
+    return text.split(/\r?\n/)[0] || '';
+  } catch {
+    return '';
+  } finally {
+    if (fd !== undefined) {
+      try { fs.closeSync(fd); } catch {}
+    }
+  }
+}
+
+/**
+ * Reads a sample chunk of a JSON file from disk without buffering the whole file.
+ */
+function readJsonSampleFromFile(filePath, maxBytes = 65536) {
+  let fd;
+  try {
+    fd = fs.openSync(filePath, 'r');
+    const buffer = Buffer.alloc(maxBytes);
+    const bytesRead = fs.readSync(fd, buffer, 0, maxBytes, 0);
+    if (bytesRead <= 0) return '';
+    return buffer.toString('utf-8', 0, bytesRead);
+  } catch {
+    return '';
+  } finally {
+    if (fd !== undefined) {
+      try { fs.closeSync(fd); } catch {}
+    }
+  }
+}
+
+/**
+ * Inspects a ZIP archive on disk by reading only headers and extracting metadata
+ * from contained CSV/JSON files, without reading the entire multi-GB archive into RAM.
+ */
+function detectFromZipFilePath(filePath) {
+  let fd;
+  const detected = new Set();
+  try {
+    const stats = fs.statSync(filePath);
+    const fileSize = stats.size;
+    if (fileSize < 30) return [];
+
+    fd = fs.openSync(filePath, 'r');
+    let offset = 0;
+    const headerBuf = Buffer.alloc(30);
+
+    let entryCount = 0;
+    while (offset + 30 <= fileSize && entryCount < 500) {
+      entryCount++;
+      const readBytes = fs.readSync(fd, headerBuf, 0, 30, offset);
+      if (readBytes < 30) break;
+
+      // Check local file header signature 0x04034b50
+      if (headerBuf.readUInt32LE(0) !== 0x04034b50) {
+        break;
+      }
+
+      const method = headerBuf.readUInt16LE(8);
+      const compSize = headerBuf.readUInt32LE(18);
+      const fnLen = headerBuf.readUInt16LE(26);
+      const extraLen = headerBuf.readUInt16LE(28);
+
+      if (fnLen > 0) {
+        const nameBuf = Buffer.alloc(fnLen);
+        fs.readSync(fd, nameBuf, 0, fnLen, offset + 30);
+        const fileName = nameBuf.toString('utf-8');
+        const lowerName = fileName.toLowerCase();
+        const dataStart = offset + 30 + fnLen + extraLen;
+
+        if (lowerName.endsWith('.csv') && compSize > 0 && dataStart + compSize <= fileSize) {
+          const sampleSize = Math.min(compSize, 65536);
+          const dataChunk = Buffer.alloc(sampleSize);
+          fs.readSync(fd, dataChunk, 0, sampleSize, dataStart);
+
+          let text = '';
+          try {
+            if (method === 0) {
+              text = dataChunk.toString('utf-8');
+            } else if (method === 8) {
+              const decompressed = zlib.inflateRawSync(dataChunk);
+              text = decompressed.toString('utf-8', 0, Math.min(decompressed.length, 4096));
+            }
+          } catch {
+            // Decompression error handled safely
+          }
+
+          if (text) {
+            const firstLine = text.split(/\r?\n/)[0];
+            const csvDetected = detectFromCsvHeaders(firstLine);
+            csvDetected.forEach((k) => detected.add(k));
+          }
+        } else if (lowerName.endsWith('.json') && compSize > 0 && dataStart + compSize <= fileSize) {
+          const sampleSize = Math.min(compSize, 65536);
+          const dataChunk = Buffer.alloc(sampleSize);
+          fs.readSync(fd, dataChunk, 0, sampleSize, dataStart);
+
+          let text = '';
+          try {
+            if (method === 0) {
+              text = dataChunk.toString('utf-8');
+            } else if (method === 8) {
+              const decompressed = zlib.inflateRawSync(dataChunk);
+              text = decompressed.toString('utf-8');
+            }
+          } catch {}
+
+          if (text) {
+            const jsonDetected = detectFromJson(text);
+            jsonDetected.forEach((k) => detected.add(k));
+          }
+        }
+      }
+
+      offset += 30 + fnLen + extraLen + compSize;
+    }
+  } catch {
+    // Disk traversal error handled safely
+  } finally {
+    if (fd !== undefined) {
+      try { fs.closeSync(fd); } catch {}
+    }
+  }
+
+  return Array.from(detected);
+}
+
+/**
  * Extracts and inspects files inside a ZIP archive buffer without writing to disk.
+ * Used for in-memory buffers in unit test mocks.
  */
 function detectFromZipBuffer(buffer) {
   if (!buffer || !Buffer.isBuffer(buffer) || buffer.length < 30) return [];
@@ -140,14 +280,12 @@ function detectFromZipBuffer(buffer) {
   try {
     let offset = 0;
     while (offset + 30 <= buffer.length) {
-      // Check local file header signature 0x04034b50
       if (buffer.readUInt32LE(offset) !== 0x04034b50) {
         break;
       }
 
       const method = buffer.readUInt16LE(offset + 8);
       const compSize = buffer.readUInt32LE(offset + 18);
-      const uncompSize = buffer.readUInt32LE(offset + 22);
       const fnLen = buffer.readUInt16LE(offset + 26);
       const extraLen = buffer.readUInt16LE(offset + 28);
       const fileName = buffer.toString('utf-8', offset + 30, offset + 30 + fnLen);
@@ -162,9 +300,7 @@ function detectFromZipBuffer(buffer) {
             const decompressed = zlib.inflateRawSync(buffer.slice(dataStart, dataStart + compSize));
             text = decompressed.toString('utf-8', 0, Math.min(decompressed.length, 4096));
           }
-        } catch {
-          // Decompression error fallback
-        }
+        } catch {}
 
         if (text) {
           const firstLine = text.split(/\r?\n/)[0];
@@ -188,42 +324,56 @@ function detectFromZipBuffer(buffer) {
         }
       }
 
-      // Check if NASA test .mat file or MOSFET filename indicator
-      if (fileName.toLowerCase().includes('rdson') || fileName.toLowerCase().includes('mosfet') || fileName.toLowerCase().startsWith('test_')) {
-        detected.add('rdson');
-      }
-
       offset = dataStart + compSize;
     }
-  } catch {
-    // Binary traversal error fallback
-  }
-
-  // If ZIP contains NASA MOSFET run-level dataset indicators
-  if (detected.size === 0) {
-    detected.add('rdson');
-  }
+  } catch {}
 
   return Array.from(detected);
 }
 
 /**
- * Main detection function: inspects uploaded file buffer, string, or filename.
+ * Main detection function: inspects file from disk stream/headers, memory buffer, or text content.
+ * Does NOT buffer multi-GB files in memory and does NOT fabricate parameters.
  *
  * @param {Object} input
  * @param {Buffer|Object} [input.file] - Multer file object or Buffer
+ * @param {string} [input.filePath] - Direct filesystem path to uploaded temporary file
  * @param {string} [input.dataset] - Text content or dataset string
  * @param {string} [input.datasetContent] - Text content
  * @param {string} [input.fileName] - Name of uploaded file
- * @returns {Array<string>} List of detected canonical parameter keys
+ * @returns {Array<string>} Array of detected canonical parameter keys with formatStatus & message metadata
  */
-function detectParametersFromDataset({ file, dataset, datasetContent, fileName = '' }) {
-  const detected = new Set();
+function detectParametersFromDataset({ file, filePath, dataset, datasetContent, fileName = '' }) {
   const rawContent = datasetContent || dataset;
-  const name = (fileName || file?.originalname || '').toLowerCase();
+  const resolvedPath = filePath || file?.path;
+  const name = (fileName || file?.originalname || file?.filename || (resolvedPath ? path.basename(resolvedPath) : '')).toLowerCase();
 
-  // 1. Text parsing if string content available
-  if (typeof rawContent === 'string' && rawContent.trim().length > 0) {
+  // Standalone .mat binary files do not support direct text/table parameter inspection
+  if (name.endsWith('.mat')) {
+    const emptyResult = [];
+    emptyResult.detectedKeys = [];
+    emptyResult.formatStatus = 'UNSUPPORTED_BINARY_FORMAT';
+    emptyResult.message = 'Direct telemetry parameter detection is not supported for standalone MATLAB .MAT binary files. Parameter extraction is supported for .ZIP archives containing telemetry tables (CSV/JSON) or standalone CSV/JSON files.';
+    return emptyResult;
+  }
+
+  const detected = new Set();
+
+  // 1. If file is stored on disk (streaming upload), inspect headers directly from disk without loading multi-GB into RAM
+  if (resolvedPath && fs.existsSync(resolvedPath)) {
+    if (name.endsWith('.zip')) {
+      detectFromZipFilePath(resolvedPath).forEach((k) => detected.add(k));
+    } else if (name.endsWith('.json')) {
+      const sample = readJsonSampleFromFile(resolvedPath);
+      detectFromJson(sample).forEach((k) => detected.add(k));
+    } else if (name.endsWith('.csv') || name.endsWith('.txt') || !name.includes('.')) {
+      const firstLine = readFirstLineFromFile(resolvedPath);
+      detectFromCsvHeaders(firstLine).forEach((k) => detected.add(k));
+    }
+  }
+
+  // 2. Text parsing if string content available
+  if (detected.size === 0 && typeof rawContent === 'string' && rawContent.trim().length > 0) {
     const trimmed = rawContent.trim();
     if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
       detectFromJson(trimmed).forEach((k) => detected.add(k));
@@ -233,14 +383,14 @@ function detectParametersFromDataset({ file, dataset, datasetContent, fileName =
     }
   }
 
-  // 2. Buffer parsing if file uploaded
+  // 3. Buffer parsing if file uploaded as in-memory buffer (e.g. in test suites)
   const buffer = Buffer.isBuffer(file)
     ? file
     : (file?.buffer && Buffer.isBuffer(file.buffer))
     ? file.buffer
     : null;
 
-  if (buffer) {
+  if (detected.size === 0 && buffer) {
     if (name.endsWith('.zip') || (buffer.length >= 4 && buffer.readUInt32LE(0) === 0x04034b50)) {
       detectFromZipBuffer(buffer).forEach((k) => detected.add(k));
     } else if (name.endsWith('.json') || buffer[0] === 0x7b || buffer[0] === 0x5b) {
@@ -249,25 +399,26 @@ function detectParametersFromDataset({ file, dataset, datasetContent, fileName =
       const text = buffer.toString('utf-8', 0, Math.min(buffer.length, 4096));
       const firstLine = text.split(/\r?\n/)[0];
       detectFromCsvHeaders(firstLine).forEach((k) => detected.add(k));
-    } else if (name.endsWith('.mat')) {
-      detected.add('rdson');
     }
   }
 
-  // 3. Filename indicators fallback
-  if (detected.size === 0 && name) {
-    if (name.includes('rdson') || name.includes('mosfet')) detected.add('rdson');
-    if (name.includes('iddq')) detected.add('iddq');
-    if (name.includes('leak')) detected.add('leakage');
-  }
+  const result = Array.from(detected);
+  result.detectedKeys = Array.from(detected);
+  result.formatStatus = result.length > 0 ? 'DETECTED' : 'NO_PARAMETERS_FOUND';
+  result.message = result.length > 0
+    ? `Successfully detected ${result.length} parameter(s) from dataset.`
+    : 'No recognized telemetry parameter columns found in the uploaded dataset.';
 
-  return Array.from(detected);
+  return result;
 }
 
 module.exports = {
   CANONICAL_PARAM_DEFINITIONS,
   detectFromCsvHeaders,
   detectFromJson,
+  detectFromZipFilePath,
   detectFromZipBuffer,
   detectParametersFromDataset,
 };
+
+
