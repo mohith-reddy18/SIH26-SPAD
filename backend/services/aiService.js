@@ -29,7 +29,7 @@
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
-const { openAsBlob } = require('fs');
+const { Readable } = require('stream');
 const ALLOWED_AI_FLAGS = Object.freeze(['FLAGGED', 'NOT FLAGGED', 'NOT_EVALUATED']);
 
 /**
@@ -477,12 +477,11 @@ async function runScreening(payload, explicitSignal = null) {
     };
   }
 
-  const formData = new FormData();
   let archiveCleanup = null;
   let tempDiskFileToClean = null;
 
   try {
-    // 1. Attach file archive (ZIP directly, or stream-normalized ZIP for CSV, JSON, MAT)
+    // 1. Resolve source dataset path (preserving streamed disk files without full-memory loading)
     const targetFile = file || datasetContent || dataset;
     const resolvedFileName = fileName || file?.originalname || (typeof targetFile === 'string' ? 'dataset.csv' : 'screening_dataset.zip');
     const resolvedFileType = fileType || file?.mimetype || (resolvedFileName.endsWith('.zip') ? 'application/zip' : 'application/octet-stream');
@@ -493,7 +492,7 @@ async function runScreening(payload, explicitSignal = null) {
     } else if (typeof targetFile === 'string' && fs.existsSync(targetFile)) {
       sourceDiskPath = targetFile;
     } else if (targetFile) {
-      // Small payload string / buffer written to temp disk file to avoid memory bloat
+      // Small payload written to temp disk file to keep memory footprint flat
       const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e6)}`;
       const ext = path.extname(resolvedFileName) || '.csv';
       const tempPath = path.join(os.tmpdir(), `spad-temp-${uniqueSuffix}${ext}`);
@@ -510,24 +509,7 @@ async function runScreening(payload, explicitSignal = null) {
       tempDiskFileToClean = tempPath;
     }
 
-    if (sourceDiskPath && fs.existsSync(sourceDiskPath)) {
-      const lowerName = resolvedFileName.toLowerCase();
-      const isZip = lowerName.endsWith('.zip');
-      const isCsv = lowerName.endsWith('.csv');
-      const mimeType = isZip ? 'application/zip' : (isCsv ? 'text/csv' : resolvedFileType);
-      const blob = await openAsBlob(sourceDiskPath, { type: mimeType });
-      formData.append('file', blob, resolvedFileName);
-    }
-
-    // 2. Attach lotId and optional componentId
-    if (lotId) {
-      formData.append('lotId', String(lotId).trim());
-    }
-    if (componentId) {
-      formData.append('componentId', String(componentId).trim());
-    }
-
-    // 3. Normalize & Attach engineeringLimits as JSON string (strictly UPPER or LOWER for Python service)
+    // 2. Normalize engineeringLimits
     let parsedLimits = {};
     if (typeof engineeringLimits === 'string') {
       try {
@@ -553,15 +535,55 @@ async function runScreening(payload, explicitSignal = null) {
       }
     }
 
-    formData.append('engineeringLimits', JSON.stringify(normalizedLimits));
-
-    // 4. Attach context as JSON string
+    // 3. Normalize context
     const contextObj = {
       ...(context && typeof context === 'object' ? context : {}),
       ...(resolvedFileName ? { fileName: resolvedFileName } : {}),
       ...(resolvedFileType ? { fileType: resolvedFileType } : {}),
     };
-    formData.append('context', JSON.stringify(contextObj));
+
+    // 4. Construct stream-safe multipart payload (avoids openAsBlob() stream collision in Node.js Undici)
+    const boundary = `----SPADBoundary${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+    const prefixParts = [];
+
+    if (lotId) {
+      prefixParts.push(`--${boundary}\r\nContent-Disposition: form-data; name="lotId"\r\n\r\n${String(lotId).trim()}\r\n`);
+    }
+    if (componentId) {
+      prefixParts.push(`--${boundary}\r\nContent-Disposition: form-data; name="componentId"\r\n\r\n${String(componentId).trim()}\r\n`);
+    }
+    prefixParts.push(`--${boundary}\r\nContent-Disposition: form-data; name="engineeringLimits"\r\n\r\n${JSON.stringify(normalizedLimits)}\r\n`);
+    prefixParts.push(`--${boundary}\r\nContent-Disposition: form-data; name="context"\r\n\r\n${JSON.stringify(contextObj)}\r\n`);
+
+    let hasFile = false;
+    let diskFileSize = 0;
+    if (sourceDiskPath && fs.existsSync(sourceDiskPath)) {
+      hasFile = true;
+      const lowerName = resolvedFileName.toLowerCase();
+      const isZip = lowerName.endsWith('.zip');
+      const isCsv = lowerName.endsWith('.csv');
+      const mimeType = isZip ? 'application/zip' : (isCsv ? 'text/csv' : resolvedFileType);
+      prefixParts.push(`--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${resolvedFileName}"\r\nContent-Type: ${mimeType}\r\n\r\n`);
+      const stat = fs.statSync(sourceDiskPath);
+      diskFileSize = stat.size;
+    }
+
+    const prefixBuffer = Buffer.from(prefixParts.join(''), 'utf-8');
+    const suffixBuffer = Buffer.from(`${hasFile ? '\r\n' : ''}--${boundary}--\r\n`, 'utf-8');
+    const totalContentLength = prefixBuffer.length + diskFileSize + suffixBuffer.length;
+
+    async function* generateMultipartStream() {
+      yield prefixBuffer;
+      if (hasFile && sourceDiskPath && fs.existsSync(sourceDiskPath)) {
+        const fileStream = fs.createReadStream(sourceDiskPath);
+        for await (const chunk of fileStream) {
+          yield chunk;
+        }
+      }
+      yield suffixBuffer;
+    }
+
+    const requestBody = Readable.toWeb(Readable.from(generateMultipartStream()));
 
     let requestSignal;
     const timeoutSignal = AbortSignal.timeout(timeoutMs);
@@ -579,13 +601,16 @@ async function runScreening(payload, explicitSignal = null) {
     }
 
     const headers = {
+      'Content-Type': `multipart/form-data; boundary=${boundary}`,
+      'Content-Length': String(totalContentLength),
       ...(process.env.AI_SERVICE_KEY ? { Authorization: `Bearer ${process.env.AI_SERVICE_KEY}` } : {}),
     };
 
     const response = await fetch(targetUrl, {
       method: 'POST',
       headers,
-      body: formData,
+      body: requestBody,
+      duplex: 'half',
       signal: requestSignal,
     });
 
