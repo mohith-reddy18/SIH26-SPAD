@@ -371,10 +371,25 @@ async function callRemoteInference(endpointPath, payload) {
     });
 
     if (!response.ok) {
+      let detail = '';
+      try {
+        const text = await response.text();
+        try {
+          const json = JSON.parse(text);
+          detail = json.message || json.error || json.detail || text;
+        } catch {
+          detail = text ? text.slice(0, 300) : '';
+        }
+      } catch {
+        detail = '';
+      }
+
       throw {
         statusCode: 503,
         code: 'MODEL_UNAVAILABLE',
-        message: 'The predictive screening model service is currently unavailable or returned an error status',
+        message: detail
+          ? `The predictive screening model service (${targetUrl}) returned HTTP ${response.status}: ${detail}`
+          : `The predictive screening model service (${targetUrl}) returned HTTP ${response.status} (${response.statusText || 'Error'})`,
       };
     }
 
@@ -384,10 +399,13 @@ async function callRemoteInference(endpointPath, payload) {
     if (err.code === 'MODEL_UNAVAILABLE' || err.statusCode === 503) {
       throw err;
     }
+    const reason = err.name === 'TimeoutError'
+      ? `Inference request timed out after ${Math.round(timeoutMs / 1000)}s`
+      : (err.cause?.code || err.code || err.message || 'Connection failed / Service offline');
     throw {
       statusCode: 503,
       code: 'MODEL_UNAVAILABLE',
-      message: 'The predictive screening model service is currently unavailable or timed out',
+      message: `The predictive screening model service (${targetUrl}) is currently unreachable (${reason})`,
     };
   }
 }
@@ -528,10 +546,25 @@ async function runScreening(payload, explicitSignal = null) {
     });
 
     if (!response.ok) {
+      let detail = '';
+      try {
+        const text = await response.text();
+        try {
+          const json = JSON.parse(text);
+          detail = json.message || json.error || json.detail || text;
+        } catch {
+          detail = text ? text.slice(0, 300) : '';
+        }
+      } catch {
+        detail = '';
+      }
+
       throw {
         statusCode: 503,
         code: 'MODEL_UNAVAILABLE',
-        message: 'The predictive screening model service is currently unavailable or returned an error status',
+        message: detail
+          ? `The predictive screening model service (${targetUrl}) returned HTTP ${response.status}: ${detail}`
+          : `The predictive screening model service (${targetUrl}) returned HTTP ${response.status} (${response.statusText || 'Error'})`,
       };
     }
 
@@ -548,10 +581,13 @@ async function runScreening(payload, explicitSignal = null) {
     if (err.code === 'MODEL_UNAVAILABLE' || err.statusCode === 503 || err.code === 'SCREENING_ABORTED' || err.statusCode === 499) {
       throw err;
     }
+    const reason = err.name === 'TimeoutError'
+      ? `Inference timed out after ${Math.round(timeoutMs / 1000)}s`
+      : (err.cause?.code || err.code || err.message || 'Connection Refused / Service Offline');
     throw {
       statusCode: 503,
       code: 'MODEL_UNAVAILABLE',
-      message: 'The predictive screening model service is currently unavailable or timed out',
+      message: `The predictive screening model service (${targetUrl}) is currently unreachable (${reason})`,
     };
   }
 }

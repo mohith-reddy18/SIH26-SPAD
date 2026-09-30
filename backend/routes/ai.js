@@ -193,9 +193,9 @@ router.post('/predict-168h', async (req, res) => {
   } catch (error) {
     return createErrorResponse(
       res,
-      503,
-      'MODEL_UNAVAILABLE',
-      'The predictive screening model service is currently unavailable or encountered an error',
+      error.statusCode || 503,
+      error.code || 'MODEL_UNAVAILABLE',
+      error.message || 'The predictive screening model service is currently unavailable or encountered an error',
       req.body?.componentId,
       req.body?.lotId
     );
@@ -349,9 +349,9 @@ router.post('/detect-lot-anomalies', async (req, res) => {
   } catch (error) {
     return createErrorResponse(
       res,
-      503,
-      'MODEL_UNAVAILABLE',
-      'The lot anomaly detection model service is currently unavailable or encountered an error',
+      error.statusCode || 503,
+      error.code || 'MODEL_UNAVAILABLE',
+      error.message || 'The lot anomaly detection model service is currently unavailable or encountered an error',
       req.body?.componentId,
       req.body?.lotId
     );
