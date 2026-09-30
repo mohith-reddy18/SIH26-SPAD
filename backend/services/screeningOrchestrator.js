@@ -416,27 +416,65 @@ async function processRemoteScreeningRun({ lotId, componentId, customLimits = nu
 
     // 2. Fetch existing document from MongoDB to check for authoritative DB limits
     const existingDoc = await ScreeningRecord.findOne({ componentId: compId, lotId: cleanLotId }).lean();
-    const authoritativeLimits = (existingDoc?.engineeringLimits && typeof existingDoc.engineeringLimits === 'object')
-      ? { ...existingDoc.engineeringLimits }
-      : {};
 
-    // Merge request-level limits for parameters without DATABASE_CATALOG limit (preserving DB authority)
+    // Check if lot has a DATABASE_CATALOG limit in the database
+    const dbCatalogLimits = {};
+    if (cleanLotId) {
+      const dbDocWithCatalog = await ScreeningRecord.findOne({
+        lotId: cleanLotId,
+        $or: [
+          { 'engineeringLimits.rdson.source': 'DATABASE_CATALOG' },
+          { 'engineeringLimits.rdson.isAuthoritative': true },
+        ],
+      }).lean();
+      if (dbDocWithCatalog?.engineeringLimits) {
+        for (const [pKey, pLim] of Object.entries(dbDocWithCatalog.engineeringLimits)) {
+          if (pLim && typeof pLim === 'object' && String(pLim.source || '').toUpperCase() === 'DATABASE_CATALOG') {
+            dbCatalogLimits[pKey] = { ...pLim };
+          }
+        }
+      }
+    }
+
+    const authoritativeLimits = {};
+
+    // First load from existing document if it has DATABASE_CATALOG source
+    if (existingDoc?.engineeringLimits && typeof existingDoc.engineeringLimits === 'object') {
+      for (const [pKey, pLim] of Object.entries(existingDoc.engineeringLimits)) {
+        if (pLim && typeof pLim === 'object') {
+          if (String(pLim.source || '').toUpperCase() === 'DATABASE_CATALOG') {
+            authoritativeLimits[pKey] = { ...pLim };
+          }
+        }
+      }
+    }
+
+    // Merge lot-level database catalog limits
+    for (const [pKey, pLim] of Object.entries(dbCatalogLimits)) {
+      if (!authoritativeLimits[pKey]) {
+        authoritativeLimits[pKey] = { ...pLim };
+      }
+    }
+
+    // Merge request-level limits:
+    // DATABASE_CATALOG from request is applied if present.
+    // USER_ENGINEERING_INPUT or SUPPLIED is applied ONLY for parameters that DO NOT have a DATABASE_CATALOG limit.
     if (customLimits && typeof customLimits === 'object') {
       for (const [paramKey, limitVal] of Object.entries(customLimits)) {
         const isCustomDb = typeof limitVal === 'object' && String(limitVal.source || '').toUpperCase() === 'DATABASE_CATALOG';
-        if (
-          !authoritativeLimits[paramKey] ||
-          authoritativeLimits[paramKey].source === 'SUPPLIED' ||
-          authoritativeLimits[paramKey].source === 'USER_ENGINEERING_INPUT' ||
-          authoritativeLimits[paramKey].source === 'AI_ESTIMATED_BOUNDARY' ||
-          authoritativeLimits[paramKey].source === 'NONE_AVAILABLE' ||
-          isCustomDb
-        ) {
+        const hasDbCatalog = authoritativeLimits[paramKey] && String(authoritativeLimits[paramKey].source || '').toUpperCase() === 'DATABASE_CATALOG';
+
+        if (isCustomDb || !hasDbCatalog) {
           authoritativeLimits[paramKey] = typeof limitVal === 'object'
-            ? limitVal
+            ? { ...limitVal }
             : { limitValue: limitVal, direction: 'UPPER', source: 'SUPPLIED' };
         }
       }
+    }
+
+    // If still no limit for a parameter, preserve existing doc limit without fabricating
+    if (!authoritativeLimits.rdson && existingDoc?.engineeringLimits?.rdson) {
+      authoritativeLimits.rdson = { ...existingDoc.engineeringLimits.rdson };
     }
 
     // 3. Telemetry extraction (0h, 24h)
@@ -472,8 +510,16 @@ async function processRemoteScreeningRun({ lotId, componentId, customLimits = nu
       rfFlag = 'NOT FLAGGED';
     }
 
-    const futureRiskScoreVal = item.prediction?.futureRiskScore ?? item.futureRiskScore ?? (rfFlag === 'FLAGGED' ? 0.85 : (rfFlag === 'NOT FLAGGED' ? 0.15 : null));
-    const futureRiskPercentVal = item.prediction?.futureRiskPercent ?? item.futureRiskPercent ?? (typeof futureRiskScoreVal === 'number' ? Math.round(futureRiskScoreVal * 100) : null);
+    // Preserve real Python values without fabricating
+    const futureRiskScoreVal = (typeof item.prediction?.futureRiskScore === 'number' && !isNaN(item.prediction.futureRiskScore))
+      ? item.prediction.futureRiskScore
+      : (typeof item.futureRiskScore === 'number' && !isNaN(item.futureRiskScore) ? item.futureRiskScore : null);
+
+    const futureRiskPercentVal = (typeof item.prediction?.futureRiskPercent === 'number' && !isNaN(item.prediction.futureRiskPercent))
+      ? item.prediction.futureRiskPercent
+      : (typeof item.futureRiskPercent === 'number' && !isNaN(item.futureRiskPercent)
+        ? item.futureRiskPercent
+        : (typeof futureRiskScoreVal === 'number' ? Math.round(futureRiskScoreVal * 100) : null));
 
     // 5. Isolation Forest Method 2 Lot Anomaly
     const lotAnomalyScore = item.lotAnomaly?.lotAnomalyScore ?? item.lotAnomaly?.score ?? item.lotAnomaly?.Module_A_IF_Score ?? item.Module_A_IF_Score ?? item.lotAnomalyScore ?? (item.aiAssessment?.lotAnomaly?.parameters?.rdson?.lotAnomalyScore ?? null);

@@ -169,7 +169,9 @@ export function getParameterMeta(key, limit) {
   // Derive human-friendly display name if not in static mapping
   let derivedName = matched.name;
   if (!derivedName) {
-    if (lowerKey.includes('rdson') || lowerKey.includes('rds')) {
+    if (lowerKey === 'delta_rdson' || lowerKey === 'deltardson' || lowerKey.includes('delta_rds') || lowerKey.includes('drift')) {
+      derivedName = 'Early Drift (ΔRDS)';
+    } else if (lowerKey === 'rdson' || lowerKey === 'rds_on' || lowerKey === 'rds(on)' || lowerKey.includes('rdson') || lowerKey.includes('rds')) {
       derivedName = 'On-Resistance (RDS(on))';
     } else if (lowerKey === 'vth' || lowerKey.includes('v_th') || lowerKey.includes('threshold')) {
       derivedName = 'Threshold Voltage (V_th)';

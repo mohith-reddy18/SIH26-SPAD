@@ -11,50 +11,42 @@ function getStatusColor(status) {
   return '#38bdf8';
 }
 
-// Helper to extract observed checkpoints and optional AI predicted trajectory
+// Helper to extract observed checkpoints and optional AI predicted trajectory mapped explicitly by time key
 function extractTrajectory(data, predictionVal) {
-  if (data === null || data === undefined) {
-    return typeof predictionVal === 'number' && !isNaN(predictionVal) ? [predictionVal] : [];
-  }
+  let v0 = null;
+  let v24 = null;
+  let v96 = null;
+  let v168 = (typeof predictionVal === 'number' && !isNaN(predictionVal)) ? predictionVal : null;
+
   if (typeof data === 'number' && !isNaN(data)) {
-    return [data];
+    v0 = data;
+  } else if (Array.isArray(data)) {
+    if (typeof data[0] === 'number' && !isNaN(data[0])) v0 = data[0];
+    if (typeof data[1] === 'number' && !isNaN(data[1])) v24 = data[1];
+    if (data.length >= 4) {
+      if (typeof data[2] === 'number' && !isNaN(data[2])) v96 = data[2];
+      if (typeof data[3] === 'number' && !isNaN(data[3])) v168 = data[3];
+    } else if (data.length === 3) {
+      if (typeof data[2] === 'number' && !isNaN(data[2])) v168 = data[2];
+    }
+  } else if (data && typeof data === 'object') {
+    const raw0 = data['0h'] ?? data['0hr'] ?? data['0H'] ?? data['0%'] ?? data['RDS0'] ?? data['rds0'];
+    const raw24 = data['24h'] ?? data['24hr'] ?? data['24H'] ?? data['33%'] ?? data['33.3%'] ?? data['33.33%'] ?? data['RDS33'] ?? data['rds33'];
+    const raw96 = data['96h'] ?? data['96hr'] ?? data['96H'] ?? data['66%'] ?? data['66.7%'] ?? data['66.67%'] ?? data['RDS96'] ?? data['rds96'];
+    const raw168 = data['168h'] ?? data['168hr'] ?? data['168H'] ?? data['100%'] ?? data['RDS168'] ?? data['rds168'];
+
+    if (typeof raw0 === 'number' && !isNaN(raw0)) v0 = raw0;
+    if (typeof raw24 === 'number' && !isNaN(raw24)) v24 = raw24;
+    if (typeof raw96 === 'number' && !isNaN(raw96)) v96 = raw96;
+    if (typeof raw168 === 'number' && !isNaN(raw168)) v168 = raw168;
   }
-  if (Array.isArray(data)) {
-    const numData = data.filter((v) => typeof v === 'number' && !isNaN(v));
-    if (numData.length === 0) {
-      return typeof predictionVal === 'number' && !isNaN(predictionVal) ? [predictionVal] : [];
-    }
-    // If we already have 4 points (0hr, 24hr, 96hr, 168hr), never append beyond 168hr
-    if (numData.length >= 4) {
-      return numData.slice(0, 4);
-    }
-    if (typeof predictionVal === 'number' && !isNaN(predictionVal)) {
-      if (numData.length === 3) {
-        return [...numData, predictionVal];
-      }
-      if (numData.length < 3) {
-        return [...numData, predictionVal].slice(0, 4);
-      }
-    }
-    return numData.slice(0, 4);
-  }
-  if (typeof data === 'object') {
-    const v0 = data['0h'] ?? data['0hr'] ?? data['0H'] ?? data['0%'];
-    const v24 = data['24h'] ?? data['24hr'] ?? data['24H'] ?? data['33%'] ?? data['33.3%'] ?? data['33.33%'];
-    const v96 = data['96h'] ?? data['96hr'] ?? data['96H'] ?? data['66%'] ?? data['66.7%'] ?? data['66.67%'];
-    const v168 = data['168h'] ?? data['168hr'] ?? data['168H'] ?? data['100%'] ?? (typeof predictionVal === 'number' ? predictionVal : undefined);
-    
-    const stageVals = [v0, v24, v96, v168].filter((v) => typeof v === 'number' && !isNaN(v));
-    if (stageVals.length > 0) {
-      return stageVals.slice(0, 4);
-    }
-    const vals = Object.values(data).filter((v) => typeof v === 'number' && !isNaN(v));
-    if (typeof predictionVal === 'number' && !isNaN(predictionVal) && vals.length < 4) {
-      return [...vals, predictionVal].slice(0, 4);
-    }
-    return vals.slice(0, 4);
-  }
-  return [];
+
+  // Explicit 4-slot checkpoint array mapped 1-to-1 to:
+  // index 0 -> 0hr (0% [OBSERVED])
+  // index 1 -> 24hr (33.3% [OBSERVED])
+  // index 2 -> 96hr (66.7% [PREDICTED]) -- only if explicitly present
+  // index 3 -> 168hr (100% [PREDICTED]) -- 168h regression forecast
+  return [v0, v24, v96, v168];
 }
 
 export default function ParameterTrends({
@@ -141,21 +133,42 @@ export default function ParameterTrends({
 
   // 3. Dynamic available parameters constructed exclusively from the component's actual telemetry
   const availableParams = useMemo(() => {
-    const measurementKeys = Object.keys(activeComponent.measurements || {});
-    const engineeringLimitKeys = Object.keys(activeComponent.engineeringLimits || {});
-    const predictionKeys = Object.keys(activeComponent.predictions || {}).map((k) => k.replace(/_168h$/, ''));
-    
-    // Extract unique parameter keys present in this specific component's record
-    const allKeys = Array.from(new Set([...measurementKeys, ...engineeringLimitKeys, ...predictionKeys])).filter(Boolean);
+    const rawKeys = [
+      ...Object.keys(activeComponent.measurements || {}),
+      ...Object.keys(activeComponent.engineeringLimits || {}),
+      ...Object.keys(activeComponent.predictions || {}).map((k) => k.replace(/_168h$/, '')),
+    ].filter(Boolean);
 
-    if (allKeys.length > 0) {
-      return allKeys.map((key) => {
+    // Ignore timepoint subfields and raw internal stage names that belong to rdson/other parameters
+    const IGNORED_TIMEPOINT_KEYS = new Set([
+      '0h', '24h', '96h', '168h', '0hr', '24hr', '96hr', '168hr',
+      '0H', '24H', '96H', '168H', '0%', '33%', '33.3%', '33.33%', '66%', '66.7%', '66.67%', '100%',
+      'RDS0', 'RDS33', 'RDS96', 'RDS168', 'rds0', 'rds33', 'rds96', 'rds168',
+      'Forecast_Residual', 'Absolute_Forecast_Error', 'Relative_Error_Percent', 'Delta_RDS_0_33',
+    ]);
+
+    const validKeys = rawKeys.filter((k) => !IGNORED_TIMEPOINT_KEYS.has(k));
+    const uniqueKeys = Array.from(new Set(validKeys));
+
+    if (uniqueKeys.length > 0) {
+      const seenKeys = new Set();
+      const seenNames = new Set();
+      const result = [];
+
+      for (const key of uniqueKeys) {
         const limit = activeComponent.engineeringLimits?.[key];
-        return getParameterMeta(key, limit);
-      });
+        const meta = getParameterMeta(key, limit);
+        if (!seenKeys.has(meta.key) && !seenNames.has(meta.name)) {
+          seenKeys.add(meta.key);
+          seenNames.add(meta.name);
+          result.push(meta);
+        }
+      }
+
+      return result.length > 0 ? result : [getParameterMeta('rdson', activeComponent.engineeringLimits?.rdson)];
     }
 
-    return [];
+    return [getParameterMeta('rdson', activeComponent.engineeringLimits?.rdson)];
   }, [activeComponent.measurements, activeComponent.engineeringLimits, activeComponent.predictions]);
 
   // Automatically keep selected parameter in sync when available parameters change
@@ -265,16 +278,27 @@ export default function ParameterTrends({
   // Dynamic Y-axis Min and Max derived from active dataset and engineering limit
   const allValues = [];
   activeSeries.forEach((s) => {
-    if (Array.isArray(s.data)) allValues.push(...s.data);
+    if (Array.isArray(s.data)) {
+      s.data.forEach((v) => {
+        if (typeof v === 'number' && !isNaN(v)) allValues.push(v);
+      });
+    }
   });
-  if (typeof dynamicLimit === 'number') {
+
+  const dataMin = allValues.length > 0 ? Math.min(...allValues) : 0;
+  const dataMax = allValues.length > 0 ? Math.max(...allValues) : 1;
+
+  // Only include dynamicLimit in Y-axis scaling if it is in comparable physical range (e.g. <= 2.2x dataMax)
+  // This prevents an out-of-scale limit (e.g. 7.00 Ω) from flattening 0.48–0.69 Ω telemetry.
+  const isLimitInPhysicalRange = typeof dynamicLimit === 'number' && !isNaN(dynamicLimit) && dynamicLimit > 0 && dynamicLimit <= dataMax * 2.2;
+  if (isLimitInPhysicalRange) {
     allValues.push(dynamicLimit);
   }
 
-  const dataMin = allValues.length > 0 ? Math.min(...allValues) : 0;
-  const dataMax = allValues.length > 0 ? Math.max(...allValues) : 10;
-  const minVal = Math.max(0, dataMin * 0.82);
-  const maxVal = dataMax * 1.15;
+  const effectiveMin = allValues.length > 0 ? Math.min(...allValues) : dataMin;
+  const effectiveMax = allValues.length > 0 ? Math.max(...allValues) : dataMax;
+  const minVal = Math.max(0, effectiveMin * 0.85);
+  const maxVal = effectiveMax * 1.15;
 
   // Dynamic checkpoints: 0% [OBSERVED], 33.3% [OBSERVED], 66.7% [PREDICTED], 100% [PREDICTED]
   // Authoritative NASA V1 mapping: 0% -> 0hr, 33.3% -> 24hr, 66.7% -> 96hr, 100% -> 168hr
@@ -498,23 +522,28 @@ export default function ParameterTrends({
 
           {/* Trajectory Series Polylines */}
           {activeSeries.map((series) => {
-            const points = series.data.map((val, idx) => `${getX(idx)},${getY(val)}`).join(' ');
+            const validPoints = series.data
+              .map((val, idx) => (typeof val === 'number' && !isNaN(val) ? { val, idx, x: getX(idx), y: getY(val) } : null))
+              .filter(Boolean);
+
+            const pointsString = validPoints.map((p) => `${p.x},${p.y}`).join(' ');
 
             return (
               <g key={series.id}>
-                <polyline
-                  fill="none"
-                  stroke={series.color}
-                  strokeWidth={series.strokeWidth || 2.8}
-                  strokeOpacity={series.opacity !== undefined ? series.opacity : 1}
-                  strokeDasharray={series.dashed ? '4 3' : 'none'}
-                  points={points}
-                />
+                {pointsString && (
+                  <polyline
+                    fill="none"
+                    stroke={series.color}
+                    strokeWidth={series.strokeWidth || 2.8}
+                    strokeOpacity={series.opacity !== undefined ? series.opacity : 1}
+                    strokeDasharray={series.dashed ? '4 3' : 'none'}
+                    points={pointsString}
+                  />
+                )}
 
                 {/* Data Points on Nodes */}
-                {series.data.map((val, idx) => {
-                  const cx = getX(idx);
-                  const cy = getY(val);
+                {validPoints.map((pt) => {
+                  const { val, idx, x: cx, y: cy } = pt;
                   const cpObj = checkpoints[idx] || {};
                   const isPredicted = Boolean(cpObj.isPredicted);
                   const cpLabel = cpObj.label || (isPredicted ? '100%' : '0%');
