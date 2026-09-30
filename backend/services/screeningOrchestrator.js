@@ -364,6 +364,9 @@ async function processRemoteScreeningRun({ lotId, componentId, customLimits = nu
   console.log(`[SCREENING TRACE] rawOutput.results.length = ${rawResultsLen}`);
   console.log(`[SCREENING TRACE] first result keys = [${firstKeys}]`);
   console.log(`[SCREENING TRACE] first result Test_ID = ${firstTestId}`);
+  if (firstItem) {
+    console.log(`[SCREENING TRACE] first result JSON = ${JSON.stringify(firstItem)}`);
+  }
 
   if (signal && signal.aborted) {
     throw {
@@ -548,6 +551,10 @@ async function processRemoteScreeningRun({ lotId, componentId, customLimits = nu
     };
 
     evaluatedRecords.push(canonicalRecord);
+  }
+
+  if (evaluatedRecords.length > 0) {
+    console.log(`[SCREENING TRACE] first evaluatedRecord JSON = ${JSON.stringify(evaluatedRecords[0])}`);
   }
 
   // 8. Persist all records to MongoDB (skip if aborted)
