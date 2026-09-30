@@ -167,15 +167,13 @@ export default function ComponentTable({ records = [], onSelectComponent }) {
                   const s = String(rawM1Flag).toUpperCase().trim();
                   if (s === 'FLAGGED') m1Flag = 'FLAGGED';
                   else if (s === 'NOT FLAGGED' || s === 'NOT_FLAGGED' || s === 'PASS' || s === 'NORMAL' || s === 'NOMINAL') m1Flag = 'NOT FLAGGED';
-                } else if (typeof item.aiRisk === 'number') {
-                  m1Flag = item.aiRisk > 40 ? 'FLAGGED' : 'NOT FLAGGED';
                 }
 
                 const riskPercent = typeof m1Param.futureRiskPercent === 'number'
                   ? m1Param.futureRiskPercent
                   : (typeof m1Param.futureRiskScore === 'number'
                   ? Math.round(m1Param.futureRiskScore * 100)
-                  : (typeof item.aiRisk === 'number' ? item.aiRisk : null));
+                  : null);
 
                 // Method 2 (Isolation Forest Anomaly) Extraction
                 const m2Params = item.aiAssessment?.lotAnomaly?.parameters || {};
