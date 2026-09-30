@@ -1018,9 +1018,9 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Start server with long-connection & large-file transfer support
-const server = app.listen(PORT, () => {
-  console.log(`SPAD backend server running on port ${PORT}`);
+// Start server with long-connection & large-file transfer support on all interfaces for Render
+const server = app.listen(PORT, '0.0.0.0', () => {
+  console.log(`SPAD backend server successfully bound to http://0.0.0.0:${PORT} (process.env.PORT=${process.env.PORT || 'default 5000'})`);
 });
 
 // Configure server socket timeouts to prevent premature termination during multi-GB dataset transfers
