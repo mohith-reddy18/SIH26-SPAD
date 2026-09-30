@@ -912,7 +912,13 @@ app.get('/api/screening/:componentId', async (req, res) => {
   }
 });
 
-// Start server
-app.listen(PORT, () => {
+// Start server with long-connection & large-file transfer support
+const server = app.listen(PORT, () => {
   console.log(`SPAD backend server running on port ${PORT}`);
 });
+
+// Configure server socket timeouts to prevent premature termination during multi-GB dataset transfers
+server.requestTimeout = 0; // Disable automatic 5-minute request timeout for large dataset streaming
+server.timeout = 0; // Disable idle socket timeout
+server.keepAliveTimeout = 65000;
+server.headersTimeout = 66000;

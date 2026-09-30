@@ -424,7 +424,7 @@ async function runScreening(payload, explicitSignal = null) {
 
   const serviceUrl = process.env.AI_SERVICE_URL.replace(/\/+$/, '');
   const targetUrl = `${serviceUrl}/run-screening`;
-  const timeoutMs = parseInt(process.env.AI_SERVICE_TIMEOUT_MS, 10) || 15000;
+  const timeoutMs = parseInt(process.env.AI_SCREENING_TIMEOUT_MS || process.env.AI_SERVICE_TIMEOUT_MS, 10) || (30 * 60 * 1000);
 
   const {
     lotId,
