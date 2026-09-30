@@ -161,7 +161,7 @@ export default function ComponentTable({ records = [], onSelectComponent }) {
                   ? item.predictions.rdson.predicted168h
                   : null));
 
-                const rawM1Flag = m1Param.aiFlag || (item.aiAssessment?.prediction?.status === 'FLAGGED' ? 'FLAGGED' : null);
+                const rawM1Flag = item.aiAssessment?.prediction?.parameters?.rdson?.aiFlag ?? m1Param.aiFlag;
                 let m1Flag = 'NOT_EVALUATED';
                 if (rawM1Flag) {
                   const s = String(rawM1Flag).toUpperCase().trim();
@@ -224,7 +224,7 @@ export default function ComponentTable({ records = [], onSelectComponent }) {
                     })}
                     {/* Method 1: RF — 168h Prediction */}
                     <td>
-                      <div className="spad-rf-cell" style={{ display: 'flex', alignItems: 'center', fontFamily: 'var(--font-mono)' }}>
+                      <div className="spad-rf-cell" style={{ display: 'flex', flexDirection: 'column', gap: '3px', fontFamily: 'var(--font-mono)' }}>
                         {pred168h !== null ? (
                           <span style={{ fontSize: '11px', color: '#94a3b8' }}>
                             168h: <span className="text-cyan font-bold">{pred168h.toFixed(3)} Ω</span>
@@ -232,6 +232,21 @@ export default function ComponentTable({ records = [], onSelectComponent }) {
                         ) : (
                           <span className="text-muted" style={{ fontSize: '11px' }}>—</span>
                         )}
+                        <div style={{ display: 'flex', alignItems: 'center' }}>
+                          <span
+                            style={{
+                              fontSize: '10px',
+                              fontWeight: '700',
+                              padding: '1px 5px',
+                              borderRadius: '3px',
+                              background: m1Flag === 'FLAGGED' ? 'rgba(239, 68, 68, 0.15)' : m1Flag === 'NOT FLAGGED' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(148, 163, 184, 0.15)',
+                              color: m1Flag === 'FLAGGED' ? '#f87171' : m1Flag === 'NOT FLAGGED' ? 'var(--spad-green, #22C55E)' : '#94a3b8',
+                              border: `1px solid ${m1Flag === 'FLAGGED' ? 'rgba(239, 68, 68, 0.3)' : m1Flag === 'NOT FLAGGED' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(148, 163, 184, 0.25)'}`,
+                            }}
+                          >
+                            {m1Flag}
+                          </span>
+                        </div>
                       </div>
                     </td>
                     {/* Method 2: IF — Lot Anomaly */}
