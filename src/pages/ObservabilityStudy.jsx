@@ -135,7 +135,7 @@ export default function ObservabilityStudy({ selectedLotId, onSelectLot }) {
           <span className="spad-page-tag">POPULATION &amp; TRAJECTORY DYNAMICS</span>
         </div>
         <p className="spad-page-description">
-          Observed burn-in degradation trajectories, parameter checkpoints (0hr &rarr; 24hr &rarr; 96hr), AI 168hr forecast projections, and engineering specification boundary margin analysis.
+          Observed burn-in degradation trajectories, parameter checkpoints (0% &rarr; 33.3% &rarr; 66.7%), AI 100% forecast projections, and engineering specification boundary margin analysis.
         </p>
       </header>
 
@@ -257,10 +257,10 @@ export default function ObservabilityStudy({ selectedLotId, onSelectLot }) {
             <thead>
               <tr>
                 <th>PARAMETER</th>
-                <th>0hr (BASELINE)</th>
-                <th>24hr (EARLY)</th>
-                <th>96hr (INTERMEDIATE)</th>
-                <th>168hr (AI FORECAST)</th>
+                <th>0% (BASELINE)</th>
+                <th>33.3% (EARLY)</th>
+                <th>66.7% (INTERMEDIATE)</th>
+                <th>100% (AI FORECAST)</th>
                 <th>ENGINEERING LIMIT</th>
                 <th>SAFETY MARGIN</th>
                 <th>STATUS</th>
@@ -335,7 +335,7 @@ export default function ObservabilityStudy({ selectedLotId, onSelectLot }) {
             <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: 'rgba(56, 189, 248, 0.04)', borderRadius: '4px' }}>
               <span style={{ fontSize: '12px', color: '#94a3b8' }}>Observed Checkpoints Count:</span>
               <span className="font-mono" style={{ color: '#f8fafc', fontWeight: '700' }}>
-                {measurements[availableParamKeys[0]]?.length || 4} intervals (0hr &rarr; 168hr)
+                {measurements[availableParamKeys[0]]?.length || 4} intervals (0% &rarr; 100%)
               </span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: 'rgba(56, 189, 248, 0.04)', borderRadius: '4px' }}>

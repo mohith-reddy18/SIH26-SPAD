@@ -277,7 +277,7 @@ export default function ComponentSearch({ onNavigateToComponent, initialComponen
                   <th key={col.key}>{col.shortName.toUpperCase()} {col.unit ? `(${col.unit})` : ''}</th>
                 ))}
                 <th>ENGINEERING LIMIT STATUS</th>
-                <th>AI RISK (168hr FORECAST)</th>
+                <th>AI RISK (100% FORECAST)</th>
                 <th>ENGINEERING STATUS</th>
               </tr>
             </thead>

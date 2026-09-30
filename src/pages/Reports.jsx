@@ -336,10 +336,10 @@ export default function Reports({ selectedLotId, onSelectLot }) {
                 <thead>
                   <tr>
                     <th>PARAMETER NAME</th>
-                    <th>0hr (BASELINE)</th>
-                    <th>24hr (EARLY)</th>
-                    <th>96hr (INTERMEDIATE)</th>
-                    <th>168hr (AI FORECAST)</th>
+                    <th>0% (BASELINE)</th>
+                    <th>33.3% (EARLY)</th>
+                    <th>66.7% (INTERMEDIATE)</th>
+                    <th>100% (AI FORECAST)</th>
                     <th>SPEC LIMIT (MAX)</th>
                     <th>SAFETY MARGIN</th>
                     <th>STATUS</th>
@@ -492,9 +492,9 @@ export default function Reports({ selectedLotId, onSelectLot }) {
                   <tr>
                     <th>COMPONENT ID</th>
                     <th>STAGE</th>
-                    <th>RDS(on) 0hr</th>
-                    <th>RDS(on) 24hr</th>
-                    <th>RDS(on) 168hr</th>
+                    <th>RDS(on) 0%</th>
+                    <th>RDS(on) 33.3%</th>
+                    <th>RDS(on) 100%</th>
                     <th>AI RISK</th>
                     <th>EVIDENCE</th>
                     <th>ENGINEERING STATUS</th>
@@ -503,7 +503,7 @@ export default function Reports({ selectedLotId, onSelectLot }) {
                 <tbody>
                   {activeLotRecords.map((item) => {
                     const cId = item.componentId || item.id;
-                    const cStage = formatStageLabel(item.stage || '168hr');
+                    const cStage = formatStageLabel(item.stage || '100%');
                     const cRisk = typeof item.aiRisk === 'number' ? item.aiRisk : 0;
                     const cStatus = item.engineeringStatus || item.status || 'NORMAL';
                     const cEvidence = item.evidence || 'Within Expected Range';

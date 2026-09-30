@@ -249,23 +249,23 @@ export default function ModelPerformance({ selectedLotId, onSelectLot }) {
                   </div>
                   <p className="spad-ai-evidence-desc" style={{ fontSize: '11px', color: 'var(--spad-text-secondary, #8B8FA3)', margin: 0, lineHeight: 1.4, fontFamily: 'var(--font-ui, Inter, sans-serif)' }}>
                     {aiRisk > 75
-                      ? `High probability (${aiRisk}%) of exceeding engineering limit at 168h.`
+                      ? `High probability (${aiRisk}%) of exceeding engineering limit at 100%.`
                       : aiRisk > 40
                       ? `Moderate probability (${aiRisk}%) of parameter drift toward specification boundary.`
                       : typeof activeRecord?.riskScore === 'number'
-                      ? `Nominal 168h forecast prediction (${aiRisk}%) well within safe engineering margins.`
+                      ? `Nominal 100% forecast prediction (${aiRisk}%) well within safe engineering margins.`
                       : 'Early risk prediction telemetry not evaluated.'}
                   </p>
                 </div>
               </div>
             </div>
 
-            {/* Dynamic 168h Predictions Card (Right Card) */}
+            {/* Dynamic 100% Predictions Card (Right Card) */}
             <div className="spad-card" style={{ padding: '20px' }}>
               <div className="spad-card-header">
                 <div className="spad-card-title-group">
                   <span className="spad-card-section-label">EARLY PARAMETER FORECASTS</span>
-                  <h2 className="spad-card-title">168h Projected Values</h2>
+                  <h2 className="spad-card-title">100% Projected Values</h2>
                 </div>
                 <span className="spad-status-pill badge-status-normal">
                   AI INFERENCE READY
@@ -273,7 +273,7 @@ export default function ModelPerformance({ selectedLotId, onSelectLot }) {
               </div>
 
               <p className="spad-card-desc">
-                Parameter trajectories projected at the 168h validation gate from 0h &amp; 24h physical burn-in measurements.
+                Parameter trajectories projected at the 100% validation gate from 0% &amp; 33.3% physical burn-in measurements.
               </p>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px' }}>

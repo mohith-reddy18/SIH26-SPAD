@@ -222,8 +222,8 @@ export default function FailureAnalysis({ selectedLotId, onSelectLot }) {
               <thead>
                 <tr>
                   <th>PARAMETER</th>
-                  <th>OBSERVED VALUES (0hr &rarr; 96hr)</th>
-                  <th>168hr FORECAST PREDICTION</th>
+                  <th>OBSERVED VALUES (0% &rarr; 66.7%)</th>
+                  <th>100% FORECAST PREDICTION</th>
                   <th>ENGINEERING LIMIT</th>
                   <th>SAFETY MARGIN</th>
                   <th>STATUS</th>

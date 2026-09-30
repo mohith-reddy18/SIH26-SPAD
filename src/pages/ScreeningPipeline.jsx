@@ -79,7 +79,7 @@ export default function ScreeningPipeline({ selectedLotId, onSelectLot }) {
         (r) => getNormalizedEngineeringStatus(r) !== 'NORMAL'
       ).length;
       const currentYieldPct = totalUnits > 0 ? `${((normalCount / totalUnits) * 100).toFixed(1)}%` : '100.0%';
-      const activeStage = currentLotRecords[0].stage ? formatStageLabel(currentLotRecords[0].stage) : '168hr';
+      const activeStage = currentLotRecords[0].stage ? formatStageLabel(currentLotRecords[0].stage) : '100%';
       const hasPredictions = currentLotRecords.some((r) => r.aiAssessment?.prediction || (r.predictions && Object.keys(r.predictions).length > 0));
       const hasAnomalies = currentLotRecords.some((r) => r.aiAssessment?.lotAnomaly || r.engineeringStatus || r.status);
 
@@ -94,7 +94,7 @@ export default function ScreeningPipeline({ selectedLotId, onSelectLot }) {
         hasFuturePrediction: hasPredictions || totalUnits > 0,
         hasAnomalyDetection: hasAnomalies || totalUnits > 0,
         completionRate: totalUnits > 0 ? '100%' : '—',
-        nextGate: '168hr Validation Gate',
+        nextGate: '100% Validation Gate',
         temperature: '199–200°C',
         chamberId: 'NASA-MOSFET-CHAMBER',
         operator: 'NASA-THERMAL-OVERSTRESS-V1',
@@ -130,7 +130,7 @@ export default function ScreeningPipeline({ selectedLotId, onSelectLot }) {
       return [
         {
           id: 'stage-0h',
-          timeLabel: '0h',
+          timeLabel: '0%',
           name: 'Baseline Measurement',
           category: 'INPUT MEASUREMENT',
           status: hasBaseline ? 'complete' : 'pending',
@@ -141,7 +141,7 @@ export default function ScreeningPipeline({ selectedLotId, onSelectLot }) {
         },
         {
           id: 'stage-24h',
-          timeLabel: '24h',
+          timeLabel: '33.3%',
           name: 'Early Burn-In Check',
           category: 'INPUT MEASUREMENT',
           status: has24h ? 'complete' : 'pending',
@@ -153,17 +153,17 @@ export default function ScreeningPipeline({ selectedLotId, onSelectLot }) {
         {
           id: 'stage-ai',
           timeLabel: 'AI',
-          name: '168h Risk Prediction',
+          name: '100% Risk Prediction',
           category: 'AI PREDICTION',
           status: hasPrediction ? 'available' : 'pending',
           badge: hasPrediction ? 'Available' : 'Pending',
-          description: 'Early AI Bayesian drift model forecasts 168h trajectory and limit breaches from 0h+24h inputs.',
+          description: 'Early AI Bayesian drift model forecasts 100% trajectory and limit breaches from 0%+33.3% inputs.',
           completedAt: '2026-09-13 11:00',
           sampleYield: `${lotContext.currentYield} Projected`,
         },
         {
           id: 'stage-168h',
-          timeLabel: '168h',
+          timeLabel: '100%',
           name: 'Physical Validation',
           category: 'PHYSICAL VALIDATION',
           status: 'pending',
@@ -178,7 +178,7 @@ export default function ScreeningPipeline({ selectedLotId, onSelectLot }) {
     return [
       {
         id: 'stage-0h',
-        timeLabel: '0h',
+        timeLabel: '0%',
         name: 'Baseline Measurement',
         category: 'INPUT MEASUREMENT',
         status: 'pending',
@@ -188,7 +188,7 @@ export default function ScreeningPipeline({ selectedLotId, onSelectLot }) {
       },
       {
         id: 'stage-24h',
-        timeLabel: '24h',
+        timeLabel: '33.3%',
         name: 'Early Burn-In Check',
         category: 'INPUT MEASUREMENT',
         status: 'pending',
@@ -199,7 +199,7 @@ export default function ScreeningPipeline({ selectedLotId, onSelectLot }) {
       {
         id: 'stage-ai',
         timeLabel: 'AI',
-        name: '168h Risk Prediction',
+        name: '100% Risk Prediction',
         category: 'AI PREDICTION',
         status: 'pending',
         badge: 'Pending',
@@ -208,7 +208,7 @@ export default function ScreeningPipeline({ selectedLotId, onSelectLot }) {
       },
       {
         id: 'stage-168h',
-        timeLabel: '168h',
+        timeLabel: '100%',
         name: 'Physical Validation',
         category: 'PHYSICAL VALIDATION',
         status: 'pending',

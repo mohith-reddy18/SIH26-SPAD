@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
+const multer = require('multer');
 require('dotenv').config();
 
 const app = express();
@@ -15,6 +16,12 @@ const corsOptions = corsOrigin && corsOrigin.trim() !== '*'
 
 app.use(cors(corsOptions));
 app.use(express.json({ limit: '2mb' }));
+
+// In-memory multer instance for handling uploaded datasets (ZIP, CSV, JSON, MAT)
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB max file size
+});
 
 // MongoDB Atlas Connection
 if (MONGODB_URI) {

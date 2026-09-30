@@ -126,7 +126,7 @@ export default function ComponentTable({ records = [], onSelectComponent }) {
               {paramColumns.map((col) => (
                 <th key={col.key}>{col.shortName.toUpperCase()} {col.unit ? `(${col.unit})` : ''}</th>
               ))}
-              <th>RF — 168h PREDICTION</th>
+              <th>RF — 100% PREDICTION</th>
               <th>IF — LOT ANOMALY</th>
               <th>ENGINEERING STATUS</th>
             </tr>

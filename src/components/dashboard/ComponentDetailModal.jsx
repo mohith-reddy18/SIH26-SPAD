@@ -562,7 +562,7 @@ export default function ComponentDetailModal({
                 <span className="spad-peer-stat-value text-slate">{m1Status}</span>
               </div>
               <div className="spad-peer-stat-box">
-                <span className="spad-peer-stat-label">Rate of Change (0h &rarr; 24h)</span>
+                <span className="spad-peer-stat-label">Rate of Change (0% &rarr; 33.3%)</span>
                 <span className="spad-peer-stat-value text-cyan">
                   {roc !== null ? `${roc > 0 ? '+' : ''}${roc.toFixed(6)} Ω/hr` : '—'}
                 </span>

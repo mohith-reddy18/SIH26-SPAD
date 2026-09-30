@@ -220,7 +220,7 @@ export default function ScreeningPipeline({
             Random Forest — Future Prediction
           </div>
           <div style={{ fontSize: '10px', color: '#94a3b8', lineHeight: '1.35' }}>
-            0hr &amp; 24hr early observations &rarr; predicts 168hr parametric degradation &amp; limit breaches.
+            0% &amp; 33.3% early observations &rarr; predicts 100% parametric degradation &amp; limit breaches.
           </div>
           <div style={{ fontSize: '9.5px', color: '#38bdf8', fontWeight: '600', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
             <span>Click to view 5-step workflow</span> &rarr;
@@ -368,14 +368,14 @@ export default function ScreeningPipeline({
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', flex: 1 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
                       <span style={{ fontSize: '13px', fontWeight: '700', color: '#f8fafc' }}>
-                        1. BASELINE (0hr)
+                        1. BASELINE (0%)
                       </span>
                       <span style={{ fontSize: '10px', color: '#38bdf8', fontFamily: 'var(--font-mono)', background: 'rgba(56, 189, 248, 0.1)', padding: '1px 6px', borderRadius: '3px' }}>
                         OBSERVED INPUT
                       </span>
                     </div>
                     <p style={{ fontSize: '12px', color: '#cbd5e1', margin: 0, lineHeight: '1.45' }}>
-                      The initial 0hr physical measurements establish the baseline parameters of each component under nominal conditions prior to accelerated stress.
+                      The initial 0% physical measurements establish the baseline parameters of each component under nominal conditions prior to accelerated stress.
                     </p>
                   </div>
                 </div>
@@ -398,14 +398,14 @@ export default function ScreeningPipeline({
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', flex: 1 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
                       <span style={{ fontSize: '13px', fontWeight: '700', color: '#f8fafc' }}>
-                        2. EARLY GATE (24hr)
+                        2. EARLY GATE (33.3%)
                       </span>
                       <span style={{ fontSize: '10px', color: '#38bdf8', fontFamily: 'var(--font-mono)', background: 'rgba(56, 189, 248, 0.1)', padding: '1px 6px', borderRadius: '3px' }}>
                         OBSERVED INPUT
                       </span>
                     </div>
                     <p style={{ fontSize: '12px', color: '#cbd5e1', margin: 0, lineHeight: '1.45' }}>
-                      The 24hr measurements capture early behavior, initial drift rates, and parameter degradation trends under accelerated thermal and electrical stress.
+                      The 33.3% measurements capture early behavior, initial drift rates, and parameter degradation trends under accelerated thermal and electrical stress.
                     </p>
                   </div>
                 </div>
@@ -435,7 +435,7 @@ export default function ScreeningPipeline({
                       </span>
                     </div>
                     <p style={{ fontSize: '12px', color: '#cbd5e1', margin: 0, lineHeight: '1.45' }}>
-                      Random Forest uses the observed 0hr + 24hr information to model non-linear degradation paths and predict future parameter behavior.
+                      Random Forest uses the observed 0% + 33.3% information to model non-linear degradation paths and predict future parameter behavior.
                     </p>
                   </div>
                 </div>
@@ -458,14 +458,14 @@ export default function ScreeningPipeline({
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', flex: 1 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
                       <span style={{ fontSize: '13px', fontWeight: '700', color: '#f8fafc' }}>
-                        4. 96hr PREDICTION
+                        4. 66.7% PREDICTION
                       </span>
                       <span style={{ fontSize: '10px', color: '#38bdf8', fontFamily: 'var(--font-mono)', background: 'rgba(56, 189, 248, 0.1)', padding: '1px 6px', borderRadius: '3px' }}>
                         PREDICTED STAGE
                       </span>
                     </div>
                     <p style={{ fontSize: '12px', color: '#cbd5e1', margin: 0, lineHeight: '1.45' }}>
-                      The 66.7% normalized stage is represented as the 96hr predicted stage when the actual model/data output provides it. It is never an artificial linear interpolation.
+                      The 66.7% normalized stage is represented as the intermediate predicted stage when the actual model/data output provides it. It is never an artificial linear interpolation.
                     </p>
                   </div>
                 </div>
@@ -488,14 +488,14 @@ export default function ScreeningPipeline({
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', flex: 1 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
                       <span style={{ fontSize: '13px', fontWeight: '700', color: '#f8fafc' }}>
-                        5. 168hr PREDICTION
+                        5. 100% PREDICTION
                       </span>
                       <span style={{ fontSize: '10px', color: '#38bdf8', fontFamily: 'var(--font-mono)', background: 'rgba(56, 189, 248, 0.1)', padding: '1px 6px', borderRadius: '3px' }}>
                         PREDICTED HORIZON
                       </span>
                     </div>
                     <p style={{ fontSize: '12px', color: '#cbd5e1', margin: 0, lineHeight: '1.45' }}>
-                      The 100% normalized stage is the 168hr predicted stage representing forecasted burn-in milestone values.
+                      The 100% normalized stage is the predicted stage representing forecasted burn-in milestone values.
                     </p>
                   </div>
                 </div>
@@ -581,11 +581,11 @@ export default function ScreeningPipeline({
                 </div>
                 <div>
                   <span style={{ color: '#64748b', display: 'block', fontSize: '10px' }}>INPUT FEATURES</span>
-                  <span style={{ color: '#38bdf8', fontWeight: '600' }}>0hr Baseline + 24hr Early Gate [Observed]</span>
+                  <span style={{ color: '#38bdf8', fontWeight: '600' }}>0% Baseline + 33.3% Early Gate [Observed]</span>
                 </div>
                 <div>
                   <span style={{ color: '#64748b', display: 'block', fontSize: '10px' }}>TARGET HORIZON</span>
-                  <span style={{ color: '#f8fafc', fontWeight: '600' }}>96hr &amp; 168hr Stages [Predicted]</span>
+                  <span style={{ color: '#f8fafc', fontWeight: '600' }}>66.7% &amp; 100% Stages [Predicted]</span>
                 </div>
                 <div>
                   <span style={{ color: '#64748b', display: 'block', fontSize: '10px' }}>AI DISPOSITIONS</span>
