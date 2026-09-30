@@ -655,13 +655,10 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
                 <div className="spad-limits-list">
                   {parameterLimits.map((param, idx) => (
                     <div key={param.key} className="spad-limit-row">
-                      {/* Parameter Name & Tag */}
+                      {/* Parameter Name */}
                       <div className="spad-param-cell">
                         <span className="spad-param-name" title={param.name}>
                           {param.name}
-                        </span>
-                        <span className="spad-param-code">
-                          {param.key} • {param.direction || 'UPPER'}
                         </span>
                       </div>
 
