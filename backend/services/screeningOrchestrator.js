@@ -355,7 +355,7 @@ async function processRemoteScreeningRun({ lotId, componentId, customLimits = nu
 
   const rawOutput = await aiService.runScreening(payload, signal);
 
-  const rawResults = rawOutput?.results || rawOutput?.data || (Array.isArray(rawOutput) ? rawOutput : []);
+  const rawResults = rawOutput?.results || rawOutput?.records || rawOutput?.data || (Array.isArray(rawOutput) ? rawOutput : []);
   const rawResultsLen = Array.isArray(rawResults) ? rawResults.length : 0;
   const firstItem = rawResultsLen > 0 ? rawResults[0] : null;
   const firstKeys = firstItem ? Object.keys(firstItem).join(', ') : 'none';
@@ -381,7 +381,11 @@ async function processRemoteScreeningRun({ lotId, componentId, customLimits = nu
     };
   }
 
-  const results = rawOutput.results || rawOutput.data || (Array.isArray(rawOutput) ? rawOutput : [rawOutput]);
+  const results =
+    rawOutput.results ||
+    rawOutput.records ||
+    rawOutput.data ||
+    (Array.isArray(rawOutput) ? rawOutput : [rawOutput]);
   if (!Array.isArray(results) || results.length === 0) {
     throw {
       statusCode: 502,
