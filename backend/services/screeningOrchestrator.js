@@ -440,11 +440,12 @@ async function processRemoteScreeningRun({ lotId, componentId, customLimits = nu
     }
 
     // 3. Telemetry extraction (0h, 24h)
-    const val0h = item.RDS0 ?? item.val0h ?? item['0h'] ?? item.measurements?.rdson?.['0h'];
-    const val24h = item.RDS33 ?? item.val24h ?? item['24h'] ?? item.measurements?.rdson?.['24h'];
+    const val0h = item.measurement?.rdson?.['0h'] ?? item.measurement?.['0h'] ?? item.measurement?.RDS0 ?? item.RDS0 ?? item.val0h ?? item['0h'] ?? item.measurements?.rdson?.['0h'];
+    const val24h = item.measurement?.rdson?.['24h'] ?? item.measurement?.['24h'] ?? item.measurement?.RDS33 ?? item.RDS33 ?? item.val24h ?? item['24h'] ?? item.measurements?.rdson?.['24h'];
     const measurements = {
       ...(existingDoc?.measurements || {}),
-      ...(item.measurements || {}),
+      ...(item.measurement && typeof item.measurement === 'object' ? item.measurement : {}),
+      ...(item.measurements && typeof item.measurements === 'object' ? item.measurements : {}),
     };
     if (typeof val0h === 'number' || typeof val24h === 'number') {
       measurements.rdson = {
@@ -455,7 +456,7 @@ async function processRemoteScreeningRun({ lotId, componentId, customLimits = nu
     }
 
     // 4. Random Forest Method 1 Prediction
-    const predicted168h = item.Predicted_RDS100 ?? item.predicted168h ?? (item.aiAssessment?.prediction?.parameters?.rdson?.predicted168h ?? null);
+    const predicted168h = item.prediction?.predicted168h ?? item.prediction?.Predicted_RDS100 ?? item.Predicted_RDS100 ?? item.predicted168h ?? (item.aiAssessment?.prediction?.parameters?.rdson?.predicted168h ?? null);
     const roc = rateOfChangePerHour(val0h, val24h);
     let calculatedMargin = null;
     const rdsonLim = authoritativeLimits.rdson;
@@ -464,25 +465,48 @@ async function processRemoteScreeningRun({ lotId, componentId, customLimits = nu
     }
 
     let rfFlag = 'NOT_EVALUATED';
-    const rawRfFlag = item.Module_B_Anomaly ?? item.Module_B_Flag ?? item.aiFlag ?? item.aiAssessment?.prediction?.parameters?.rdson?.aiFlag;
+    const rawRfFlag = item.prediction?.aiFlag ?? item.prediction?.Module_B_Anomaly ?? item.prediction?.Module_B_Flag ?? item.Module_B_Anomaly ?? item.Module_B_Flag ?? item.aiFlag ?? item.aiAssessment?.prediction?.parameters?.rdson?.aiFlag;
     if (rawRfFlag === 1 || rawRfFlag === true || (typeof rawRfFlag === 'string' && rawRfFlag.trim().toUpperCase() === 'FLAGGED')) {
       rfFlag = 'FLAGGED';
-    } else if (rawRfFlag === 0 || rawRfFlag === false || (typeof rawRfFlag === 'string' && rawRfFlag.trim().toUpperCase().includes('NOT'))) {
+    } else if (rawRfFlag === 0 || rawRfFlag === false || (typeof rawRfFlag === 'string' && (rawRfFlag.trim().toUpperCase().includes('NOT') || rawRfFlag.trim().toUpperCase() === 'PASS' || rawRfFlag.trim().toUpperCase() === 'NOMINAL' || rawRfFlag.trim().toUpperCase() === 'NORMAL'))) {
       rfFlag = 'NOT FLAGGED';
     }
 
+    const futureRiskScoreVal = item.prediction?.futureRiskScore ?? item.futureRiskScore ?? (rfFlag === 'FLAGGED' ? 0.85 : (rfFlag === 'NOT FLAGGED' ? 0.15 : null));
+    const futureRiskPercentVal = item.prediction?.futureRiskPercent ?? item.futureRiskPercent ?? (typeof futureRiskScoreVal === 'number' ? Math.round(futureRiskScoreVal * 100) : null);
+
     // 5. Isolation Forest Method 2 Lot Anomaly
-    const lotAnomalyScore = item.Module_A_IF_Score ?? item.lotAnomalyScore ?? (item.aiAssessment?.lotAnomaly?.parameters?.rdson?.lotAnomalyScore ?? null);
+    const lotAnomalyScore = item.lotAnomaly?.lotAnomalyScore ?? item.lotAnomaly?.score ?? item.lotAnomaly?.Module_A_IF_Score ?? item.Module_A_IF_Score ?? item.lotAnomalyScore ?? (item.aiAssessment?.lotAnomaly?.parameters?.rdson?.lotAnomalyScore ?? null);
     let ifFlag = 'NOT_EVALUATED';
-    const rawIfFlag = item.Module_A_Anomaly ?? item.Module_A_Flag ?? item.aiAssessment?.lotAnomaly?.parameters?.rdson?.aiFlag;
+    const rawIfFlag = item.lotAnomaly?.aiFlag ?? item.lotAnomaly?.Module_A_Anomaly ?? item.lotAnomaly?.Module_A_Flag ?? item.Module_A_Anomaly ?? item.Module_A_Flag ?? item.aiAssessment?.lotAnomaly?.parameters?.rdson?.aiFlag;
     if (rawIfFlag === 1 || rawIfFlag === true || (typeof rawIfFlag === 'string' && rawIfFlag.trim().toUpperCase() === 'FLAGGED')) {
       ifFlag = 'FLAGGED';
-    } else if (rawIfFlag === 0 || rawIfFlag === false || (typeof rawIfFlag === 'string' && rawIfFlag.trim().toUpperCase().includes('NOT'))) {
+    } else if (rawIfFlag === 0 || rawIfFlag === false || (typeof rawIfFlag === 'string' && (rawIfFlag.trim().toUpperCase().includes('NOT') || rawIfFlag.trim().toUpperCase() === 'PASS' || rawIfFlag.trim().toUpperCase() === 'NOMINAL' || rawIfFlag.trim().toUpperCase() === 'NORMAL' || rawIfFlag.trim().toUpperCase() === 'ANALYZED'))) {
       ifFlag = 'NOT FLAGGED';
     }
 
+    const divergenceTypeVal = item.lotAnomaly?.divergenceType ?? item.divergenceType ?? (ifFlag === 'FLAGGED' ? 'ELEVATED_OUTLIER' : 'NOMINAL');
+    const peerEvidenceObj = {
+      rawScore: lotAnomalyScore,
+      noveltyPercentile: (item.lotAnomaly?.peerComparisonEvidence?.noveltyPercentile !== undefined ? item.lotAnomaly.peerComparisonEvidence.noveltyPercentile : ((item.Module_A_Novelty_Percentile !== undefined && item.Module_A_Novelty_Percentile !== null) ? item.Module_A_Novelty_Percentile : null)),
+      ...(item.lotAnomaly?.peerComparisonEvidence && typeof item.lotAnomaly.peerComparisonEvidence === 'object' ? item.lotAnomaly.peerComparisonEvidence : {}),
+      ...(item.Module_A_IF_Scores ? { stageScores: item.Module_A_IF_Scores } : {}),
+      ...(item.Module_A_Novelty_Percentiles ? { stagePercentiles: item.Module_A_Novelty_Percentiles } : {}),
+    };
+
     // 6. Deterministic engineering & overall status
-    const calculatedEngineeringStatus = engineeringStatus(measurements, authoritativeLimits);
+    const rawEngStatus = item.engineering?.engineeringStatus ?? item.engineering?.status ?? item.engineeringStatus ?? item.status;
+    let calculatedEngineeringStatus;
+    if (rawEngStatus && typeof rawEngStatus === 'string') {
+      const s = rawEngStatus.trim().toUpperCase();
+      if (s === 'NORMAL' || s === 'PASS') calculatedEngineeringStatus = 'NORMAL';
+      else if (s === 'SUSPECT' || s === 'HOLD') calculatedEngineeringStatus = 'SUSPECT';
+      else if (s === 'CRITICAL' || s === 'REJECT') calculatedEngineeringStatus = 'CRITICAL';
+      else calculatedEngineeringStatus = engineeringStatus(measurements, authoritativeLimits);
+    } else {
+      calculatedEngineeringStatus = engineeringStatus(measurements, authoritativeLimits);
+    }
+
     const calculatedOverallStatus = overallStatus([rfFlag, ifFlag]);
 
     // 7. Canonical ScreeningRecord
@@ -508,15 +532,15 @@ async function processRemoteScreeningRun({ lotId, componentId, customLimits = nu
               rateOfChangePerHour: roc,
               engineeringLimit: rdsonLim || null,
               projectedMargin: calculatedMargin,
-              limitBreachProbability: item.limitBreachProbability ?? null,
-              futureRiskScore: item.futureRiskScore ?? (rfFlag === 'FLAGGED' ? 0.85 : 0.15),
-              futureRiskPercent: item.futureRiskPercent ?? null,
+              limitBreachProbability: item.prediction?.limitBreachProbability ?? item.limitBreachProbability ?? null,
+              futureRiskScore: futureRiskScoreVal,
+              futureRiskPercent: futureRiskPercentVal,
               aiFlag: rfFlag,
               modelEvidence: {
-                forecastResidual: (item.Forecast_Residual !== undefined && item.Forecast_Residual !== null) ? item.Forecast_Residual : null,
-                absoluteForecastError: (item.Absolute_Forecast_Error !== undefined && item.Absolute_Forecast_Error !== null) ? item.Absolute_Forecast_Error : null,
-                relativeErrorPercent: (item.Relative_Error_Percent !== undefined && item.Relative_Error_Percent !== null) ? item.Relative_Error_Percent : null,
-                pythonDelta: (item.Delta_RDS_0_33 !== undefined && item.Delta_RDS_0_33 !== null) ? item.Delta_RDS_0_33 : null,
+                forecastResidual: (item.prediction?.Forecast_Residual ?? item.Forecast_Residual ?? null),
+                absoluteForecastError: (item.prediction?.Absolute_Forecast_Error ?? item.Absolute_Forecast_Error ?? null),
+                relativeErrorPercent: (item.prediction?.Relative_Error_Percent ?? item.Relative_Error_Percent ?? null),
+                pythonDelta: (item.prediction?.Delta_RDS_0_33 ?? item.Delta_RDS_0_33 ?? null),
               },
             },
           },
@@ -532,13 +556,8 @@ async function processRemoteScreeningRun({ lotId, componentId, customLimits = nu
               status: lotAnomalyScore !== null ? 'ANALYZED' : 'NOT_EVALUATED',
               observed: { '0h': val0h, '24h': val24h },
               lotAnomalyScore,
-              peerComparisonEvidence: {
-                rawScore: lotAnomalyScore,
-                noveltyPercentile: (item.Module_A_Novelty_Percentile !== undefined && item.Module_A_Novelty_Percentile !== null) ? item.Module_A_Novelty_Percentile : null,
-                ...(item.Module_A_IF_Scores ? { stageScores: item.Module_A_IF_Scores } : {}),
-                ...(item.Module_A_Novelty_Percentiles ? { stagePercentiles: item.Module_A_Novelty_Percentiles } : {}),
-              },
-              divergenceType: item.divergenceType ?? (ifFlag === 'FLAGGED' ? 'ELEVATED_OUTLIER' : 'NOMINAL'),
+              peerComparisonEvidence: peerEvidenceObj,
+              divergenceType: divergenceTypeVal,
               aiFlag: ifFlag,
             },
           },
