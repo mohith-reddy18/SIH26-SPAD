@@ -589,6 +589,8 @@ async function processRemoteScreeningRun({ lotId, componentId, customLimits = nu
   const totalComponents = evaluatedRecords.length;
   const engineeringYield = Number(currentYield(evaluatedRecords).toFixed(2));
 
+  const singleDoc = componentId ? evaluatedRecords.find((r) => r.componentId === componentId) : null;
+
   console.log(`[SCREENING TRACE] evaluatedRecords.length = ${evaluatedRecords.length}`);
   console.log(`[SCREENING TRACE] FINAL evaluatedRecords.length = ${evaluatedRecords.length}`);
 
