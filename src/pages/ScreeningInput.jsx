@@ -497,7 +497,7 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
               type="file"
               ref={fileInputRef}
               onChange={handleFileChange}
-              accept=".csv,.zip,text/csv,application/zip,application/x-zip-compressed"
+              accept=".csv,.zip"
               style={{ display: 'none' }}
               id="spad-dataset-file-input"
             />
