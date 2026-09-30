@@ -725,7 +725,7 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
               </div>
               <div className="spad-step-row">
                 <span className="spad-step-bullet" />
-                <span>Executing Method 1: Random Forest 168h Trajectory Prediction</span>
+                <span>Executing Method 1: Random Forest 100% Trajectory Prediction</span>
               </div>
               <div className="spad-step-row">
                 <span className="spad-step-bullet" />

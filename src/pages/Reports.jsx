@@ -146,7 +146,7 @@ export default function Reports({ selectedLotId, onSelectLot }) {
           <span className="spad-page-tag">AUDIT &amp; MIL-STD CERTIFICATION</span>
         </div>
         <p className="spad-page-description">
-          Formal space-grade screening compliance reports, physical burn-in telemetry audit records, and early AI 168h predictive qualification certificates.
+          Formal space-grade screening compliance reports, physical burn-in telemetry audit records, and early AI 100% predictive qualification certificates.
         </p>
       </header>
 

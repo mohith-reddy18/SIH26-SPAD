@@ -693,7 +693,7 @@ export default function ComponentDetailModal({
               <div style={{ padding: '10px', background: 'rgba(15, 23, 42, 0.6)', borderRadius: '6px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
                 <div style={{ fontSize: '10px', color: '#94a3b8', fontWeight: '600', textTransform: 'uppercase' }}>Method 1: Random Forest Prediction</div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '4px' }}>
-                  <span style={{ fontSize: '12px', color: '#cbd5e1' }}>168h Trajectory Forecast</span>
+                  <span style={{ fontSize: '12px', color: '#cbd5e1' }}>100% Trajectory Forecast</span>
                   <span style={{ fontSize: '11px', fontWeight: '700', color: m1BadgeStyle.text, fontFamily: 'var(--font-mono)' }}>{m1Flag}</span>
                 </div>
               </div>

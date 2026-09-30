@@ -187,7 +187,7 @@ export default function SystemSettings() {
               {healthStatus.aiService}
             </div>
             <div className="font-mono" style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
-              Method 1 (168h) &amp; Method 2 (Anomaly)
+              Method 1 (100%) &amp; Method 2 (Anomaly)
             </div>
           </div>
 

@@ -105,7 +105,7 @@ export default function ModelPerformance({ selectedLotId, onSelectLot }) {
           <span className="spad-page-tag">AI / ML EARLY FORECAST VALIDATION</span>
         </div>
         <p className="spad-page-description">
-          Multivariate early-risk anomaly detection telemetry, dynamic 168h parameter drift forecasts, and feature attribution explainability.
+          Multivariate early-risk anomaly detection telemetry, dynamic 100% parameter drift forecasts, and feature attribution explainability.
         </p>
       </header>
 
@@ -286,7 +286,7 @@ export default function ModelPerformance({ selectedLotId, onSelectLot }) {
                     const baseKey = predKey.replace(/_168h$/i, '');
                     const meta = getParameterMeta(baseKey);
                     const is168hSuffix = predKey.toLowerCase().endsWith('_168h');
-                    const cleanName = is168hSuffix ? `${meta.name} @ 168h` : meta.name;
+                    const cleanName = is168hSuffix ? `${meta.name} @ 100%` : meta.name;
                     const unit = meta.unit || '';
 
                     const numericVal = typeof predVal === 'number' ? predVal : (typeof predVal?.predicted168h === 'number' ? predVal.predicted168h : null);
@@ -334,14 +334,14 @@ export default function ModelPerformance({ selectedLotId, onSelectLot }) {
         </div>
 
         <p className="spad-shap-intro-desc">
-          SHAP attribution identifies how individual measurement features mathematically contributed to the AI model's predicted 168h failure risk.
+          SHAP attribution identifies how individual measurement features mathematically contributed to the AI model's predicted 100% failure risk.
           <strong> Positive values (+)</strong> increased predicted risk, while <strong>negative values (-)</strong> reduced risk toward the baseline.
         </p>
 
         {/* Prediction Banner */}
         <div className="spad-shap-prediction-banner">
           <div className="spad-shap-pred-item">
-            <span className="spad-pred-label">AI PREDICTED 168h RISK:</span>
+            <span className="spad-pred-label">AI PREDICTED 100% RISK:</span>
             <div className="spad-pred-val-wrap">
               <span className="spad-pred-percent" style={{ color: riskColor }}>
                 {aiRisk}%
@@ -458,7 +458,7 @@ export default function ModelPerformance({ selectedLotId, onSelectLot }) {
               Cohort Validation Metrics (Precision / Recall / F1 / ROC-AUC)
             </div>
             <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '2px' }}>
-              Aggregate classification statistics across full lot batches require physical 168h ground-truth completion. Individual unit early inference and SHAP attributions are live from MongoDB Atlas.
+              Aggregate classification statistics across full lot batches require physical 100% ground-truth completion. Individual unit early inference and SHAP attributions are live from MongoDB Atlas.
             </div>
           </div>
         </div>
