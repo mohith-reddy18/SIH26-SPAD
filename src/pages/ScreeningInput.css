@@ -440,10 +440,10 @@
 
 .spad-limits-table-header {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 72px auto auto 24px;
+  grid-template-columns: minmax(0, 1fr) 56px 32px 52px 20px;
   gap: 6px;
   align-items: center;
-  padding-bottom: 8px;
+  padding: 0 4px 8px 4px;
   border-bottom: 1px solid var(--spad-border, #1F212B);
   font-size: 10px;
   font-weight: 700;
@@ -452,6 +452,7 @@
   text-transform: uppercase;
 }
 
+.spad-limits-table-header span:nth-child(2),
 .spad-limits-table-header span:nth-child(3),
 .spad-limits-table-header span:nth-child(4) {
   text-align: center;
@@ -460,18 +461,18 @@
 .spad-limits-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .spad-limit-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 72px auto auto 24px;
+  grid-template-columns: minmax(0, 1fr) 56px 32px 52px 20px;
   gap: 6px;
   align-items: center;
   background: var(--spad-surface, #12141C);
   border: 1px solid var(--spad-border, #1F212B);
   border-radius: 6px;
-  padding: 8px 10px;
+  padding: 6px 8px;
   transition: border-color 0.15s ease;
 }
 
@@ -483,6 +484,7 @@
   display: flex;
   align-items: center;
   min-width: 0;
+  overflow: visible;
 }
 
 .spad-param-name {
@@ -490,22 +492,26 @@
   font-weight: 600;
   color: var(--spad-text, #F5F6F8);
   white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
 }
 
 .spad-limit-input-cell {
   display: flex;
   align-items: center;
+  justify-content: center;
 }
 
 .spad-limit-input {
   background: var(--spad-inset, #101119);
   border: 1px solid var(--spad-border, #1F212B);
   border-radius: 4px;
-  padding: 5px 6px;
-  font-size: 12px;
+  padding: 4px 4px;
+  font-size: 11.5px;
   color: var(--spad-text, #F5F6F8);
   font-family: var(--font-ui, 'Outfit', sans-serif);
   width: 100%;
+  text-align: center;
   box-sizing: border-box;
 }
 
@@ -551,25 +557,27 @@
 }
 
 .spad-unit-badge {
-  font-size: 10.5px;
+  font-size: 10px;
   font-weight: 700;
   color: var(--spad-text-secondary, #8B8FA3);
   background: var(--spad-chip, #1F212B);
-  padding: 3px 6px;
+  padding: 2px 4px;
   border-radius: 4px;
   text-align: center;
   border: 1px solid var(--spad-border, #1F212B);
   white-space: nowrap;
+  display: inline-block;
 }
 
 .spad-source-badge {
-  font-size: 8.5px;
+  font-size: 8px;
   font-weight: 700;
-  letter-spacing: 0.04em;
-  padding: 2px 5px;
+  letter-spacing: 0.02em;
+  padding: 2px 4px;
   border-radius: 4px;
   text-align: center;
   white-space: nowrap;
+  display: inline-block;
 }
 
 .spad-source-badge.authoritative {
@@ -589,13 +597,13 @@
   border: none;
   color: var(--spad-text-muted, #5C6070);
   cursor: pointer;
-  padding: 3px;
+  padding: 2px;
   border-radius: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
-  justify-self: end;
-  margin-left: 4px;
+  justify-self: center;
+  margin-left: 0;
   transition: all 0.15s ease;
 }
 

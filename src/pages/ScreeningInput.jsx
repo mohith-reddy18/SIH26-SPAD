@@ -9,14 +9,14 @@ import { API_BASE_URL } from '../config/api';
 const CANONICAL_PARAMETERS = [
   // 1. On-Resistance (RDS(on)) — Limit: 1.00 Ω
   { key: 'rdson', name: 'On-Resistance (RDS(on))', shortName: 'RDS(on)', unit: 'Ω', defaultLimit: '1.00', direction: 'UPPER', source: 'DATABASE_CATALOG', isAuthoritative: true },
-  // 2. Chamber Temperature (T_j) — Operating condition: 199–200 °C
-  { key: 'temp', name: 'Chamber Temperature (T_j)', shortName: 'T_j', unit: '°C', defaultLimit: '200', direction: 'UPPER', source: 'DATABASE_CATALOG', isAuthoritative: true },
-  // 3. Gate-Source Voltage (V_GS) — Test value: 10 V
-  { key: 'vgs', name: 'Gate-Source Voltage (V_GS)', shortName: 'V_GS', unit: 'V', defaultLimit: '10', direction: 'UPPER', source: 'DATABASE_CATALOG', isAuthoritative: true },
-  // 4. Drain-Source Voltage (V_DS) — Test value: 5 V
-  { key: 'vds', name: 'Drain-Source Voltage (V_DS)', shortName: 'V_DS', unit: 'V', defaultLimit: '5', direction: 'UPPER', source: 'DATABASE_CATALOG', isAuthoritative: true },
-  // 5. Switching Frequency (f_sw) — Test value: 1000 Hz
-  { key: 'freq', name: 'Switching Frequency (f_sw)', shortName: 'f_sw', unit: 'Hz', defaultLimit: '1000', direction: 'UPPER', source: 'DATABASE_CATALOG', isAuthoritative: true },
+  // 2. Chamber Temperature — Operating condition: 199–200 °C
+  { key: 'temp', name: 'Chamber Temperature', shortName: 'T_j', unit: '°C', defaultLimit: '200', direction: 'UPPER', source: 'DATABASE_CATALOG', isAuthoritative: true },
+  // 3. Gate-Source Voltage (VGS) — Test value: 10 V
+  { key: 'vgs', name: 'Gate-Source Voltage (VGS)', shortName: 'VGS', unit: 'V', defaultLimit: '10', direction: 'UPPER', source: 'DATABASE_CATALOG', isAuthoritative: true },
+  // 4. Drain-Source Voltage (VDS) — Test value: 5 V
+  { key: 'vds', name: 'Drain-Source Voltage (VDS)', shortName: 'VDS', unit: 'V', defaultLimit: '5', direction: 'UPPER', source: 'DATABASE_CATALOG', isAuthoritative: true },
+  // 5. Switching Frequency (fSW) — Test value: 1000 Hz
+  { key: 'freq', name: 'Switching Frequency (fSW)', shortName: 'fSW', unit: 'Hz', defaultLimit: '1000', direction: 'UPPER', source: 'DATABASE_CATALOG', isAuthoritative: true },
   // 6. Duty Cycle — Test value: 40 %
   { key: 'dutyCycle', name: 'Duty Cycle', shortName: 'Duty', unit: '%', defaultLimit: '40', direction: 'UPPER', source: 'SUPPLIED', isAuthoritative: false },
   // Optional parameters available through "Add Parameters"
