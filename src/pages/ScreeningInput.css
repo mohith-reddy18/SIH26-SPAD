@@ -397,8 +397,9 @@
 
 .spad-limits-table-header {
   display: grid;
-  grid-template-columns: 3.4fr 1fr 0.65fr 0.95fr 28px;
-  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) 72px auto auto 24px;
+  gap: 6px;
+  align-items: center;
   padding-bottom: 8px;
   border-bottom: 1px solid var(--spad-border, #1F212B);
   font-size: 10px;
@@ -406,6 +407,11 @@
   letter-spacing: 0.06em;
   color: var(--spad-text-muted, #5C6070);
   text-transform: uppercase;
+}
+
+.spad-limits-table-header span:nth-child(3),
+.spad-limits-table-header span:nth-child(4) {
+  text-align: center;
 }
 
 .spad-limits-list {
@@ -416,8 +422,8 @@
 
 .spad-limit-row {
   display: grid;
-  grid-template-columns: 3.4fr 1fr 0.65fr 0.95fr 28px;
-  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) 72px auto auto 24px;
+  gap: 6px;
   align-items: center;
   background: var(--spad-surface, #12141C);
   border: 1px solid var(--spad-border, #1F212B);
@@ -432,8 +438,7 @@
 
 .spad-param-cell {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  align-items: center;
   min-width: 0;
 }
 
@@ -442,14 +447,6 @@
   font-weight: 600;
   color: var(--spad-text, #F5F6F8);
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.spad-param-code {
-  font-size: 10px;
-  color: var(--spad-text-muted, #5C6070);
-  font-family: var(--font-ui, 'Outfit', sans-serif);
 }
 
 .spad-limit-input-cell {
@@ -461,8 +458,8 @@
   background: var(--spad-inset, #101119);
   border: 1px solid var(--spad-border, #1F212B);
   border-radius: 4px;
-  padding: 6px 8px;
-  font-size: 12.5px;
+  padding: 5px 6px;
+  font-size: 12px;
   color: var(--spad-text, #F5F6F8);
   font-family: var(--font-ui, 'Outfit', sans-serif);
   width: 100%;
@@ -511,21 +508,22 @@
 }
 
 .spad-unit-badge {
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 700;
   color: var(--spad-text-secondary, #8B8FA3);
   background: var(--spad-chip, #1F212B);
-  padding: 4px 8px;
+  padding: 3px 6px;
   border-radius: 4px;
   text-align: center;
   border: 1px solid var(--spad-border, #1F212B);
+  white-space: nowrap;
 }
 
 .spad-source-badge {
-  font-size: 9px;
+  font-size: 8.5px;
   font-weight: 700;
-  letter-spacing: 0.05em;
-  padding: 2px 6px;
+  letter-spacing: 0.04em;
+  padding: 2px 5px;
   border-radius: 4px;
   text-align: center;
   white-space: nowrap;
@@ -548,13 +546,13 @@
   border: none;
   color: var(--spad-text-muted, #5C6070);
   cursor: pointer;
-  padding: 4px;
+  padding: 3px;
   border-radius: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
   justify-self: end;
-  margin-left: 2px;
+  margin-left: 4px;
   transition: all 0.15s ease;
 }
 
