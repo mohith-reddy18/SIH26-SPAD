@@ -555,8 +555,6 @@ app.post('/api/screening/run', handleUploadSingle('file'), async (req, res) => {
   const runId = req.headers['x-run-id'] || req.body?.runId || `run_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   const runAbortController = new AbortController();
 
-  let onCloseHandler = null;
-
   try {
     // Validate uploaded dataset format: accept only .csv and .zip
     if (file) {
@@ -639,13 +637,6 @@ app.post('/api/screening/run', handleUploadSingle('file'), async (req, res) => {
       abortController: runAbortController,
       startedAt: new Date().toISOString(),
     });
-
-    onCloseHandler = () => {
-      if (activeScreeningRuns.has(runId)) {
-        runAbortController.abort();
-      }
-    };
-    req.on('close', onCloseHandler);
 
     // Validate engineeringLimits format if supplied
     if (engineeringLimits !== undefined && engineeringLimits !== null) {
@@ -742,9 +733,6 @@ app.post('/api/screening/run', handleUploadSingle('file'), async (req, res) => {
     });
   } finally {
     activeScreeningRuns.delete(runId);
-    if (onCloseHandler) {
-      req.removeListener('close', onCloseHandler);
-    }
     cleanupTempFile(tempFilePath);
   }
 });
