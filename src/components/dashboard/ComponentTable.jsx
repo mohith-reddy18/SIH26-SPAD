@@ -104,6 +104,8 @@ export default function ComponentTable({ records = [], onSelectComponent }) {
           <div className="spad-search-box">
             <SearchIcon />
             <input
+              id="spad-table-search-input"
+              name="tableSearch"
               type="text"
               placeholder="Search ID, Lot, Evidence..."
               value={searchTerm}

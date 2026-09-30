@@ -280,6 +280,7 @@ export default function LotAnomalyDetection({ records = [] }) {
             </label>
             <select
               id="if-comp-select"
+              name="anomalyComponentSelect"
               value={activeComp?.id || ''}
               onChange={(e) => {
                 setSelectedCompId(e.target.value);

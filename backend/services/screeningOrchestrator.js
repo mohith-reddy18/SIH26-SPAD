@@ -355,6 +355,16 @@ async function processRemoteScreeningRun({ lotId, componentId, customLimits = nu
 
   const rawOutput = await aiService.runScreening(payload, signal);
 
+  const rawResults = rawOutput?.results || rawOutput?.data || (Array.isArray(rawOutput) ? rawOutput : []);
+  const rawResultsLen = Array.isArray(rawResults) ? rawResults.length : 0;
+  const firstItem = rawResultsLen > 0 ? rawResults[0] : null;
+  const firstKeys = firstItem ? Object.keys(firstItem).join(', ') : 'none';
+  const firstTestId = firstItem ? (firstItem.Test_ID ?? firstItem.componentId ?? firstItem.Component_ID ?? firstItem.id ?? firstItem.Sample_ID ?? 'undefined') : 'none';
+
+  console.log(`[SCREENING TRACE] rawOutput.results.length = ${rawResultsLen}`);
+  console.log(`[SCREENING TRACE] first result keys = [${firstKeys}]`);
+  console.log(`[SCREENING TRACE] first result Test_ID = ${firstTestId}`);
+
   if (signal && signal.aborted) {
     throw {
       statusCode: 499,
@@ -381,13 +391,20 @@ async function processRemoteScreeningRun({ lotId, componentId, customLimits = nu
   }
 
   const evaluatedRecords = [];
+  let skippedItemsCount = 0;
 
   for (let i = 0; i < results.length; i++) {
     const item = results[i];
-    if (!item || typeof item !== 'object') continue;
+    if (!item || typeof item !== 'object') {
+      skippedItemsCount++;
+      continue;
+    }
 
     const rawTestId = item.Test_ID ?? item.componentId ?? item.Component_ID ?? item.id ?? item.Sample_ID;
-    if (!rawTestId) continue;
+    if (!rawTestId) {
+      skippedItemsCount++;
+      continue;
+    }
     const compId = String(rawTestId).trim();
 
     // 2. Fetch existing document from MongoDB to check for authoritative DB limits
@@ -572,7 +589,8 @@ async function processRemoteScreeningRun({ lotId, componentId, customLimits = nu
   const totalComponents = evaluatedRecords.length;
   const engineeringYield = Number(currentYield(evaluatedRecords).toFixed(2));
 
-  const singleDoc = componentId ? evaluatedRecords.find((r) => r.componentId === componentId) : null;
+  console.log(`[SCREENING TRACE] evaluatedRecords.length = ${evaluatedRecords.length}`);
+  console.log(`[SCREENING TRACE] FINAL evaluatedRecords.length = ${evaluatedRecords.length}`);
 
   return {
     success: true,

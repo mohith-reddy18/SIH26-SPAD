@@ -144,6 +144,7 @@ export default function ModelPerformance({ selectedLotId, onSelectLot }) {
             </label>
             <select
               id="model-comp-select"
+              name="modelComponentSelect"
               className="spad-comp-select-input"
               value={componentId}
               onChange={(e) => setSelectedComponentId(e.target.value)}

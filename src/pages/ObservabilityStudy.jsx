@@ -174,6 +174,7 @@ export default function ObservabilityStudy({ selectedLotId, onSelectLot }) {
             </label>
             <select
               id="obs-comp-select"
+              name="obsComponentSelect"
               className="spad-comp-select-input"
               value={componentId}
               onChange={(e) => setSelectedComponentId(e.target.value)}
@@ -201,6 +202,7 @@ export default function ObservabilityStudy({ selectedLotId, onSelectLot }) {
             </label>
             <select
               id="obs-param-select"
+              name="obsParamSelect"
               className="spad-comp-select-input"
               value={selectedParamKey}
               onChange={(e) => setSelectedParamKey(e.target.value)}

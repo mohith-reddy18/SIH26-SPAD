@@ -138,6 +138,7 @@ export default function FailureAnalysis({ selectedLotId, onSelectLot }) {
             </label>
             <select
               id="fa-comp-select"
+              name="failureComponentSelect"
               className="spad-comp-select-input"
               value={componentId}
               onChange={(e) => setSelectedComponentId(e.target.value)}

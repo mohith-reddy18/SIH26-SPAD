@@ -1021,6 +1021,16 @@ app.use((err, req, res, next) => {
 // Start server with long-connection & large-file transfer support on all interfaces for Render
 const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`SPAD backend server successfully bound to http://0.0.0.0:${PORT} (process.env.PORT=${process.env.PORT || 'default 5000'})`);
+  let parsedHost = 'none';
+  if (process.env.AI_SERVICE_URL && process.env.AI_SERVICE_URL.trim()) {
+    try {
+      parsedHost = new URL(process.env.AI_SERVICE_URL).hostname;
+    } catch {
+      parsedHost = 'invalid-url';
+    }
+  }
+  console.log(`AI_SERVICE_URL configured: ${Boolean(process.env.AI_SERVICE_URL && process.env.AI_SERVICE_URL.trim())}`);
+  console.log(`AI_SERVICE_URL host: ${parsedHost}`);
 });
 
 // Configure server socket timeouts to prevent premature termination during multi-GB dataset transfers

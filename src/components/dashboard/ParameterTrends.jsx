@@ -319,6 +319,7 @@ export default function ParameterTrends({
             </label>
             <select
               id="component-select"
+              name="componentSelect"
               className="spad-comp-select-input"
               value={activeComponent.id || ''}
               onChange={(e) => setSelectedComponentId(e.target.value)}
@@ -340,6 +341,7 @@ export default function ParameterTrends({
             </label>
             <select
               id="param-select"
+              name="paramSelect"
               className="spad-comp-select-input"
               value={activeSpec.key || activeSpec.id}
               onChange={(e) => setSelectedParamKey(e.target.value)}

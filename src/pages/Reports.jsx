@@ -205,6 +205,7 @@ export default function Reports({ selectedLotId, onSelectLot }) {
               </label>
               <select
                 id="report-comp-select"
+                name="reportComponentSelect"
                 className="spad-comp-select-input"
                 value={componentId}
                 onChange={(e) => setSelectedComponentId(e.target.value)}
@@ -234,6 +235,7 @@ export default function Reports({ selectedLotId, onSelectLot }) {
               </label>
               <select
                 id="report-lot-select"
+                name="reportLotSelect"
                 className="spad-comp-select-input"
                 value={activeLotId}
                 onChange={(e) => {

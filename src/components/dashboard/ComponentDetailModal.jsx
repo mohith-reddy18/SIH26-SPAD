@@ -338,6 +338,7 @@ export default function ComponentDetailModal({
                 </label>
                 <select
                   id="modal-comp-select"
+                  name="modalComponentSelect"
                   className="spad-comp-select-input"
                   value={compId}
                   onChange={(e) => {

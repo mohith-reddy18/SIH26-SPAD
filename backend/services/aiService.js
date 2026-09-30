@@ -622,6 +622,7 @@ async function runScreening(payload, explicitSignal = null) {
       };
     }
 
+    console.log(`[DIAGNOSTIC] Python response HTTP status: ${response.status}`);
     const data = await response.json();
     return data;
   } catch (err) {
