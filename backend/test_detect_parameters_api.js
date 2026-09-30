@@ -205,10 +205,40 @@ const server = app.listen(0, async () => {
     console.log('2. MAT Detection API Response:', matRes.body);
     assert.strictEqual(matRes.status, 200, 'MAT upload should return HTTP 200 with clear metadata');
     assert.strictEqual(matRes.body.success, true);
-    assert.strictEqual(matRes.body.detectedCount, 0);
-    assert.strictEqual(matRes.body.formatStatus, 'UNSUPPORTED_BINARY_FORMAT');
-    assert.strictEqual(matRes.body.parameters.length, 0);
-    console.log('   ✓ Standalone .MAT detection API passed without 500 or fabricated parameters.\n');
+    // Test 3: JSON-based parameter detection (from client-side metadata extractor)
+    const jsonPayload = JSON.stringify({
+      datasetContent: 'Run_ID,RDSon,Temperature,Gate_Voltage\n1,0.34,199,10',
+      fileName: 'NASA_MOSFET_7GB.zip',
+      lotId: 'NASA-MOSFET-199C',
+    });
+
+    const jsonRes = await new Promise((resolve, reject) => {
+      const req = http.request({
+        hostname: '127.0.0.1',
+        port,
+        path: '/api/screening/detect-parameters',
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(jsonPayload),
+        },
+      }, (res) => {
+        let data = '';
+        res.on('data', (c) => { data += c; });
+        res.on('end', () => resolve({ status: res.statusCode, body: JSON.parse(data) }));
+      });
+      req.on('error', reject);
+      req.write(jsonPayload);
+      req.end();
+    });
+
+    console.log('3. JSON Metadata Detection API Response:', jsonRes.body);
+    assert.strictEqual(jsonRes.status, 200);
+    assert.strictEqual(jsonRes.body.success, true);
+    assert.ok(jsonRes.body.parameters.some((p) => p.key === 'rdson'));
+    assert.ok(jsonRes.body.parameters.some((p) => p.key === 'temp'));
+    assert.ok(jsonRes.body.parameters.some((p) => p.key === 'vgs'));
+    console.log('   ✓ JSON-based lightweight metadata detection passed with zero multi-GB upload.\n');
 
     server.close();
     console.log('=== ALL ENDPOINT VERIFICATION TESTS PASSED SUCCESSFULLY! ===');

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import './ScreeningInput.css';
 import { API_BASE_URL } from '../config/api';
 import { getParameterMeta, PARAMETER_DISPLAY_MAP } from '../utils/recordMapping';
+import { extractDatasetMetadata } from '../utils/datasetMetadataExtractor';
 
 /**
  * Standard selectable parameters supported by the SPAD data layer
@@ -19,12 +20,12 @@ const CANONICAL_PARAMETERS = [
 ];
 
 /**
- * Format bytes to human readable string (KB / MB)
+ * Format bytes to human readable string (KB / MB / GB)
  */
 function formatFileSize(bytes) {
   if (bytes === 0) return '0 Bytes';
   const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
 }
@@ -50,7 +51,8 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
   const [runError, setRunError] = useState(null);
 
   /**
-   * Automatically detect parameters from dataset and load authoritative DB limits
+   * Automatically detect parameters from dataset and load authoritative DB limits.
+   * Extracts metadata sample locally in the browser to avoid uploading multi-GB files twice.
    */
   const detectDatasetParameters = useCallback(async (file, targetLotId) => {
     if (!file) {
@@ -62,17 +64,37 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
     setFormErrors((prev) => ({ ...prev, general: null, file: null }));
 
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      if (targetLotId && targetLotId.trim()) {
-        formData.append('lotId', targetLotId.trim());
-      }
-      formData.append('fileName', file.name);
+      // 1. Extract telemetry metadata sample locally without buffering multi-GB into RAM
+      const meta = await extractDatasetMetadata(file);
 
-      const res = await fetch(`${API_BASE_URL}/api/screening/detect-parameters`, {
-        method: 'POST',
-        body: formData,
-      });
+      let res;
+      if (meta.sampleText || meta.isMat || file.size > 20 * 1024 * 1024) {
+        // Send lightweight JSON containing only extracted telemetry table header or metadata
+        res = await fetch(`${API_BASE_URL}/api/screening/detect-parameters`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            datasetContent: meta.sampleText || null,
+            fileName: file.name,
+            lotId: (targetLotId && targetLotId.trim()) || '',
+          }),
+        });
+      } else {
+        // Fallback for smaller files: standard multipart request
+        const formData = new FormData();
+        formData.append('file', file);
+        if (targetLotId && targetLotId.trim()) {
+          formData.append('lotId', targetLotId.trim());
+        }
+        formData.append('fileName', file.name);
+
+        res = await fetch(`${API_BASE_URL}/api/screening/detect-parameters`, {
+          method: 'POST',
+          body: formData,
+        });
+      }
 
       if (res.ok) {
         const json = await res.json();
@@ -145,43 +167,52 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
 
     setSelectedFile(file);
 
-    // Read text content for CSV/JSON for preview insights
+    // Read text content for small CSV/JSON for preview insights
     if (fileName.endsWith('.csv') || fileName.endsWith('.json')) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const text = e.target.result;
-        setFileContent(text);
+      if (file.size <= 5 * 1024 * 1024) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const text = e.target.result;
+          setFileContent(text);
 
-        try {
-          if (fileName.endsWith('.json')) {
-            const parsed = JSON.parse(text);
-            const count = Array.isArray(parsed) ? parsed.length : (parsed.records?.length || 1);
+          try {
+            if (fileName.endsWith('.json')) {
+              const parsed = JSON.parse(text);
+              const count = Array.isArray(parsed) ? parsed.length : (parsed.records?.length || 1);
+              setFileInsights({
+                type: 'JSON Telemetry',
+                unitsDetected: count,
+                status: 'Detecting params...',
+              });
+            } else {
+              const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
+              const rowCount = Math.max(0, lines.length - 1);
+              setFileInsights({
+                type: 'CSV Telemetry',
+                unitsDetected: rowCount,
+                status: 'Detecting params...',
+              });
+            }
+          } catch {
             setFileInsights({
-              type: 'JSON Telemetry',
-              unitsDetected: count,
-              status: 'Detecting params...',
-            });
-          } else {
-            const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
-            const rowCount = Math.max(0, lines.length - 1);
-            setFileInsights({
-              type: 'CSV Telemetry',
-              unitsDetected: rowCount,
-              status: 'Detecting params...',
+              type: fileName.endsWith('.json') ? 'JSON' : 'CSV',
+              unitsDetected: '—',
+              status: 'Raw Stream',
             });
           }
-        } catch {
-          setFileInsights({
-            type: fileName.endsWith('.json') ? 'JSON' : 'CSV',
-            unitsDetected: '—',
-            status: 'Raw Stream',
-          });
-        }
-      };
-      reader.onerror = () => {
-        setFileError('Failed to read file from local disk.');
-      };
-      reader.readAsText(file);
+        };
+        reader.onerror = () => {
+          setFileError('Failed to read file from local disk.');
+        };
+        reader.readAsText(file);
+      } else {
+        setFileContent(null);
+        setFileInsights({
+          type: fileName.endsWith('.json') ? 'JSON Telemetry' : 'CSV Telemetry',
+          unitsDetected: 'Streaming Telemetry',
+          status: 'Detecting params...',
+        });
+      }
     } else {
       // Binary .ZIP, .MAT, or matrix archive
       setFileContent(null);
