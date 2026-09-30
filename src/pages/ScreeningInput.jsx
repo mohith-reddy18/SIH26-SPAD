@@ -142,10 +142,10 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
     }
 
     const fileName = file.name.toLowerCase();
-    const isValidExt = fileName.endsWith('.csv') || fileName.endsWith('.json') || fileName.endsWith('.mat') || fileName.endsWith('.zip');
+    const isCsv = fileName.endsWith('.csv');
 
-    if (!isValidExt) {
-      setFileError('Unsupported file format. Please upload a .ZIP, .CSV, .JSON, or .MAT dataset file.');
+    if (!isCsv) {
+      setFileError('Unsupported file format. Please upload a .CSV dataset file.');
       setSelectedFile(null);
       setFileContent(null);
       setFileInsights(null);
@@ -162,58 +162,38 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
 
     setSelectedFile(file);
 
-    // Read preview content for small CSV/JSON files
-    if (fileName.endsWith('.csv') || fileName.endsWith('.json')) {
-      if (file.size <= 5 * 1024 * 1024) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const text = e.target.result;
-          setFileContent(text);
+    // Read preview content for small CSV files
+    if (file.size <= 5 * 1024 * 1024) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const text = e.target.result;
+        setFileContent(text);
 
-          try {
-            if (fileName.endsWith('.json')) {
-              const parsed = JSON.parse(text);
-              const count = Array.isArray(parsed) ? parsed.length : (parsed.records?.length || 1);
-              setFileInsights({
-                type: 'JSON Telemetry',
-                unitsDetected: `${count} records`,
-                status: 'Ready for Analysis',
-              });
-            } else {
-              const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
-              const rowCount = Math.max(0, lines.length - 1);
-              setFileInsights({
-                type: 'CSV Telemetry',
-                unitsDetected: `${rowCount} rows`,
-                status: 'Ready for Analysis',
-              });
-            }
-          } catch {
-            setFileInsights({
-              type: fileName.endsWith('.json') ? 'JSON' : 'CSV',
-              unitsDetected: '—',
-              status: 'Ready for Analysis',
-            });
-          }
-        };
-        reader.onerror = () => {
-          setFileError('Failed to read file from local disk.');
-        };
-        reader.readAsText(file);
-      } else {
-        setFileContent(null);
-        setFileInsights({
-          type: fileName.endsWith('.json') ? 'JSON Telemetry' : 'CSV Telemetry',
-          unitsDetected: 'Streaming Telemetry',
-          status: 'Ready for Analysis',
-        });
-      }
+        try {
+          const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
+          const rowCount = Math.max(0, lines.length - 1);
+          setFileInsights({
+            type: 'CSV Telemetry',
+            unitsDetected: `${rowCount} rows`,
+            status: 'Ready for Analysis',
+          });
+        } catch {
+          setFileInsights({
+            type: 'CSV',
+            unitsDetected: '—',
+            status: 'Ready for Analysis',
+          });
+        }
+      };
+      reader.onerror = () => {
+        setFileError('Failed to read file from local disk.');
+      };
+      reader.readAsText(file);
     } else {
-      // Binary .ZIP, .MAT, or matrix archive
       setFileContent(null);
       setFileInsights({
-        type: fileName.endsWith('.zip') ? 'NASA Dataset Archive (.ZIP)' : 'MATLAB Matrix (.MAT)',
-        unitsDetected: fileName.endsWith('.zip') ? 'Multi-file Archive' : 'Binary Dataset',
+        type: 'CSV Telemetry',
+        unitsDetected: 'Streaming Telemetry',
         status: 'Ready for Analysis',
       });
     }
@@ -312,7 +292,7 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
     const errors = {};
 
     if (!selectedFile) {
-      errors.file = 'A screening dataset (.ZIP, .CSV, .JSON, or .MAT) is required.';
+      errors.file = 'A screening dataset (.CSV) is required.';
     }
 
     if (!lotId || !lotId.trim()) {
@@ -498,7 +478,7 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
               </svg>
               <h2 className="spad-panel-title">DATASET INPUT</h2>
             </div>
-            <span className="spad-panel-badge">FORMATS: .ZIP | .CSV | .JSON | .MAT</span>
+            <span className="spad-panel-badge">.CSV ONLY</span>
           </div>
 
           <div className="spad-dropzone-wrapper">
@@ -507,7 +487,7 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
               type="file"
               ref={fileInputRef}
               onChange={handleFileChange}
-              accept=".zip,.csv,.json,.mat,application/zip,text/csv,application/json"
+              accept=".csv,text/csv"
               style={{ display: 'none' }}
               id="spad-dataset-file-input"
             />
@@ -544,10 +524,7 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
                 </div>
 
                 <div className="spad-format-chips">
-                  <span className="spad-format-chip">.ZIP</span>
-                  <span className="spad-format-chip">.CSV</span>
-                  <span className="spad-format-chip">.JSON</span>
-                  <span className="spad-format-chip">.MAT</span>
+                  <span className="spad-format-chip">.CSV ONLY</span>
                 </div>
               </div>
             ) : (
