@@ -142,10 +142,10 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
     }
 
     const fileName = file.name.toLowerCase();
-    const isCsv = fileName.endsWith('.csv');
+    const isValidExt = fileName.endsWith('.csv') || fileName.endsWith('.zip');
 
-    if (!isCsv) {
-      setFileError('Unsupported file format. Please upload a .CSV dataset file.');
+    if (!isValidExt) {
+      setFileError('Unsupported file format. Please upload a .CSV or .ZIP dataset file.');
       setSelectedFile(null);
       setFileContent(null);
       setFileInsights(null);
@@ -163,37 +163,47 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
     setSelectedFile(file);
 
     // Read preview content for small CSV files
-    if (file.size <= 5 * 1024 * 1024) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const text = e.target.result;
-        setFileContent(text);
+    if (fileName.endsWith('.csv')) {
+      if (file.size <= 5 * 1024 * 1024) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const text = e.target.result;
+          setFileContent(text);
 
-        try {
-          const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
-          const rowCount = Math.max(0, lines.length - 1);
-          setFileInsights({
-            type: 'CSV Telemetry',
-            unitsDetected: `${rowCount} rows`,
-            status: 'Ready for Analysis',
-          });
-        } catch {
-          setFileInsights({
-            type: 'CSV',
-            unitsDetected: '—',
-            status: 'Ready for Analysis',
-          });
-        }
-      };
-      reader.onerror = () => {
-        setFileError('Failed to read file from local disk.');
-      };
-      reader.readAsText(file);
+          try {
+            const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
+            const rowCount = Math.max(0, lines.length - 1);
+            setFileInsights({
+              type: 'CSV Telemetry',
+              unitsDetected: `${rowCount} rows`,
+              status: 'Ready for Analysis',
+            });
+          } catch {
+            setFileInsights({
+              type: 'CSV',
+              unitsDetected: '—',
+              status: 'Ready for Analysis',
+            });
+          }
+        };
+        reader.onerror = () => {
+          setFileError('Failed to read file from local disk.');
+        };
+        reader.readAsText(file);
+      } else {
+        setFileContent(null);
+        setFileInsights({
+          type: 'CSV Telemetry',
+          unitsDetected: 'Streaming Telemetry',
+          status: 'Ready for Analysis',
+        });
+      }
     } else {
+      // .ZIP Archive
       setFileContent(null);
       setFileInsights({
-        type: 'CSV Telemetry',
-        unitsDetected: 'Streaming Telemetry',
+        type: 'NASA Dataset Archive (.ZIP)',
+        unitsDetected: 'Multi-file Archive',
         status: 'Ready for Analysis',
       });
     }
@@ -292,7 +302,7 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
     const errors = {};
 
     if (!selectedFile) {
-      errors.file = 'A screening dataset (.CSV) is required.';
+      errors.file = 'A screening dataset (.CSV or .ZIP) is required.';
     }
 
     if (!lotId || !lotId.trim()) {
@@ -478,7 +488,7 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
               </svg>
               <h2 className="spad-panel-title">DATASET INPUT</h2>
             </div>
-            <span className="spad-panel-badge">.CSV ONLY</span>
+            <span className="spad-panel-badge">.CSV | .ZIP</span>
           </div>
 
           <div className="spad-dropzone-wrapper">
@@ -487,7 +497,7 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
               type="file"
               ref={fileInputRef}
               onChange={handleFileChange}
-              accept=".csv,text/csv"
+              accept=".csv,.zip,text/csv,application/zip,application/x-zip-compressed"
               style={{ display: 'none' }}
               id="spad-dataset-file-input"
             />
@@ -524,7 +534,8 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
                 </div>
 
                 <div className="spad-format-chips">
-                  <span className="spad-format-chip">.CSV ONLY</span>
+                  <span className="spad-format-chip">.CSV</span>
+                  <span className="spad-format-chip">.ZIP</span>
                 </div>
               </div>
             ) : (
