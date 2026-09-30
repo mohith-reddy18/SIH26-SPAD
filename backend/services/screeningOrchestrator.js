@@ -494,7 +494,17 @@ async function processRemoteScreeningRun({ lotId, componentId, customLimits = nu
     }
 
     // 4. Random Forest Method 1 Prediction
-    const predicted168h = item.prediction?.predicted168h ?? item.prediction?.Predicted_RDS100 ?? item.Predicted_RDS100 ?? item.predicted168h ?? (item.aiAssessment?.prediction?.parameters?.rdson?.predicted168h ?? null);
+    const prediction = item.prediction || {};
+    const predicted168h = (typeof prediction.predicted168h === 'number' && !isNaN(prediction.predicted168h))
+      ? prediction.predicted168h
+      : (typeof prediction.Predicted_RDS100 === 'number' && !isNaN(prediction.Predicted_RDS100))
+      ? prediction.Predicted_RDS100
+      : (typeof item.predicted168h === 'number' && !isNaN(item.predicted168h))
+      ? item.predicted168h
+      : (typeof item.Predicted_RDS100 === 'number' && !isNaN(item.Predicted_RDS100))
+      ? item.Predicted_RDS100
+      : (item.aiAssessment?.prediction?.parameters?.rdson?.predicted168h ?? null);
+
     const roc = rateOfChangePerHour(val0h, val24h);
     let calculatedMargin = null;
     const rdsonLim = authoritativeLimits.rdson;
@@ -502,24 +512,40 @@ async function processRemoteScreeningRun({ lotId, componentId, customLimits = nu
       calculatedMargin = projectedMargin(predicted168h, rdsonLim.limitValue, rdsonLim.direction || 'UPPER');
     }
 
+    const rawRfFlag =
+      prediction.aiFlag ??
+      prediction.Module_B_Anomaly ??
+      prediction.Module_B_Flag ??
+      item.Module_B_Anomaly ??
+      item.Module_B_Flag;
+
     let rfFlag = 'NOT_EVALUATED';
-    const rawRfFlag = item.prediction?.aiFlag ?? item.prediction?.Module_B_Anomaly ?? item.prediction?.Module_B_Flag ?? item.Module_B_Anomaly ?? item.Module_B_Flag ?? item.aiFlag ?? item.aiAssessment?.prediction?.parameters?.rdson?.aiFlag;
     if (rawRfFlag === 1 || rawRfFlag === true || (typeof rawRfFlag === 'string' && rawRfFlag.trim().toUpperCase() === 'FLAGGED')) {
       rfFlag = 'FLAGGED';
     } else if (rawRfFlag === 0 || rawRfFlag === false || (typeof rawRfFlag === 'string' && (rawRfFlag.trim().toUpperCase().includes('NOT') || rawRfFlag.trim().toUpperCase() === 'PASS' || rawRfFlag.trim().toUpperCase() === 'NOMINAL' || rawRfFlag.trim().toUpperCase() === 'NORMAL'))) {
       rfFlag = 'NOT FLAGGED';
     }
 
-    // Preserve real Python values without fabricating
-    const futureRiskScoreVal = (typeof item.prediction?.futureRiskScore === 'number' && !isNaN(item.prediction.futureRiskScore))
-      ? item.prediction.futureRiskScore
+    // Direct mapping from prediction without fabricating or falling back to aiRisk
+    const futureRiskScoreVal = (typeof prediction.futureRiskScore === 'number' && !isNaN(prediction.futureRiskScore))
+      ? prediction.futureRiskScore
       : (typeof item.futureRiskScore === 'number' && !isNaN(item.futureRiskScore) ? item.futureRiskScore : null);
 
-    const futureRiskPercentVal = (typeof item.prediction?.futureRiskPercent === 'number' && !isNaN(item.prediction.futureRiskPercent))
-      ? item.prediction.futureRiskPercent
+    const futureRiskPercentVal = (typeof prediction.futureRiskPercent === 'number' && !isNaN(prediction.futureRiskPercent))
+      ? prediction.futureRiskPercent
       : (typeof item.futureRiskPercent === 'number' && !isNaN(item.futureRiskPercent)
         ? item.futureRiskPercent
         : (typeof futureRiskScoreVal === 'number' ? Math.round(futureRiskScoreVal * 100) : null));
+
+    if (results.indexOf(item) === 0 || compId === 'TEST-06') {
+      console.log(`[RF Normalization Diagnostic] Component: ${compId}`, {
+        predictionObject: prediction,
+        rawRfFlag,
+        normalizedRfFlag: rfFlag,
+        futureRiskScore: futureRiskScoreVal,
+        futureRiskPercent: futureRiskPercentVal,
+      });
+    }
 
     // 5. Isolation Forest Method 2 Lot Anomaly
     const lotAnomalyScore = item.lotAnomaly?.lotAnomalyScore ?? item.lotAnomaly?.score ?? item.lotAnomaly?.Module_A_IF_Score ?? item.Module_A_IF_Score ?? item.lotAnomalyScore ?? (item.aiAssessment?.lotAnomaly?.parameters?.rdson?.lotAnomalyScore ?? null);
