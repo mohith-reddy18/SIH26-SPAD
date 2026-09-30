@@ -128,10 +128,11 @@ ScreeningRecord.countDocuments = async function (query) {
   return count;
 };
 
-ScreeningRecord.findOneAndUpdate = function (query, update, options) {
-  return {
-    lean: async () => {
-      const key = `${query.componentId}_${query.lotId}`;
+ScreeningRecord.bulkWrite = async function (ops) {
+  for (const op of ops) {
+    if (op.updateOne) {
+      const { filter, update } = op.updateOne;
+      const key = `${filter.componentId}_${filter.lotId}`;
       const existing = dbStore.get(key) || {};
       const updated = {
         ...existing,
@@ -139,9 +140,9 @@ ScreeningRecord.findOneAndUpdate = function (query, update, options) {
         updatedAt: new Date(),
       };
       dbStore.set(key, updated);
-      return JSON.parse(JSON.stringify(updated));
-    },
-  };
+    }
+  }
+  return { modifiedCount: ops.length, upsertedCount: 0 };
 };
 
 async function runStep15Tests() {
@@ -205,93 +206,81 @@ async function runStep15Tests() {
   });
 
   // ---------------------------------------------------------------------------
-  // 1. SET UP TEST REAL AI SERVICE
+  // 1. SET UP TEST REAL AI SERVICE (SPAD V4 Single Endpoint Contract)
   // ---------------------------------------------------------------------------
   console.log('--- SECTION 1: Real AI Service Interface Harness Setup ---');
-  let m1ReceivedTelemetry = null;
-  let m2ReceivedCohort = null;
+  let receivedScreeningPayload = null;
   let simulate500Error = false;
+
+  const multer = require('multer');
+  const upload = multer({ storage: multer.memoryStorage() });
 
   const realAiApp = express();
   realAiApp.use(express.json());
 
-  // Method 1: POST /predict-168h
-  realAiApp.post('/predict-168h', (req, res) => {
+  // Health check
+  realAiApp.get('/health', (req, res) => {
+    res.status(200).json({ status: 'ok', service: 'SPAD-Python-ML-Service', version: '4.0.0' });
+  });
+
+  // Production Single Screening Endpoint: POST /run-screening
+  realAiApp.post('/run-screening', upload.single('file'), (req, res) => {
     if (simulate500Error) {
       return res.status(500).json({ error: 'Internal Inference Failure' });
     }
 
-    m1ReceivedTelemetry = req.body;
-    const { componentId, lotId, parameters = {} } = req.body || {};
-    const predictions = {};
-
-    for (const [paramName, paramData] of Object.entries(parameters)) {
-      const val0h = paramData.observed?.['0h'] ?? 2.0;
-      const val24h = paramData.observed?.['24h'] ?? 2.1;
-      const driftSlope = (val24h - val0h) / 24;
-      const predicted168h = Number((val24h + driftSlope * 144).toFixed(4));
-      const isFlagged = Math.abs(driftSlope) > 0.025;
-
-      predictions[paramName] = {
-        status: 'PREDICTED',
-        predicted168h,
-        predictionInterval: [predicted168h - 0.12, predicted168h + 0.12],
-        futureRiskScore: isFlagged ? 0.85 : 0.10,
-        futureRiskPercent: isFlagged ? 85 : 10,
-        limitBreachProbability: isFlagged ? 0.78 : 0.02,
-        aiFlag: isFlagged ? 'FLAGGED' : 'NOT FLAGGED',
-        modelExplanation: {
-          framework: 'SHAP-TreeExplainer',
-          attributions: [{ feature: '0h_to_24h_slope', value: driftSlope }],
-        },
-      };
+    let parsedLimits = req.body?.engineeringLimits;
+    if (typeof parsedLimits === 'string') {
+      try { parsedLimits = JSON.parse(parsedLimits); } catch {}
+    }
+    let parsedContext = req.body?.context;
+    if (typeof parsedContext === 'string') {
+      try { parsedContext = JSON.parse(parsedContext); } catch {}
     }
 
-    return res.status(200).json({
-      componentId,
-      lotId,
-      modelMetadata: {
-        modelName: 'SPAD-Production-Real-Model',
-        modelVersion: '2.0.0-verified',
-        timestamp: new Date().toISOString(),
-      },
-      predictions,
-    });
-  });
-
-  // Method 2: POST /detect-lot-anomalies
-  realAiApp.post('/detect-lot-anomalies', (req, res) => {
-    if (simulate500Error) {
-      return res.status(500).json({ error: 'Internal Anomaly Engine Failure' });
-    }
-
-    m2ReceivedCohort = req.body;
-    const { targetComponentId, lotId, cohort = [] } = req.body || {};
-    const anomalyResults = {};
-
-    anomalyResults.iddq = {
-      status: 'ANALYZED',
-      lotAnomalyScore: 0.035,
-      peerComparisonEvidence: {
-        peerMean: 2.25,
-        peerStd: 0.12,
-        peerCount: cohort.length - 1,
-        zScore: 0.22,
-      },
-      divergenceType: 'NOMINAL',
-      aiFlag: 'NOT FLAGGED',
-      modelExplanation: null,
+    receivedScreeningPayload = {
+      ...req.body,
+      file: req.file,
+      engineeringLimits: parsedLimits,
+      context: parsedContext,
     };
 
+    const { lotId, componentId } = req.body || {};
+
+    const targetId = componentId || 'C-0001';
+    const isC002 = targetId === 'C-0002';
+    const isC003 = targetId === 'C-0003';
+
+    const rds0 = isC002 ? 2.00 : (isC003 ? 2.10 : 2.00);
+    const rds33 = isC002 ? 2.80 : (isC003 ? 4.50 : 2.10);
+    const predicted100 = isC002 ? 3.80 : (isC003 ? 5.20 : 2.70);
+    const ifScore = isC002 ? 0.45 : (isC003 ? 0.78 : 0.035);
+    const isFlagged = isC002 || isC003;
+
     return res.status(200).json({
-      targetComponentId,
-      lotId,
+      success: true,
+      lotId: lotId || 'LOT-2026-001',
+      results: [
+        {
+          Test_ID: targetId,
+          RDS0: rds0,
+          RDS33: rds33,
+          Delta_RDS_0_33: Number((rds33 - rds0).toFixed(4)),
+          Module_A_IF_Score: ifScore,
+          Module_A_Novelty_Percentile: isFlagged ? 95.0 : 50.0,
+          Predicted_RDS100: predicted100,
+          Forecast_Residual: -0.015,
+          Absolute_Forecast_Error: 0.015,
+          Relative_Error_Percent: 0.69,
+          Module_B_Anomaly: isFlagged ? 1 : 0,
+          Module_A_Anomaly: isFlagged ? 'FLAGGED' : 'NOT FLAGGED',
+        },
+      ],
       modelMetadata: {
         modelName: 'SPAD-Production-Real-Model',
         modelVersion: '2.0.0-verified',
         timestamp: new Date().toISOString(),
       },
-      anomalyResults,
     });
   });
 
@@ -310,14 +299,31 @@ async function runStep15Tests() {
   backendApp.use(express.json());
   backendApp.use('/api/ai', aiRouter);
 
-  backendApp.post('/api/screening/run', async (req, res) => {
+  backendApp.post('/api/screening/run', upload.single('file'), async (req, res) => {
     try {
-      const { componentId, lotId, engineeringLimits, context } = req.body || {};
+      let engineeringLimits = req.body?.engineeringLimits;
+      if (typeof engineeringLimits === 'string') {
+        try { engineeringLimits = JSON.parse(engineeringLimits); } catch {}
+      }
+      let context = req.body?.context;
+      if (typeof context === 'string') {
+        try { context = JSON.parse(context); } catch {}
+      }
+
+      const { componentId, lotId, datasetContent, dataset, records, fileName, fileType, fileSize } = req.body || {};
+      const file = req.file || null;
       const result = await runScreeningOrchestration({
         componentId,
         lotId,
         customLimits: engineeringLimits,
         context,
+        file,
+        datasetContent,
+        dataset,
+        records,
+        fileName,
+        fileType,
+        fileSize,
       });
       return res.status(200).json(result);
     } catch (error) {
@@ -340,39 +346,27 @@ async function runStep15Tests() {
 
   try {
     // -------------------------------------------------------------------------
-    // TEST 1: Method 1 Real Service Contract & Data Leakage Check
+    // TEST 1: Real Service Contract: Single POST /run-screening Call
     // -------------------------------------------------------------------------
-    console.log('--- TEST 1: Method 1 Real Service Contract & Data Leakage Check ---');
+    console.log('--- TEST 1: Single POST /run-screening Endpoint Contract ---');
     const runRes1 = await makeRequest(backendServer, { path: '/api/screening/run', method: 'POST' }, {
       componentId: 'C-0001',
       lotId: 'LOT-2026-001',
     });
 
     assert(runRes1.status === 200, 'POST /api/screening/run returned 200 OK');
-    assert(m1ReceivedTelemetry != null, 'Real AI Service received Method 1 telemetry');
-    assert(m1ReceivedTelemetry.componentId === 'C-0001', 'Traceable componentId C-0001 received');
-    assert(m1ReceivedTelemetry.lotId === 'LOT-2026-001', 'Traceable lotId LOT-2026-001 received');
-
-    // Data Leakage Prevention Check:
-    // C-0001 in MongoDB has measurements at 0h, 24h, 48h, 96h.
-    // Verify that Method 1 received ONLY 0h and 24h!
-    const iddqParam = m1ReceivedTelemetry.parameters.iddq;
-    assert(iddqParam.observed != null, 'Param observed object is present');
-    assert(iddqParam.observed['0h'] === 2.00, '0h value is 2.00');
-    assert(iddqParam.observed['24h'] === 2.10, '24h value is 2.10');
-    assert(iddqParam.observed['48h'] === undefined, '48h measurement is NEVER transmitted (Zero Data Leakage)');
-    assert(iddqParam.observed['96h'] === undefined, '96h measurement is NEVER transmitted (Zero Data Leakage)');
-    assert(iddqParam.observed['168h'] === undefined, '168h measurement is NEVER transmitted (Zero Data Leakage)');
+    assert(receivedScreeningPayload != null, 'Real AI Service received single /run-screening payload');
+    assert(receivedScreeningPayload.componentId === 'C-0001', 'Traceable componentId C-0001 received');
+    assert(receivedScreeningPayload.lotId === 'LOT-2026-001', 'Traceable lotId LOT-2026-001 received');
+    assert(receivedScreeningPayload.context != null, 'Context object transmitted to Python service');
 
     // -------------------------------------------------------------------------
-    // TEST 2: Method 2 Real Service Contract & Same-Lot Isolation Check
+    // TEST 2: GET /health Check on External AI Service
     // -------------------------------------------------------------------------
-    console.log('\n--- TEST 2: Method 2 Real Service Contract & Same-Lot Isolation ---');
-    assert(m2ReceivedCohort != null, 'Real AI Service received Method 2 cohort payload');
-    assert(m2ReceivedCohort.targetComponentId === 'C-0001', 'Target component is designated as C-0001');
-    assert(m2ReceivedCohort.lotId === 'LOT-2026-001', 'Cohort lotId is LOT-2026-001');
-    assert(m2ReceivedCohort.cohort.length >= 3, `Same-lot cohort size >= 3 (got ${m2ReceivedCohort.cohort.length})`);
-    assert(m2ReceivedCohort.cohort.every((c) => c.lotId === 'LOT-2026-001'), 'All cohort units belong strictly to LOT-2026-001');
+    console.log('\n--- TEST 2: External AI Service GET /health ---');
+    const healthRes = await makeRequest(realAiServer, { path: '/health', method: 'GET' });
+    assert(healthRes.status === 200, 'GET /health on external service returns 200 OK');
+    assert(healthRes.body.status === 'ok', 'Health status is ok');
 
     // -------------------------------------------------------------------------
     // TEST 3: Real Model Metadata Preservation & MongoDB Persistence
@@ -500,8 +494,8 @@ async function runStep15Tests() {
     console.log('================================================================\n');
 
   } finally {
-    realAiServer.close();
-    backendServer.close();
+    await new Promise((resolve) => realAiServer.close(resolve));
+    await new Promise((resolve) => backendServer.close(resolve));
     delete process.env.AI_SERVICE_URL;
     delete process.env.AI_SERVICE_TIMEOUT_MS;
   }

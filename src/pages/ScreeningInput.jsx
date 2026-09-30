@@ -40,20 +40,8 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
 
   // 2. Lot ID & Parameter Limits State
   const [lotId, setLotId] = useState(selectedLotId || 'NASA-MOSFET-199C');
-  const [parameterLimits, setParameterLimits] = useState([
-    {
-      key: 'rdson',
-      name: 'On-Resistance (RDS(on))',
-      shortName: 'RDS(on)',
-      unit: 'Ω',
-      limitValue: '8.00',
-      direction: 'UPPER',
-      source: 'DATABASE_CATALOG',
-      isAuthoritative: true,
-      isDetectedFromDataset: false,
-    },
-  ]);
-  const [selectedAddParamKey, setSelectedAddParamKey] = useState('');
+  const [parameterLimits, setParameterLimits] = useState([]);
+  const [isDetectingParams, setIsDetectingParams] = useState(false);
   const [formErrors, setFormErrors] = useState({});
 
   // 3. Execution & Processing State
@@ -62,103 +50,51 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
   const [runError, setRunError] = useState(null);
 
   /**
-   * Fetch authoritative engineering limits from database for selected lot
+   * Automatically detect parameters from dataset and load authoritative DB limits
    */
-  const loadAuthoritativeLimits = useCallback(async (targetLotId) => {
-    if (!targetLotId || !targetLotId.trim()) return;
+  const detectDatasetParameters = useCallback(async (file, targetLotId) => {
+    if (!file) {
+      setParameterLimits([]);
+      return;
+    }
+
+    setIsDetectingParams(true);
+    setFormErrors((prev) => ({ ...prev, general: null, file: null }));
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/screening?lotId=${encodeURIComponent(targetLotId.trim())}&limit=1`);
+      const formData = new FormData();
+      formData.append('file', file);
+      if (targetLotId && targetLotId.trim()) {
+        formData.append('lotId', targetLotId.trim());
+      }
+      formData.append('fileName', file.name);
+
+      const res = await fetch(`${API_BASE_URL}/api/screening/detect-parameters`, {
+        method: 'POST',
+        body: formData,
+      });
+
       if (res.ok) {
         const json = await res.json();
-        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
-          const sample = json.data[0];
-          const dbLimits = sample.engineeringLimits || {};
-          
-          if (Object.keys(dbLimits).length > 0) {
-            const mappedRows = Object.entries(dbLimits).map(([k, lim]) => {
-              const meta = getParameterMeta(k, lim);
-              const limVal = typeof lim === 'number' ? lim : (lim?.limitValue ?? lim?.upper ?? lim?.max ?? '');
-              const src = lim?.source || 'DATABASE_CATALOG';
-              return {
-                key: k,
-                name: meta.name || k,
-                shortName: meta.shortName || k,
-                unit: meta.unit || 'Ω',
-                limitValue: String(limVal),
-                direction: lim?.direction || 'UPPER',
-                source: src,
-                isAuthoritative: src === 'DATABASE_CATALOG',
-                isDetectedFromDataset: false,
-              };
-            });
-
-            if (mappedRows.length > 0) {
-              setParameterLimits(mappedRows);
-            }
-          }
+        if (json.success && Array.isArray(json.parameters)) {
+          setParameterLimits(json.parameters);
+          setFileInsights((prev) => ({
+            type: prev?.type || (file.name.toLowerCase().endsWith('.zip') ? 'NASA Dataset Archive (.ZIP)' : 'Telemetry Dataset'),
+            unitsDetected: prev?.unitsDetected || 'Valid Telemetry',
+            status: `${json.parameters.length} Params Detected`,
+          }));
+          return;
         }
       }
     } catch {
-      // Retain existing list if offline or error
+      // Fallback
+    } finally {
+      setIsDetectingParams(false);
     }
   }, []);
 
-  useEffect(() => {
-    if (lotId) {
-      loadAuthoritativeLimits(lotId);
-    }
-  }, [lotId, loadAuthoritativeLimits]);
-
   /**
-   * Extract detected parameter keys from dataset content (CSV or JSON)
-   */
-  const detectParametersFromContent = useCallback((content, fileName) => {
-    if (!content) return [];
-    const detected = new Set();
-    const lowerName = fileName.toLowerCase();
-
-    if (lowerName.endsWith('.json')) {
-      try {
-        const parsed = JSON.parse(content);
-        const sample = Array.isArray(parsed) ? parsed[0] : (parsed.records?.[0] || parsed);
-        if (sample) {
-          if (sample.RDS0 !== undefined || sample.RDS33 !== undefined || sample.rdson !== undefined) detected.add('rdson');
-          if (sample.iddq !== undefined || sample.Iddq_0h !== undefined) detected.add('iddq');
-          if (sample.leakage !== undefined || sample.leakage_0h !== undefined) detected.add('leakage');
-          if (sample.vth !== undefined || sample.v_th !== undefined) detected.add('v_th');
-          if (sample.delay !== undefined || sample.t_pd !== undefined) detected.add('delay');
-          if (sample.temp !== undefined) detected.add('temp');
-          if (sample.measurements && typeof sample.measurements === 'object') {
-            Object.keys(sample.measurements).forEach((k) => detected.add(k));
-          }
-        }
-      } catch {
-        // Raw stream
-      }
-    } else if (lowerName.endsWith('.csv')) {
-      const lines = content.split(/\r?\n/).filter((l) => l.trim().length > 0);
-      if (lines.length > 0) {
-        const headers = lines[0].split(',').map((h) => h.trim().replace(/^["']|["']$/g, '').toLowerCase());
-        headers.forEach((h) => {
-          if (h.includes('rds') || h === '0h' || h === '24h') detected.add('rdson');
-          if (h.includes('iddq')) detected.add('iddq');
-          if (h.includes('leak')) detected.add('leakage');
-          if (h.includes('delay') || h.includes('t_pd')) detected.add('delay');
-          if (h.includes('vth') || h.includes('v_th')) detected.add('v_th');
-          if (h.includes('temp')) detected.add('temp');
-          if (h.includes('vgs')) detected.add('vgs');
-          if (h.includes('vds')) detected.add('vds');
-          if (h.includes('freq')) detected.add('freq');
-        });
-      }
-    }
-
-    return Array.from(detected);
-  }, []);
-
-  /**
-   * Safe file parser for preview insights (CSV & JSON)
+   * Safe file parser for preview insights & automatic parameter detection
    */
   const processSelectedFile = useCallback((file) => {
     setFileError(null);
@@ -169,17 +105,19 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
       setSelectedFile(null);
       setFileContent(null);
       setFileInsights(null);
+      setParameterLimits([]);
       return;
     }
 
     const fileName = file.name.toLowerCase();
-    const isValidExt = fileName.endsWith('.csv') || fileName.endsWith('.json') || fileName.endsWith('.mat');
+    const isValidExt = fileName.endsWith('.csv') || fileName.endsWith('.json') || fileName.endsWith('.mat') || fileName.endsWith('.zip');
 
     if (!isValidExt) {
-      setFileError('Unsupported file format. Please upload a .CSV, .JSON, or .MAT dataset file.');
+      setFileError('Unsupported file format. Please upload a .ZIP, .CSV, .JSON, or .MAT dataset file.');
       setSelectedFile(null);
       setFileContent(null);
       setFileInsights(null);
+      setParameterLimits([]);
       return;
     }
 
@@ -188,21 +126,19 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
       setSelectedFile(null);
       setFileContent(null);
       setFileInsights(null);
+      setParameterLimits([]);
       return;
     }
 
     setSelectedFile(file);
 
-    // Read text content for CSV/JSON
+    // Read text content for CSV/JSON for preview insights
     if (fileName.endsWith('.csv') || fileName.endsWith('.json')) {
       const reader = new FileReader();
       reader.onload = (e) => {
         const text = e.target.result;
         setFileContent(text);
 
-        const detectedKeys = detectParametersFromContent(text, file.name);
-
-        // Derive basic preview telemetry safely without mutation
         try {
           if (fileName.endsWith('.json')) {
             const parsed = JSON.parse(text);
@@ -210,7 +146,7 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
             setFileInsights({
               type: 'JSON Telemetry',
               unitsDetected: count,
-              status: `${detectedKeys.length} Params Detected`,
+              status: 'Detecting params...',
             });
           } else {
             const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
@@ -218,7 +154,7 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
             setFileInsights({
               type: 'CSV Telemetry',
               unitsDetected: rowCount,
-              status: `${detectedKeys.length} Params Detected`,
+              status: 'Detecting params...',
             });
           }
         } catch {
@@ -228,52 +164,24 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
             status: 'Raw Stream',
           });
         }
-
-        // Merge detected parameters into parameterLimits list
-        if (detectedKeys.length > 0) {
-          setParameterLimits((prevList) => {
-            const existingKeys = new Set(prevList.map((p) => p.key));
-            const updated = prevList.map((p) => ({
-              ...p,
-              isDetectedFromDataset: detectedKeys.includes(p.key) || p.isDetectedFromDataset,
-            }));
-
-            detectedKeys.forEach((key) => {
-              if (!existingKeys.has(key)) {
-                const meta = getParameterMeta(key);
-                const canonical = CANONICAL_PARAMETERS.find((c) => c.key === key);
-                updated.push({
-                  key,
-                  name: meta.name || key,
-                  shortName: meta.shortName || key,
-                  unit: meta.unit || '—',
-                  limitValue: canonical?.defaultLimit || '1.00',
-                  direction: 'UPPER',
-                  source: 'OPERATOR_SUPPLIED',
-                  isAuthoritative: false,
-                  isDetectedFromDataset: true,
-                });
-              }
-            });
-
-            return updated;
-          });
-        }
       };
       reader.onerror = () => {
         setFileError('Failed to read file from local disk.');
       };
       reader.readAsText(file);
     } else {
-      // Binary .MAT or other matrix file
+      // Binary .ZIP, .MAT, or matrix archive
       setFileContent(null);
       setFileInsights({
-        type: 'MATLAB Matrix (.MAT)',
-        unitsDetected: 'Binary Dataset',
-        status: 'Ready',
+        type: fileName.endsWith('.zip') ? 'NASA Dataset Archive (.ZIP)' : 'MATLAB Matrix (.MAT)',
+        unitsDetected: fileName.endsWith('.zip') ? 'Multi-file Archive' : 'Binary Dataset',
+        status: 'Detecting params...',
       });
     }
-  }, [detectParametersFromContent]);
+
+    // Trigger automatic dataset parameter detection on backend
+    detectDatasetParameters(file, lotId);
+  }, [detectDatasetParameters, lotId]);
 
   const handleDragOver = (e) => {
     e.preventDefault();
@@ -307,6 +215,7 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
     setFileContent(null);
     setFileInsights(null);
     setFileError(null);
+    setParameterLimits([]);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -318,10 +227,13 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
   const handleLimitValueChange = (index, value) => {
     setParameterLimits((prev) => {
       const next = [...prev];
+      if (next[index].isAuthoritative) {
+        return prev; // Disallow editing authoritative database limits
+      }
       next[index] = {
         ...next[index],
         limitValue: value,
-        source: next[index].isAuthoritative ? 'DATABASE_CATALOG' : 'OPERATOR_SUPPLIED',
+        source: 'USER_ENGINEERING_INPUT',
       };
       return next;
     });
@@ -331,33 +243,8 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
     }
   };
 
-  const handleAddParameter = (paramKey) => {
-    if (!paramKey) return;
-    const exists = parameterLimits.some((p) => p.key === paramKey);
-    if (exists) return;
-
-    const meta = getParameterMeta(paramKey);
-    const canonical = CANONICAL_PARAMETERS.find((c) => c.key === paramKey);
-
-    setParameterLimits((prev) => [
-      ...prev,
-      {
-        key: paramKey,
-        name: meta.name || paramKey,
-        shortName: meta.shortName || paramKey,
-        unit: meta.unit || canonical?.unit || '—',
-        limitValue: canonical?.defaultLimit || '1.00',
-        direction: 'UPPER',
-        source: 'OPERATOR_SUPPLIED',
-        isAuthoritative: false,
-        isDetectedFromDataset: false,
-      },
-    ]);
-    setSelectedAddParamKey('');
-  };
-
   const handleRemoveParameter = (index) => {
-    if (parameterLimits.length <= 1) return;
+    if (parameterLimits[index]?.isAuthoritative) return;
     setParameterLimits((prev) => prev.filter((_, i) => i !== index));
   };
 
@@ -368,7 +255,7 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
     const errors = {};
 
     if (!selectedFile) {
-      errors.file = 'A screening dataset (.CSV, .JSON, or .MAT) is required.';
+      errors.file = 'A screening dataset (.ZIP, .CSV, .JSON, or .MAT) is required.';
     }
 
     if (!lotId || !lotId.trim()) {
@@ -376,13 +263,13 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
     }
 
     if (parameterLimits.length === 0) {
-      errors.general = 'At least one screening parameter with an engineering limit is required.';
+      errors.general = 'No telemetry parameters detected in the uploaded dataset to screen.';
     }
 
     parameterLimits.forEach((param, idx) => {
       const num = parseFloat(param.limitValue);
       if (isNaN(num) || !isFinite(num) || num <= 0) {
-        errors[`limit_${idx}`] = `Valid limit required for ${param.shortName || param.name}`;
+        errors[`limit_${idx}`] = `Valid numeric limit required for ${param.shortName || param.name}`;
       }
     });
 
@@ -416,29 +303,24 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
         };
       });
 
-      const payload = {
-        lotId: cleanLotId,
-        engineeringLimits,
+      const contextData = {
         fileName: selectedFile.name,
-        fileType: selectedFile.type || 'text/csv',
+        fileType: selectedFile.type || (selectedFile.name.endsWith('.zip') ? 'application/zip' : 'text/csv'),
         fileSize: selectedFile.size,
-        dataset: fileContent,
-        datasetContent: fileContent,
-        context: {
-          fileName: selectedFile.name,
-          fileType: selectedFile.type || 'text/csv',
-          fileSize: selectedFile.size,
-          submittedAt: new Date().toISOString(),
-          parametersConfigured: parameterLimits.map((p) => p.key),
-        },
+        submittedAt: new Date().toISOString(),
+        parametersConfigured: parameterLimits.map((p) => p.key),
       };
+
+      // Construct multipart/form-data payload preserving the original uploaded file
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+      formData.append('lotId', cleanLotId);
+      formData.append('engineeringLimits', JSON.stringify(engineeringLimits));
+      formData.append('context', JSON.stringify(contextData));
 
       const response = await fetch(`${API_BASE_URL}/api/screening/run`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
+        body: formData,
       });
 
       const data = await response.json();
@@ -495,7 +377,7 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
               </svg>
               <h2 className="spad-panel-title">DATASET INPUT</h2>
             </div>
-            <span className="spad-panel-badge">FORMATS: .CSV | .JSON | .MAT</span>
+            <span className="spad-panel-badge">FORMATS: .ZIP | .CSV | .JSON | .MAT</span>
           </div>
 
           <div className="spad-dropzone-wrapper">
@@ -504,7 +386,7 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
               type="file"
               ref={fileInputRef}
               onChange={handleFileChange}
-              accept=".csv,.json,.mat,text/csv,application/json"
+              accept=".zip,.csv,.json,.mat,application/zip,text/csv,application/json"
               style={{ display: 'none' }}
               id="spad-dataset-file-input"
             />
@@ -645,9 +527,13 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
                 className={`spad-input-control ${formErrors.lotId ? 'error' : ''}`}
                 value={lotId}
                 onChange={(e) => {
-                  setLotId(e.target.value);
+                  const newLotId = e.target.value;
+                  setLotId(newLotId);
                   if (formErrors.lotId) {
                     setFormErrors((prev) => ({ ...prev, lotId: null }));
+                  }
+                  if (selectedFile) {
+                    detectDatasetParameters(selectedFile, newLotId);
                   }
                 }}
                 placeholder="e.g. NASA-MOSFET-199C"
@@ -658,21 +544,30 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
                 <button
                   type="button"
                   className="spad-preset-btn"
-                  onClick={() => setLotId('NASA-MOSFET-199C')}
+                  onClick={() => {
+                    setLotId('NASA-MOSFET-199C');
+                    if (selectedFile) detectDatasetParameters(selectedFile, 'NASA-MOSFET-199C');
+                  }}
                 >
                   NASA-MOSFET-199C
                 </button>
                 <button
                   type="button"
                   className="spad-preset-btn"
-                  onClick={() => setLotId('LOT-2026-001')}
+                  onClick={() => {
+                    setLotId('LOT-2026-001');
+                    if (selectedFile) detectDatasetParameters(selectedFile, 'LOT-2026-001');
+                  }}
                 >
                   LOT-2026-001
                 </button>
                 <button
                   type="button"
                   className="spad-preset-btn"
-                  onClick={() => setLotId('LOT-2026-W01')}
+                  onClick={() => {
+                    setLotId('LOT-2026-W01');
+                    if (selectedFile) detectDatasetParameters(selectedFile, 'LOT-2026-W01');
+                  }}
                 >
                   LOT-2026-W01
                 </button>
@@ -688,7 +583,9 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
                 <label className="spad-field-label">
                   ENGINEERING LIMITS <span className="required">*</span>
                 </label>
-                <span className="spad-field-tag">PARAMETER-SPECIFIC THRESHOLDS</span>
+                <span className="spad-field-tag">
+                  {parameterLimits.length > 0 ? `${parameterLimits.length} DETECTED` : 'AUTOMATIC DETECTION'}
+                </span>
               </div>
 
               <div className="spad-limits-table-wrapper">
@@ -700,83 +597,72 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
                   <span></span>
                 </div>
 
-                <div className="spad-limits-list">
-                  {parameterLimits.map((param, idx) => (
-                    <div key={param.key} className="spad-limit-row">
-                      {/* Parameter Name & Tag */}
-                      <div className="spad-param-cell">
-                        <span className="spad-param-name" title={param.name}>
-                          {param.name}
+                {parameterLimits.length === 0 ? (
+                  <div className="spad-empty-limits-box">
+                    {isDetectingParams ? (
+                      <span>Detecting dataset engineering parameters...</span>
+                    ) : selectedFile ? (
+                      <span>No supported engineering parameters detected in the uploaded file.</span>
+                    ) : (
+                      <span>Upload a screening dataset (.ZIP, .CSV, .JSON, .MAT) to automatically detect telemetry parameters.</span>
+                    )}
+                  </div>
+                ) : (
+                  <div className="spad-limits-list">
+                    {parameterLimits.map((param, idx) => (
+                      <div key={param.key} className="spad-limit-row">
+                        {/* Parameter Name & Tag */}
+                        <div className="spad-param-cell">
+                          <span className="spad-param-name" title={param.name}>
+                            {param.name}
+                          </span>
+                          <span className="spad-param-code">
+                            {param.key} • detected
+                          </span>
+                        </div>
+
+                        {/* Limit Numeric Input */}
+                        <div className="spad-limit-input-cell">
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            disabled={param.isAuthoritative}
+                            className={`spad-limit-input ${formErrors[`limit_${idx}`] ? 'error' : ''}`}
+                            value={param.limitValue}
+                            onChange={(e) => handleLimitValueChange(idx, e.target.value)}
+                            placeholder="0.00"
+                            aria-label={`Limit for ${param.name}`}
+                          />
+                        </div>
+
+                        {/* Unit Badge */}
+                        <span className="spad-unit-badge">{param.unit}</span>
+
+                        {/* Authoritative / Operator Source Badge */}
+                        <span
+                          className={`spad-source-badge ${param.isAuthoritative ? 'authoritative' : 'operator'}`}
+                          title={param.isAuthoritative ? 'Authoritative limit from database catalog — locked' : 'Operator-configured engineering limit'}
+                        >
+                          {param.isAuthoritative ? 'DB AUTH (LOCKED)' : 'OPERATOR'}
                         </span>
-                        <span className="spad-param-code">
-                          {param.key} {param.isDetectedFromDataset && '• detected'}
-                        </span>
+
+                        {/* Remove Button (disabled if authoritative) */}
+                        <button
+                          type="button"
+                          className="spad-row-action-btn"
+                          onClick={() => handleRemoveParameter(idx)}
+                          disabled={param.isAuthoritative}
+                          title={param.isAuthoritative ? 'Authoritative database catalog limit cannot be removed' : 'Remove parameter'}
+                          aria-label={`Remove ${param.name}`}
+                        >
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18" />
+                            <line x1="6" y1="6" x2="18" y2="18" />
+                          </svg>
+                        </button>
                       </div>
-
-                      {/* Limit Numeric Input */}
-                      <div className="spad-limit-input-cell">
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          className={`spad-limit-input ${formErrors[`limit_${idx}`] ? 'error' : ''}`}
-                          value={param.limitValue}
-                          onChange={(e) => handleLimitValueChange(idx, e.target.value)}
-                          placeholder="0.00"
-                          aria-label={`Limit for ${param.name}`}
-                        />
-                      </div>
-
-                      {/* Unit Badge */}
-                      <span className="spad-unit-badge">{param.unit}</span>
-
-                      {/* Authoritative / Operator Source Badge */}
-                      <span
-                        className={`spad-source-badge ${param.isAuthoritative ? 'authoritative' : 'operator'}`}
-                        title={param.isAuthoritative ? 'Authoritative limit from database catalog' : 'Operator-configured limit'}
-                      >
-                        {param.isAuthoritative ? 'DB AUTH' : 'OPERATOR'}
-                      </span>
-
-                      {/* Remove Button */}
-                      <button
-                        type="button"
-                        className="spad-row-action-btn"
-                        onClick={() => handleRemoveParameter(idx)}
-                        disabled={parameterLimits.length <= 1}
-                        title={parameterLimits.length <= 1 ? 'At least one parameter required' : 'Remove parameter'}
-                        aria-label={`Remove ${param.name}`}
-                      >
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <line x1="18" y1="6" x2="6" y2="18" />
-                          <line x1="6" y1="6" x2="18" y2="18" />
-                        </svg>
-                      </button>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Add Parameter Dropdown / Action */}
-                {availableParamsToAdd.length > 0 && (
-                  <div className="spad-add-param-row">
-                    <select
-                      className="spad-add-param-select"
-                      value={selectedAddParamKey}
-                      onChange={(e) => {
-                        setSelectedAddParamKey(e.target.value);
-                        if (e.target.value) {
-                          handleAddParameter(e.target.value);
-                        }
-                      }}
-                      aria-label="Add screening parameter"
-                    >
-                      <option value="">+ Add Screening Parameter...</option>
-                      {availableParamsToAdd.map((p) => (
-                        <option key={p.key} value={p.key}>
-                          {p.name} ({p.unit})
-                        </option>
-                      ))}
-                    </select>
+                    ))}
                   </div>
                 )}
               </div>

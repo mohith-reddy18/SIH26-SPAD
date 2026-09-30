@@ -220,25 +220,150 @@ function parseDatasetContent(content, fallbackLotId) {
   return records;
 }
 
+const { detectParametersFromDataset, CANONICAL_PARAM_DEFINITIONS } = require('./utils/datasetParameterDetector');
+
+/**
+ * POST /api/screening/detect-parameters
+ * Analyzes uploaded dataset structure (ZIP, CSV, JSON, MAT) to extract only the parameters actually present,
+ * and attaches lot-specific authoritative database engineering limits where available.
+ */
+app.post('/api/screening/detect-parameters', upload.single('file'), async (req, res) => {
+  try {
+    const file = req.file || null;
+    const fileName = file?.originalname || req.body?.fileName || '';
+    const lotId = req.body?.lotId || '';
+    const cleanLotId = typeof lotId === 'string' ? lotId.trim() : '';
+    const dataset = req.body?.datasetContent || req.body?.dataset || null;
+
+    // 1. Detect actual parameter keys present in the dataset
+    const detectedKeys = detectParametersFromDataset({
+      file,
+      dataset,
+      datasetContent: dataset,
+      fileName,
+    });
+
+    // 2. Fetch authoritative database limits for the selected lot if available
+    let dbLimits = {};
+    if (cleanLotId) {
+      try {
+        const sampleRecord = await ScreeningRecord.findOne({ lotId: cleanLotId }).lean();
+        if (sampleRecord?.engineeringLimits && typeof sampleRecord.engineeringLimits === 'object') {
+          dbLimits = sampleRecord.engineeringLimits;
+        }
+      } catch {
+        // Fallback gracefully if database lookup fails
+      }
+    }
+
+    // 3. Build detected parameters list with metadata and authoritative DB status
+    const parameters = detectedKeys.map((key) => {
+      const canonical = CANONICAL_PARAM_DEFINITIONS[key] || {
+        key,
+        name: key.toUpperCase(),
+        shortName: key,
+        unit: '—',
+      };
+
+      const dbLim = dbLimits[key];
+      let isAuthoritative = false;
+      let limitValue = null;
+      let direction = 'UPPER';
+      let source = 'USER_ENGINEERING_INPUT';
+
+      if (dbLim !== undefined && dbLim !== null) {
+        const isDbCatalog = typeof dbLim === 'object'
+          ? (String(dbLim.source || '').toUpperCase() === 'DATABASE_CATALOG')
+          : true;
+
+        if (isDbCatalog) {
+          isAuthoritative = true;
+          source = 'DATABASE_CATALOG';
+          limitValue = typeof dbLim === 'object'
+            ? (dbLim.limitValue ?? dbLim.upper ?? dbLim.lower ?? dbLim.max ?? null)
+            : dbLim;
+          if (typeof dbLim === 'object' && dbLim.direction) {
+            direction = dbLim.direction;
+          }
+        }
+      }
+
+      return {
+        key,
+        name: canonical.name,
+        shortName: canonical.shortName,
+        unit: canonical.unit,
+        isAuthoritative,
+        limitValue: limitValue !== null ? String(limitValue) : '',
+        direction,
+        source,
+      };
+    });
+
+    return res.status(200).json({
+      success: true,
+      lotId: cleanLotId,
+      fileName: fileName || file?.originalname || null,
+      detectedCount: parameters.length,
+      parameters,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      error: {
+        code: 'PARAMETER_DETECTION_ERROR',
+        message: error.message || 'Failed to detect parameters from the provided dataset',
+      },
+    });
+  }
+});
+
 /**
  * POST /api/screening/run
  * Execute full end-to-end screening orchestration flow:
- * Component/Lot -> Ingest Dataset if provided -> Load Data & Cohort -> Method 1 + Method 2 -> Engineering Status -> Overall AI Status -> Persist -> Return
+ * Accepts either multipart/form-data (with file, lotId, engineeringLimits, context)
+ * or application/json (for programmatic/test invocations).
  */
-app.post('/api/screening/run', async (req, res) => {
+app.post('/api/screening/run', upload.single('file'), async (req, res) => {
   try {
     const {
       componentId,
       lotId,
-      engineeringLimits,
-      context,
-      datasetContent,
-      dataset,
       records,
-      fileName,
-      fileType,
-      fileSize,
     } = req.body || {};
+
+    let engineeringLimits = req.body?.engineeringLimits;
+    if (typeof engineeringLimits === 'string') {
+      try {
+        engineeringLimits = JSON.parse(engineeringLimits);
+      } catch {
+        engineeringLimits = {};
+      }
+    }
+
+    let context = req.body?.context;
+    if (typeof context === 'string') {
+      try {
+        context = JSON.parse(context);
+      } catch {
+        context = {};
+      }
+    }
+
+    const file = req.file || null;
+    const fileName = file?.originalname || req.body?.fileName || null;
+    const fileType = file?.mimetype || req.body?.fileType || null;
+    const fileSize = file?.size !== undefined ? file.size : req.body?.fileSize;
+    let datasetContent = req.body?.datasetContent || req.body?.dataset;
+
+    // If a text file (CSV/JSON) was uploaded as multipart, extract content if datasetContent not already provided
+    if (file && !datasetContent && (file.mimetype?.includes('csv') || file.mimetype?.includes('json') || fileName?.endsWith('.csv') || fileName?.endsWith('.json'))) {
+      try {
+        datasetContent = file.buffer.toString('utf-8');
+      } catch {
+        // Retain binary buffer
+      }
+    }
 
     const cleanCompId = typeof componentId === 'string' && componentId.trim() ? componentId.trim() : null;
     const cleanLotId = typeof lotId === 'string' && lotId.trim() ? lotId.trim() : null;
@@ -284,8 +409,8 @@ app.post('/api/screening/run', async (req, res) => {
       }
     }
 
-    // Ingest dataset records into MongoDB if supplied with the screening run
-    const rawContent = datasetContent || dataset || records;
+    // Ingest dataset records into MongoDB if text dataset supplied with the screening run
+    const rawContent = datasetContent || records;
     if (rawContent) {
       const parsedRecords = parseDatasetContent(rawContent, cleanLotId);
       if (parsedRecords && parsedRecords.length > 0) {
@@ -300,7 +425,7 @@ app.post('/api/screening/run', async (req, res) => {
       } else if (typeof rawContent === 'string' && rawContent.trim().length > 0) {
         // Content was provided but failed parsing
         const existingCount = cleanLotId ? await ScreeningRecord.countDocuments({ lotId: cleanLotId }) : 0;
-        if (existingCount === 0) {
+        if (existingCount === 0 && !file) {
           return res.status(400).json({
             success: false,
             error: {
@@ -325,6 +450,13 @@ app.post('/api/screening/run', async (req, res) => {
       lotId: cleanLotId,
       customLimits: engineeringLimits,
       context: mergedContext,
+      file,
+      datasetContent,
+      dataset: datasetContent,
+      records,
+      fileName,
+      fileType,
+      fileSize,
     });
     return res.status(200).json(result);
   } catch (error) {

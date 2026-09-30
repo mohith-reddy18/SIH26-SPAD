@@ -474,8 +474,40 @@
   border-color: var(--spad-blue, #3B82F6);
 }
 
+.spad-limit-input:disabled {
+  background: rgba(255, 255, 255, 0.03);
+  color: #94A3B8;
+  cursor: not-allowed;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
 .spad-limit-input.error {
   border-color: #EF4444;
+}
+
+.spad-empty-limits-box {
+  background: var(--spad-inset, #101119);
+  border: 1px dashed var(--spad-border-dashed, #2E303D);
+  border-radius: 6px;
+  padding: 24px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 8px;
+  min-height: 100px;
+}
+
+.spad-empty-limits-box p {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--spad-text-secondary, #8B8FA3);
+}
+
+.spad-empty-limits-box span {
+  font-size: 11px;
+  color: var(--spad-text-muted, #5C6070);
 }
 
 .spad-unit-badge {

@@ -394,11 +394,15 @@ async function callRemoteInference(endpointPath, payload) {
  * Production Single Endpoint Inference Dispatcher
  * POST ${AI_SERVICE_URL}/run-screening
  *
- * Dispatches the complete screening request (dataset, lotId, engineeringLimits, context)
- * to the external Python SPAD V4 screening pipeline.
+ * Dispatches the complete screening request as multipart/form-data:
+ * - file: ZIP archive or dataset file (Buffer / Blob / text)
+ * - lotId: Manufacturing lot identifier
+ * - engineeringLimits: JSON string
+ * - context: JSON string
  *
  * @param {Object} payload
  * @param {string} payload.lotId
+ * @param {Object|Buffer|string} [payload.file]
  * @param {string|Array|Object} [payload.dataset]
  * @param {string} [payload.fileName]
  * @param {string} [payload.fileType]
@@ -416,8 +420,101 @@ async function runScreening(payload) {
     };
   }
 
-  const rawModelOutput = await callRemoteInference('/run-screening', payload);
-  return rawModelOutput;
+  const serviceUrl = process.env.AI_SERVICE_URL.replace(/\/+$/, '');
+  const targetUrl = `${serviceUrl}/run-screening`;
+  const timeoutMs = parseInt(process.env.AI_SERVICE_TIMEOUT_MS, 10) || 15000;
+
+  const {
+    lotId,
+    componentId,
+    file,
+    dataset,
+    datasetContent,
+    fileName,
+    fileType,
+    engineeringLimits = {},
+    context = {},
+  } = payload || {};
+
+  const formData = new FormData();
+
+  // 1. Attach file archive (ZIP, CSV, MAT, or raw dataset buffer/string)
+  const targetFile = file || datasetContent || dataset;
+  const resolvedFileName = fileName || file?.originalname || (typeof targetFile === 'string' ? 'dataset.csv' : 'screening_dataset.zip');
+  const resolvedFileType = fileType || file?.mimetype || (resolvedFileName.endsWith('.zip') ? 'application/zip' : 'application/octet-stream');
+
+  if (targetFile) {
+    if (targetFile.buffer && Buffer.isBuffer(targetFile.buffer)) {
+      const blob = new Blob([targetFile.buffer], { type: resolvedFileType });
+      formData.append('file', blob, resolvedFileName);
+    } else if (Buffer.isBuffer(targetFile)) {
+      const blob = new Blob([targetFile], { type: resolvedFileType });
+      formData.append('file', blob, resolvedFileName);
+    } else if (typeof Blob !== 'undefined' && targetFile instanceof Blob) {
+      formData.append('file', targetFile, resolvedFileName);
+    } else if (typeof targetFile === 'string') {
+      const blob = new Blob([Buffer.from(targetFile, 'utf-8')], { type: resolvedFileType });
+      formData.append('file', blob, resolvedFileName);
+    } else if (typeof targetFile === 'object') {
+      const blob = new Blob([Buffer.from(JSON.stringify(targetFile), 'utf-8')], { type: 'application/json' });
+      formData.append('file', blob, resolvedFileName.endsWith('.json') ? resolvedFileName : 'dataset.json');
+    }
+  }
+
+  // 2. Attach lotId and optional componentId
+  if (lotId) {
+    formData.append('lotId', String(lotId).trim());
+  }
+  if (componentId) {
+    formData.append('componentId', String(componentId).trim());
+  }
+
+  // 3. Attach engineeringLimits as JSON string
+  const limitsStr = typeof engineeringLimits === 'string'
+    ? engineeringLimits
+    : JSON.stringify(engineeringLimits || {});
+  formData.append('engineeringLimits', limitsStr);
+
+  // 4. Attach context as JSON string
+  const contextObj = {
+    ...(context && typeof context === 'object' ? context : {}),
+    ...(resolvedFileName ? { fileName: resolvedFileName } : {}),
+    ...(resolvedFileType ? { fileType: resolvedFileType } : {}),
+  };
+  formData.append('context', JSON.stringify(contextObj));
+
+  try {
+    const headers = {
+      ...(process.env.AI_SERVICE_KEY ? { Authorization: `Bearer ${process.env.AI_SERVICE_KEY}` } : {}),
+    };
+
+    const response = await fetch(targetUrl, {
+      method: 'POST',
+      headers,
+      body: formData,
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+
+    if (!response.ok) {
+      throw {
+        statusCode: 503,
+        code: 'MODEL_UNAVAILABLE',
+        message: 'The predictive screening model service is currently unavailable or returned an error status',
+      };
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (err) {
+    if (err.code === 'MODEL_UNAVAILABLE' || err.statusCode === 503) {
+      throw err;
+    }
+    throw {
+      statusCode: 503,
+      code: 'MODEL_UNAVAILABLE',
+      message: 'The predictive screening model service is currently unavailable or timed out',
+    };
+  }
 }
 
 /**

@@ -323,17 +323,18 @@ async function evaluateSingleComponent({ targetDoc, sameLotDocs = [], customLimi
 /**
  * Normalizes and persists results returned from external Python SPAD V4 screening pipeline.
  */
-async function processRemoteScreeningRun({ lotId, componentId, customLimits = null, context = {}, rawDataset, fileName, fileType, fileSize }) {
+async function processRemoteScreeningRun({ lotId, componentId, customLimits = null, context = {}, file = null, rawDataset, fileName, fileType, fileSize }) {
   const cleanLotId = lotId.trim();
 
   // 1. Dispatch single request to external Python service: POST ${AI_SERVICE_URL}/run-screening
   const payload = {
     lotId: cleanLotId,
     ...(componentId ? { componentId } : {}),
+    file: file || rawDataset,
     dataset: rawDataset,
-    fileName: fileName || context?.fileName || null,
-    fileType: fileType || context?.fileType || null,
-    fileSize: fileSize !== undefined ? fileSize : (context?.fileSize !== undefined ? context.fileSize : null),
+    fileName: fileName || file?.originalname || context?.fileName || null,
+    fileType: fileType || file?.mimetype || context?.fileType || null,
+    fileSize: fileSize !== undefined ? fileSize : (file?.size ?? (context?.fileSize !== undefined ? context.fileSize : null)),
     engineeringLimits: customLimits || {},
     context: {
       ...(context && typeof context === 'object' ? context : {}),
@@ -400,7 +401,10 @@ async function processRemoteScreeningRun({ lotId, componentId, customLimits = nu
     // 3. Telemetry extraction (0h, 24h)
     const val0h = item.RDS0 ?? item.val0h ?? item['0h'] ?? item.measurements?.rdson?.['0h'];
     const val24h = item.RDS33 ?? item.val24h ?? item['24h'] ?? item.measurements?.rdson?.['24h'];
-    const measurements = item.measurements ? { ...item.measurements } : {};
+    const measurements = {
+      ...(existingDoc?.measurements || {}),
+      ...(item.measurements || {}),
+    };
     if (typeof val0h === 'number' || typeof val24h === 'number') {
       measurements.rdson = {
         unit: authoritativeLimits.rdson?.unit || 'Ω',
@@ -543,9 +547,11 @@ async function processRemoteScreeningRun({ lotId, componentId, customLimits = nu
   const totalComponents = evaluatedRecords.length;
   const engineeringYield = Number(currentYield(evaluatedRecords).toFixed(2));
 
+  const singleDoc = componentId ? evaluatedRecords.find((r) => r.componentId === componentId) : null;
+
   return {
     success: true,
-    message: 'Lot screening orchestration completed successfully',
+    message: 'Screening orchestration completed successfully',
     lotId: cleanLotId,
     summary: {
       totalComponents,
@@ -558,7 +564,7 @@ async function processRemoteScreeningRun({ lotId, componentId, customLimits = nu
       aiNotEvaluatedCount,
       engineeringYield,
     },
-    data: evaluatedRecords,
+    data: singleDoc || evaluatedRecords,
   };
 }
 
@@ -583,6 +589,7 @@ async function runScreeningOrchestration({
   lotId,
   customLimits = null,
   context = {},
+  file = null,
   datasetContent,
   dataset,
   records,
@@ -625,6 +632,7 @@ async function runScreeningOrchestration({
       componentId: cleanCompId,
       customLimits,
       context,
+      file,
       rawDataset,
       fileName,
       fileType,
