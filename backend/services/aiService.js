@@ -376,7 +376,17 @@ async function callRemoteInference(endpointPath, payload) {
         const text = await response.text();
         try {
           const json = JSON.parse(text);
-          detail = json.message || json.error || json.detail || text;
+          if (json.message) detail = json.message;
+          else if (json.error) detail = typeof json.error === 'string' ? json.error : (json.error.message || JSON.stringify(json.error));
+          else if (json.detail) {
+            if (typeof json.detail === 'string') detail = json.detail;
+            else if (json.detail.message) detail = json.detail.message;
+            else if (json.detail.msg) detail = json.detail.msg;
+            else if (Array.isArray(json.detail)) detail = json.detail.map((d) => d.msg || d.message || JSON.stringify(d)).join('; ');
+            else detail = JSON.stringify(json.detail);
+          } else {
+            detail = text.slice(0, 300);
+          }
         } catch {
           detail = text ? text.slice(0, 300) : '';
         }
@@ -551,7 +561,17 @@ async function runScreening(payload, explicitSignal = null) {
         const text = await response.text();
         try {
           const json = JSON.parse(text);
-          detail = json.message || json.error || json.detail || text;
+          if (json.message) detail = json.message;
+          else if (json.error) detail = typeof json.error === 'string' ? json.error : (json.error.message || JSON.stringify(json.error));
+          else if (json.detail) {
+            if (typeof json.detail === 'string') detail = json.detail;
+            else if (json.detail.message) detail = json.detail.message;
+            else if (json.detail.msg) detail = json.detail.msg;
+            else if (Array.isArray(json.detail)) detail = json.detail.map((d) => d.msg || d.message || JSON.stringify(d)).join('; ');
+            else detail = JSON.stringify(json.detail);
+          } else {
+            detail = text.slice(0, 300);
+          }
         } catch {
           detail = text ? text.slice(0, 300) : '';
         }

@@ -2,12 +2,18 @@
  * Comprehensive verification of SPAD AI Output Contract Backend Helpers & Endpoints
  */
 const {
-  calculateRateOfChangePerHour,
-  calculateProjectedMargin,
-  calculateEngineeringStatus,
-  calculateOverallStatus,
-  calculateCurrentYield,
+  rateOfChangePerHour,
+  projectedMargin,
+  engineeringStatus,
+  overallStatus,
+  currentYield,
 } = require('./utils/contractCalculations');
+
+const calculateRateOfChangePerHour = rateOfChangePerHour;
+const calculateProjectedMargin = projectedMargin;
+const calculateEngineeringStatus = engineeringStatus;
+const calculateOverallStatus = overallStatus;
+const calculateCurrentYield = currentYield;
 
 let passedTests = 0;
 let totalTests = 0;
@@ -34,20 +40,20 @@ assert(rocNull === null, 'rateOfChangePerHour with null input returns null');
 
 // 2. projectedMargin
 // Upper limit: engineeringLimit - predicted168h
-const marginUpper = calculateProjectedMargin(2.8, { upper: 3.0, lower: 0.5 });
-assert(Math.abs(marginUpper - 0.2) < 1e-6, `projectedMargin upper (predicted=2.8, upper=3.0, lower=0.5) = 0.2 (got ${marginUpper})`);
+const marginUpper = calculateProjectedMargin(2.8, 3.0, 'UPPER');
+assert(Math.abs(marginUpper - 0.2) < 1e-6, `projectedMargin upper (predicted=2.8, limit=3.0) = 0.2 (got ${marginUpper})`);
 
 // Lower limit: predicted168h - engineeringLimit
-const marginLower = calculateProjectedMargin(0.6, { upper: 3.0, lower: 0.5 });
-assert(Math.abs(marginLower - 0.1) < 1e-6, `projectedMargin lower (predicted=0.6, upper=3.0, lower=0.5) = 0.1 (got ${marginLower})`);
+const marginLower = calculateProjectedMargin(0.6, 0.5, 'LOWER');
+assert(Math.abs(marginLower - 0.1) < 1e-6, `projectedMargin lower (predicted=0.6, limit=0.5) = 0.1 (got ${marginLower})`);
 
 // Scalar upper limit
 const marginScalarUpper = calculateProjectedMargin(2.7, 3.0, 'upper');
 assert(Math.abs(marginScalarUpper - 0.3) < 1e-6, `projectedMargin scalar upper (predicted=2.7, limit=3.0) = 0.3 (got ${marginScalarUpper})`);
 
 // Unavailable limit or prediction -> null
-assert(calculateProjectedMargin(null, 3.0) === null, 'projectedMargin returns null when predicted168h is null');
-assert(calculateProjectedMargin(2.7, null) === null, 'projectedMargin returns null when engineeringLimit is null');
+assert(calculateProjectedMargin(null, 3.0, 'UPPER') === null, 'projectedMargin returns null when predicted168h is null');
+assert(calculateProjectedMargin(2.7, null, 'UPPER') === null, 'projectedMargin returns null when engineeringLimit is null');
 
 // 3. engineeringStatus (Deterministic limit breaches)
 // 0 distinct breached params -> NORMAL
@@ -71,11 +77,11 @@ const statusCritical = calculateEngineeringStatus({
 });
 assert(statusCritical === 'CRITICAL', `2 breached distinct params -> CRITICAL (got ${statusCritical})`);
 
-// 4. overallStatus
-assert(calculateOverallStatus('CRITICAL', 'NOT FLAGGED') === 'CRITICAL', 'overallStatus CRITICAL when engineeringStatus is CRITICAL');
-assert(calculateOverallStatus('SUSPECT', 'NOT FLAGGED') === 'SUSPECT', 'overallStatus SUSPECT when engineeringStatus is SUSPECT');
-assert(calculateOverallStatus('NORMAL', 'FLAGGED') === 'FLAGGED_FOR_REVIEW', 'overallStatus FLAGGED_FOR_REVIEW when NORMAL + FLAGGED');
-assert(calculateOverallStatus('NORMAL', 'NOT FLAGGED') === 'NORMAL', 'overallStatus NORMAL when NORMAL + NOT FLAGGED');
+// 4. overallStatus (AI flags aggregation)
+assert(calculateOverallStatus('FLAGGED', 'NOT FLAGGED') === 'FLAGGED', 'overallStatus FLAGGED when any is FLAGGED');
+assert(calculateOverallStatus('NOT FLAGGED', 'NOT FLAGGED') === 'NOT FLAGGED', 'overallStatus NOT FLAGGED when all evaluated are NOT FLAGGED');
+assert(calculateOverallStatus('NOT_EVALUATED') === 'NOT_EVALUATED', 'overallStatus NOT_EVALUATED when none evaluated');
+assert(calculateOverallStatus('FLAGGED', 'NOT_EVALUATED') === 'FLAGGED', 'overallStatus FLAGGED when FLAGGED + NOT_EVALUATED');
 
 // 5. currentYield
 const yieldTest = calculateCurrentYield([

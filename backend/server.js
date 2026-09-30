@@ -11,13 +11,71 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const MONGODB_URI = process.env.MONGODB_URI;
 
-// Middleware
-const corsOrigin = process.env.CORS_ORIGIN;
-const corsOptions = corsOrigin && corsOrigin.trim() !== '*'
-  ? { origin: corsOrigin.split(',').map((o) => o.trim()) }
-  : undefined;
+// Comprehensive CORS Configuration
+const allowedOrigins = [
+  'https://sih-26-spad.vercel.app',
+  'https://sih26-spad.vercel.app',
+  'http://localhost:5173',
+  'http://localhost:5000',
+  'http://localhost:3000',
+  'http://127.0.0.1:5173',
+  'http://127.0.0.1:5000',
+];
+
+const corsOriginEnv = process.env.CORS_ORIGIN;
+const corsOptions = {
+  origin: (origin, callback) => {
+    // Allow non-browser requests (such as curl, health checks, server-to-server) without origin
+    if (!origin) return callback(null, true);
+
+    if (
+      allowedOrigins.includes(origin) ||
+      origin.endsWith('.vercel.app') ||
+      origin.endsWith('.onrender.com') ||
+      process.env.NODE_ENV !== 'production' ||
+      !corsOriginEnv ||
+      corsOriginEnv === '*'
+    ) {
+      return callback(null, true);
+    }
+
+    const envOrigins = corsOriginEnv.split(',').map((o) => o.trim());
+    if (envOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    // Default permissive callback for SPAD web application origins
+    return callback(null, true);
+  },
+  credentials: true,
+  methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Run-ID', 'x-run-id', 'Accept', 'Origin'],
+  exposedHeaders: ['X-Run-ID', 'x-run-id', 'Content-Disposition'],
+  optionsSuccessStatus: 204,
+};
 
 app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
+
+// Explicit fallback header injection to guarantee CORS headers on all responses (including errors & timeouts)
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Run-ID, x-run-id, Accept, Origin');
+    res.setHeader('Access-Control-Expose-Headers', 'X-Run-ID, x-run-id, Content-Disposition');
+  } else {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+  }
+
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(204);
+  }
+  next();
+});
+
 app.use(express.json({ limit: '2mb' }));
 
 // Streamed disk storage for uploaded datasets (avoids Node RAM exhaustion for multi-GB files)
@@ -910,6 +968,38 @@ app.get('/api/screening/:componentId', async (req, res) => {
       message: error.message || 'Failed to retrieve component screening record from MongoDB'
     });
   }
+});
+
+// 404 Handler for unmatched API routes
+app.use((req, res) => {
+  return res.status(404).json({
+    success: false,
+    error: {
+      code: 'NOT_FOUND',
+      message: `Route ${req.method} ${req.originalUrl} not found`,
+      timestamp: new Date().toISOString(),
+    },
+  });
+});
+
+// Global Error-Handling Middleware (ensures consistent JSON and CORS headers on any unhandled error)
+app.use((err, req, res, next) => {
+  const statusCode = err.statusCode || (err.status >= 400 && err.status < 600 ? err.status : 500);
+  const errorCode = err.code || (statusCode === 400 ? 'BAD_REQUEST' : 'INTERNAL_ERROR');
+  const message = err.message || 'An unexpected internal server error occurred';
+
+  if (res.headersSent) {
+    return next(err);
+  }
+
+  return res.status(statusCode).json({
+    success: false,
+    error: {
+      code: errorCode,
+      message,
+      timestamp: new Date().toISOString(),
+    },
+  });
 });
 
 // Start server with long-connection & large-file transfer support
