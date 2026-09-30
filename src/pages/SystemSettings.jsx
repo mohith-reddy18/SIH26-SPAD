@@ -271,6 +271,9 @@ export default function SystemSettings() {
               <div style={{ fontSize: '11px', color: '#64748b' }}>Automatic periodic polling interval for screening endpoints.</div>
             </div>
             <select
+              id="spad-auto-refresh-select"
+              name="autoRefreshInterval"
+              aria-label="Telemetry polling refresh interval"
               className="spad-comp-select-input"
               value={autoRefreshInterval}
               onChange={(e) => handleRefreshIntervalChange(e.target.value)}

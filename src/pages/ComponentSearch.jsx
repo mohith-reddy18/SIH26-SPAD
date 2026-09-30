@@ -212,6 +212,8 @@ export default function ComponentSearch({ onNavigateToComponent, initialComponen
           <div className="spad-search-box" style={{ flex: '1 1 240px', width: 'auto', minHeight: '38px' }}>
             <SearchIcon />
             <input
+              id="spad-component-search-input"
+              name="componentSearch"
               type="text"
               placeholder="Enter Component Serial (e.g. TEST-01, TEST-10, NASA-MOSFET-199C)..."
               value={searchTerm}

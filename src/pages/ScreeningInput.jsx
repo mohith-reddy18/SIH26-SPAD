@@ -500,6 +500,8 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
               accept=".csv,.zip"
               style={{ display: 'none' }}
               id="spad-dataset-file-input"
+              name="datasetFile"
+              aria-label="Screening telemetry dataset (.CSV or .ZIP)"
             />
 
             {!selectedFile ? (
@@ -643,6 +645,7 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
               </div>
               <input
                 id="spad-lot-id"
+                name="lotId"
                 type="text"
                 className={`spad-input-control ${formErrors.lotId ? 'error' : ''}`}
                 value={lotId}
@@ -710,14 +713,20 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
                     <div key={param.key} className="spad-limit-row">
                       {/* Parameter Name */}
                       <div className="spad-param-cell">
-                        <span className="spad-param-name" title={param.name}>
+                        <label
+                          htmlFor={`spad-limit-input-${param.key}`}
+                          className="spad-param-name"
+                          title={param.name}
+                        >
                           {param.name}
-                        </span>
+                        </label>
                       </div>
 
                       {/* Limit Numeric Input (Fully editable) */}
                       <div className="spad-limit-input-cell">
                         <input
+                          id={`spad-limit-input-${param.key}`}
+                          name={`limit_${param.key}`}
                           type="number"
                           step="0.01"
                           min="0"
@@ -762,6 +771,8 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
                 {availableParamsToAdd.length > 0 && (
                   <div className="spad-add-param-row">
                     <select
+                      id="spad-add-param-select"
+                      name="additionalParameter"
                       className="spad-input-control"
                       style={{ padding: '6px 10px', fontSize: '12px' }}
                       value={selectedAddParamKey}
@@ -771,7 +782,7 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
                           handleAddParameter(val);
                         }
                       }}
-                      aria-label="Add screening parameter"
+                      aria-label="Add additional parameter limit"
                     >
                       <option value="">+ Add Additional Parameter Limit...</option>
                       {availableParamsToAdd.map((p) => (
