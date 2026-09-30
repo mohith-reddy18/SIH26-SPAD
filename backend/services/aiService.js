@@ -27,7 +27,10 @@
  */
 
 const fs = require('fs');
+const path = require('path');
+const os = require('os');
 const { openAsBlob } = require('fs');
+const { normalizeDatasetForPythonService } = require('../utils/archiveHelper');
 const ALLOWED_AI_FLAGS = Object.freeze(['FLAGGED', 'NOT FLAGGED', 'NOT_EVALUATED']);
 
 /**
@@ -466,81 +469,6 @@ async function runScreening(payload, explicitSignal = null) {
     context = {},
   } = payload || {};
 
-  const formData = new FormData();
-
-  // 1. Attach file archive (ZIP, CSV, MAT, or raw dataset buffer/string)
-  const targetFile = file || datasetContent || dataset;
-  const resolvedFileName = fileName || file?.originalname || (typeof targetFile === 'string' ? 'dataset.csv' : 'screening_dataset.zip');
-  const resolvedFileType = fileType || file?.mimetype || (resolvedFileName.endsWith('.zip') ? 'application/zip' : 'application/octet-stream');
-
-  if (file && file.path && fs.existsSync(file.path)) {
-    const blob = await openAsBlob(file.path, { type: resolvedFileType });
-    formData.append('file', blob, resolvedFileName);
-  } else if (typeof targetFile === 'string' && fs.existsSync(targetFile)) {
-    const blob = await openAsBlob(targetFile, { type: resolvedFileType });
-    formData.append('file', blob, resolvedFileName);
-  } else if (targetFile) {
-    if (targetFile.buffer && Buffer.isBuffer(targetFile.buffer)) {
-      const blob = new Blob([targetFile.buffer], { type: resolvedFileType });
-      formData.append('file', blob, resolvedFileName);
-    } else if (Buffer.isBuffer(targetFile)) {
-      const blob = new Blob([targetFile], { type: resolvedFileType });
-      formData.append('file', blob, resolvedFileName);
-    } else if (typeof Blob !== 'undefined' && targetFile instanceof Blob) {
-      formData.append('file', targetFile, resolvedFileName);
-    } else if (typeof targetFile === 'string') {
-      const blob = new Blob([Buffer.from(targetFile, 'utf-8')], { type: resolvedFileType });
-      formData.append('file', blob, resolvedFileName);
-    } else if (typeof targetFile === 'object') {
-      const blob = new Blob([Buffer.from(JSON.stringify(targetFile), 'utf-8')], { type: 'application/json' });
-      formData.append('file', blob, resolvedFileName.endsWith('.json') ? resolvedFileName : 'dataset.json');
-    }
-  }
-
-  // 2. Attach lotId and optional componentId
-  if (lotId) {
-    formData.append('lotId', String(lotId).trim());
-  }
-  if (componentId) {
-    formData.append('componentId', String(componentId).trim());
-  }
-
-  // 3. Normalize & Attach engineeringLimits as JSON string (strictly UPPER or LOWER for Python service)
-  let parsedLimits = {};
-  if (typeof engineeringLimits === 'string') {
-    try {
-      parsedLimits = JSON.parse(engineeringLimits);
-    } catch {
-      parsedLimits = {};
-    }
-  } else if (engineeringLimits && typeof engineeringLimits === 'object') {
-    parsedLimits = { ...engineeringLimits };
-  }
-
-  const normalizedLimits = {};
-  for (const [paramKey, limitVal] of Object.entries(parsedLimits)) {
-    if (limitVal && typeof limitVal === 'object' && !Array.isArray(limitVal)) {
-      const rawDir = String(limitVal.direction || 'UPPER').toUpperCase();
-      const safeDir = (rawDir === 'LOWER' || rawDir === 'MIN') ? 'LOWER' : 'UPPER';
-      normalizedLimits[paramKey] = {
-        ...limitVal,
-        direction: safeDir,
-      };
-    } else {
-      normalizedLimits[paramKey] = limitVal;
-    }
-  }
-
-  formData.append('engineeringLimits', JSON.stringify(normalizedLimits));
-
-  // 4. Attach context as JSON string
-  const contextObj = {
-    ...(context && typeof context === 'object' ? context : {}),
-    ...(resolvedFileName ? { fileName: resolvedFileName } : {}),
-    ...(resolvedFileType ? { fileType: resolvedFileType } : {}),
-  };
-  formData.append('context', JSON.stringify(contextObj));
-
   const signal = explicitSignal || payload?.signal || null;
   if (signal && signal.aborted) {
     throw {
@@ -550,22 +478,109 @@ async function runScreening(payload, explicitSignal = null) {
     };
   }
 
-  let requestSignal;
-  const timeoutSignal = AbortSignal.timeout(timeoutMs);
-  if (signal) {
-    if (typeof AbortSignal.any === 'function') {
-      requestSignal = AbortSignal.any([timeoutSignal, signal]);
-    } else {
-      const combinedController = new AbortController();
-      timeoutSignal.addEventListener('abort', () => combinedController.abort(new Error('Inference request timed out')));
-      signal.addEventListener('abort', () => combinedController.abort(new Error('Screening aborted by operator')));
-      requestSignal = combinedController.signal;
-    }
-  } else {
-    requestSignal = timeoutSignal;
-  }
+  const formData = new FormData();
+  let archiveCleanup = null;
+  let tempDiskFileToClean = null;
 
   try {
+    // 1. Attach file archive (ZIP directly, or stream-normalized ZIP for CSV, JSON, MAT)
+    const targetFile = file || datasetContent || dataset;
+    const resolvedFileName = fileName || file?.originalname || (typeof targetFile === 'string' ? 'dataset.csv' : 'screening_dataset.zip');
+    const resolvedFileType = fileType || file?.mimetype || (resolvedFileName.endsWith('.zip') ? 'application/zip' : 'application/octet-stream');
+
+    let sourceDiskPath = null;
+    if (file && file.path && fs.existsSync(file.path)) {
+      sourceDiskPath = file.path;
+    } else if (typeof targetFile === 'string' && fs.existsSync(targetFile)) {
+      sourceDiskPath = targetFile;
+    } else if (targetFile) {
+      // Small payload string / buffer written to temp disk file to avoid memory bloat
+      const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e6)}`;
+      const ext = path.extname(resolvedFileName) || '.csv';
+      const tempPath = path.join(os.tmpdir(), `spad-temp-${uniqueSuffix}${ext}`);
+      if (targetFile.buffer && Buffer.isBuffer(targetFile.buffer)) {
+        fs.writeFileSync(tempPath, targetFile.buffer);
+      } else if (Buffer.isBuffer(targetFile)) {
+        fs.writeFileSync(tempPath, targetFile);
+      } else if (typeof targetFile === 'string') {
+        fs.writeFileSync(tempPath, targetFile, 'utf-8');
+      } else if (typeof targetFile === 'object') {
+        fs.writeFileSync(tempPath, JSON.stringify(targetFile), 'utf-8');
+      }
+      sourceDiskPath = tempPath;
+      tempDiskFileToClean = tempPath;
+    }
+
+    if (sourceDiskPath && fs.existsSync(sourceDiskPath)) {
+      const normalized = await normalizeDatasetForPythonService({
+        filePath: sourceDiskPath,
+        originalName: resolvedFileName,
+        mimeType: resolvedFileType,
+      });
+      archiveCleanup = normalized.cleanup;
+      const blob = await openAsBlob(normalized.archivePath, { type: 'application/zip' });
+      formData.append('file', blob, path.basename(normalized.archivePath));
+    }
+
+    // 2. Attach lotId and optional componentId
+    if (lotId) {
+      formData.append('lotId', String(lotId).trim());
+    }
+    if (componentId) {
+      formData.append('componentId', String(componentId).trim());
+    }
+
+    // 3. Normalize & Attach engineeringLimits as JSON string (strictly UPPER or LOWER for Python service)
+    let parsedLimits = {};
+    if (typeof engineeringLimits === 'string') {
+      try {
+        parsedLimits = JSON.parse(engineeringLimits);
+      } catch {
+        parsedLimits = {};
+      }
+    } else if (engineeringLimits && typeof engineeringLimits === 'object') {
+      parsedLimits = { ...engineeringLimits };
+    }
+
+    const normalizedLimits = {};
+    for (const [paramKey, limitVal] of Object.entries(parsedLimits)) {
+      if (limitVal && typeof limitVal === 'object' && !Array.isArray(limitVal)) {
+        const rawDir = String(limitVal.direction || 'UPPER').toUpperCase();
+        const safeDir = (rawDir === 'LOWER' || rawDir === 'MIN') ? 'LOWER' : 'UPPER';
+        normalizedLimits[paramKey] = {
+          ...limitVal,
+          direction: safeDir,
+        };
+      } else {
+        normalizedLimits[paramKey] = limitVal;
+      }
+    }
+
+    formData.append('engineeringLimits', JSON.stringify(normalizedLimits));
+
+    // 4. Attach context as JSON string
+    const contextObj = {
+      ...(context && typeof context === 'object' ? context : {}),
+      ...(resolvedFileName ? { fileName: resolvedFileName } : {}),
+      ...(resolvedFileType ? { fileType: resolvedFileType } : {}),
+    };
+    formData.append('context', JSON.stringify(contextObj));
+
+    let requestSignal;
+    const timeoutSignal = AbortSignal.timeout(timeoutMs);
+    if (signal) {
+      if (typeof AbortSignal.any === 'function') {
+        requestSignal = AbortSignal.any([timeoutSignal, signal]);
+      } else {
+        const combinedController = new AbortController();
+        timeoutSignal.addEventListener('abort', () => combinedController.abort(new Error('Inference request timed out')));
+        signal.addEventListener('abort', () => combinedController.abort(new Error('Screening aborted by operator')));
+        requestSignal = combinedController.signal;
+      }
+    } else {
+      requestSignal = timeoutSignal;
+    }
+
     const headers = {
       ...(process.env.AI_SERVICE_KEY ? { Authorization: `Bearer ${process.env.AI_SERVICE_KEY}` } : {}),
     };
@@ -631,6 +646,17 @@ async function runScreening(payload, explicitSignal = null) {
       code: 'MODEL_UNAVAILABLE',
       message: `The predictive screening model service (${targetUrl}) is currently unreachable (${reason})`,
     };
+  } finally {
+    if (archiveCleanup) {
+      archiveCleanup();
+    }
+    if (tempDiskFileToClean && fs.existsSync(tempDiskFileToClean)) {
+      try {
+        fs.unlinkSync(tempDiskFileToClean);
+      } catch {
+        // Ignored
+      }
+    }
   }
 }
 
