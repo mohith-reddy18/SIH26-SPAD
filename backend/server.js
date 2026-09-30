@@ -558,6 +558,22 @@ app.post('/api/screening/run', handleUploadSingle('file'), async (req, res) => {
   let onCloseHandler = null;
 
   try {
+    // Validate uploaded dataset format: accept only .csv and .zip
+    if (file) {
+      const lowerName = (file.originalname || '').toLowerCase();
+      const isValid = lowerName.endsWith('.csv') || lowerName.endsWith('.zip');
+      if (!isValid) {
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: 'UNSUPPORTED_FILE_FORMAT',
+            message: 'Uploaded dataset must be a .CSV or .ZIP file.',
+            timestamp: new Date().toISOString(),
+          },
+        });
+      }
+    }
+
     const {
       componentId,
       lotId,

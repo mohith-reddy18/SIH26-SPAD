@@ -30,7 +30,6 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const { openAsBlob } = require('fs');
-const { normalizeDatasetForPythonService } = require('../utils/archiveHelper');
 const ALLOWED_AI_FLAGS = Object.freeze(['FLAGGED', 'NOT FLAGGED', 'NOT_EVALUATED']);
 
 /**
@@ -512,14 +511,12 @@ async function runScreening(payload, explicitSignal = null) {
     }
 
     if (sourceDiskPath && fs.existsSync(sourceDiskPath)) {
-      const normalized = await normalizeDatasetForPythonService({
-        filePath: sourceDiskPath,
-        originalName: resolvedFileName,
-        mimeType: resolvedFileType,
-      });
-      archiveCleanup = normalized.cleanup;
-      const blob = await openAsBlob(normalized.archivePath, { type: 'application/zip' });
-      formData.append('file', blob, path.basename(normalized.archivePath));
+      const lowerName = resolvedFileName.toLowerCase();
+      const isZip = lowerName.endsWith('.zip');
+      const isCsv = lowerName.endsWith('.csv');
+      const mimeType = isZip ? 'application/zip' : (isCsv ? 'text/csv' : resolvedFileType);
+      const blob = await openAsBlob(sourceDiskPath, { type: mimeType });
+      formData.append('file', blob, resolvedFileName);
     }
 
     // 2. Attach lotId and optional componentId
