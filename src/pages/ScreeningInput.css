@@ -397,7 +397,7 @@
 
 .spad-limits-table-header {
   display: grid;
-  grid-template-columns: 2fr 1.6fr 0.8fr 1.2fr 36px;
+  grid-template-columns: 3.4fr 1fr 0.65fr 0.95fr 28px;
   gap: 8px;
   padding-bottom: 8px;
   border-bottom: 1px solid var(--spad-border, #1F212B);
@@ -416,7 +416,7 @@
 
 .spad-limit-row {
   display: grid;
-  grid-template-columns: 2fr 1.6fr 0.8fr 1.2fr 36px;
+  grid-template-columns: 3.4fr 1fr 0.65fr 0.95fr 28px;
   gap: 8px;
   align-items: center;
   background: var(--spad-surface, #12141C);
@@ -553,6 +553,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  justify-self: end;
+  margin-left: 2px;
   transition: all 0.15s ease;
 }
 
