@@ -59,6 +59,7 @@ export default function ParameterTrends({
   );
   const [selectedParamKey, setSelectedParamKey] = useState('');
   const [hoveredPoint, setHoveredPoint] = useState(null);
+  const [hoveredLegendId, setHoveredLegendId] = useState(null);
 
   // Keep selectedComponentId in sync when components load
   useEffect(() => {
@@ -485,43 +486,10 @@ export default function ParameterTrends({
             {activeSpec.name} [{activeSpec.unit}]
           </text>
 
-          {/* Engineering Limit Line & Label */}
-          {specLimitY >= padding.top && specLimitY <= padding.top + chartH && (
-            <g>
-              <line
-                x1={padding.left}
-                y1={specLimitY}
-                x2={padding.left + chartW}
-                y2={specLimitY}
-                stroke="#ef4444"
-                strokeWidth="1.8"
-                strokeDasharray="5 4"
-              />
-              <rect
-                x={padding.left + chartW + 6}
-                y={specLimitY - 10}
-                width="112"
-                height="19"
-                rx="3"
-                fill="#0f172a"
-                stroke="#ef4444"
-                strokeWidth="1"
-              />
-              <text
-                x={padding.left + chartW + 12}
-                y={specLimitY + 3}
-                fill="#f87171"
-                fontSize="9.5"
-                fontWeight="700"
-                fontFamily="var(--font-mono)"
-              >
-                LIMIT: {typeof dynamicLimit === 'number' ? dynamicLimit.toFixed(2) : '—'} {activeSpec.unit}
-              </text>
-            </g>
-          )}
-
-          {/* Trajectory Series Polylines */}
-          {activeSeries.map((series) => {
+          {/* 1. Reference Series Polylines (e.g. Healthy Reference) */}
+          {activeSeries.filter((s) => !s.isComponent).map((series) => {
+            const isHighlighted = hoveredLegendId === series.id;
+            const isSubdued = hoveredLegendId && !isHighlighted;
             const validPoints = series.data
               .map((val, idx) => (typeof val === 'number' && !isNaN(val) ? { val, idx, x: getX(idx), y: getY(val) } : null))
               .filter(Boolean);
@@ -529,19 +497,19 @@ export default function ParameterTrends({
             const pointsString = validPoints.map((p) => `${p.x},${p.y}`).join(' ');
 
             return (
-              <g key={series.id}>
+              <g key={series.id} style={{ transition: 'opacity 0.2s ease' }}>
                 {pointsString && (
                   <polyline
                     fill="none"
                     stroke={series.color}
-                    strokeWidth={series.strokeWidth || 2.8}
-                    strokeOpacity={series.opacity !== undefined ? series.opacity : 1}
+                    strokeWidth={isHighlighted ? 3.2 : (series.strokeWidth || 1.8)}
+                    strokeOpacity={isSubdued ? 0.25 : (series.opacity !== undefined ? series.opacity : 1)}
                     strokeDasharray={series.dashed ? '4 3' : 'none'}
                     points={pointsString}
                   />
                 )}
 
-                {/* Data Points on Nodes */}
+                {/* Reference Nodes */}
                 {validPoints.map((pt) => {
                   const { val, idx, x: cx, y: cy } = pt;
                   const cpObj = checkpoints[idx] || {};
@@ -555,12 +523,12 @@ export default function ParameterTrends({
                       <circle
                         cx={cx}
                         cy={cy}
-                        r={isPointHovered ? 6 : 4}
-                        fill={isPredicted && series.isComponent ? '#0b1324' : series.color}
-                        fillOpacity={series.opacity !== undefined ? series.opacity : 1}
+                        r={isPointHovered ? 6 : (isHighlighted ? 4.5 : 3.5)}
+                        fill={series.color}
+                        fillOpacity={isSubdued ? 0.25 : 1}
                         stroke={series.color}
-                        strokeOpacity={series.opacity !== undefined ? series.opacity : 1}
-                        strokeWidth={isPredicted && series.isComponent ? 2.5 : 1.5}
+                        strokeOpacity={isSubdued ? 0.25 : 1}
+                        strokeWidth={1.5}
                         style={{ cursor: 'pointer', transition: 'all 0.15s ease' }}
                         onMouseEnter={(e) => {
                           e.stopPropagation();
@@ -588,7 +556,116 @@ export default function ParameterTrends({
             );
           })}
 
-          {/* Tooltip Overlay */}
+          {/* 2. Engineering Limit Line & Label (Rendered underneath component trajectory) */}
+          {specLimitY >= padding.top && specLimitY <= padding.top + chartH && (
+            <g style={{ transition: 'opacity 0.2s ease' }}>
+              <line
+                x1={padding.left}
+                y1={specLimitY}
+                x2={padding.left + chartW}
+                y2={specLimitY}
+                stroke="#ef4444"
+                strokeWidth={hoveredLegendId === 'limit' ? 2.8 : 1.8}
+                strokeDasharray="5 4"
+                strokeOpacity={hoveredLegendId && hoveredLegendId !== 'limit' ? 0.35 : 0.85}
+              />
+              <rect
+                x={padding.left + chartW + 6}
+                y={specLimitY - 10}
+                width="112"
+                height="19"
+                rx="3"
+                fill="#0f172a"
+                stroke="#ef4444"
+                strokeWidth="1"
+                fillOpacity={hoveredLegendId && hoveredLegendId !== 'limit' ? 0.45 : 1}
+                strokeOpacity={hoveredLegendId && hoveredLegendId !== 'limit' ? 0.45 : 1}
+              />
+              <text
+                x={padding.left + chartW + 12}
+                y={specLimitY + 3}
+                fill="#f87171"
+                fillOpacity={hoveredLegendId && hoveredLegendId !== 'limit' ? 0.45 : 1}
+                fontSize="9.5"
+                fontWeight="700"
+                fontFamily="var(--font-mono)"
+              >
+                LIMIT: {typeof dynamicLimit === 'number' ? dynamicLimit.toFixed(2) : '—'} {activeSpec.unit}
+              </text>
+            </g>
+          )}
+
+          {/* 3. Component Trajectory Polylines (Rendered ABOVE engineering limit for guaranteed z-index visibility) */}
+          {activeSeries.filter((s) => s.isComponent).map((series) => {
+            const isHighlighted = hoveredLegendId === series.id || hoveredLegendId === 'component';
+            const isSubdued = hoveredLegendId && !isHighlighted;
+            const validPoints = series.data
+              .map((val, idx) => (typeof val === 'number' && !isNaN(val) ? { val, idx, x: getX(idx), y: getY(val) } : null))
+              .filter(Boolean);
+
+            const pointsString = validPoints.map((p) => `${p.x},${p.y}`).join(' ');
+
+            return (
+              <g key={series.id} style={{ transition: 'opacity 0.2s ease' }}>
+                {pointsString && (
+                  <polyline
+                    fill="none"
+                    stroke={series.color}
+                    strokeWidth={isHighlighted ? 4.2 : 3.0}
+                    strokeOpacity={isSubdued ? 0.25 : 1}
+                    strokeDasharray={series.dashed ? '4 3' : 'none'}
+                    points={pointsString}
+                  />
+                )}
+
+                {/* Data Points on Nodes */}
+                {validPoints.map((pt) => {
+                  const { val, idx, x: cx, y: cy } = pt;
+                  const cpObj = checkpoints[idx] || {};
+                  const isPredicted = Boolean(cpObj.isPredicted);
+                  const cpLabel = cpObj.label || (isPredicted ? '100%' : '0%');
+                  const pointKey = `${series.id}-${idx}`;
+                  const isPointHovered = hoveredPoint && hoveredPoint.key === pointKey;
+
+                  return (
+                    <g key={pointKey}>
+                      <circle
+                        cx={cx}
+                        cy={cy}
+                        r={isPointHovered ? 6.5 : (isHighlighted ? 5.5 : 4.5)}
+                        fill={isPredicted ? '#0b1324' : series.color}
+                        fillOpacity={isSubdued ? 0.25 : 1}
+                        stroke={series.color}
+                        strokeOpacity={isSubdued ? 0.25 : 1}
+                        strokeWidth={isHighlighted ? 3 : (isPredicted ? 2.5 : 1.8)}
+                        style={{ cursor: 'pointer', transition: 'all 0.15s ease' }}
+                        onMouseEnter={(e) => {
+                          e.stopPropagation();
+                          setHoveredPoint({
+                            key: pointKey,
+                            componentId: series.componentId,
+                            val: typeof val === 'number' ? val.toFixed(3) : val,
+                            checkpoint: cpLabel,
+                            isPredicted,
+                            unit: activeSpec.unit,
+                            paramName: activeSpec.shortName || activeSpec.name,
+                            status: series.status,
+                            cx,
+                            cy,
+                          });
+                        }}
+                        onMouseLeave={() => {
+                          setHoveredPoint(null);
+                        }}
+                      />
+                    </g>
+                  );
+                })}
+              </g>
+            );
+          })}
+
+          {/* 4. Tooltip Overlay */}
           {hoveredPoint && (
             <g
               transform={`translate(${Math.min(hoveredPoint.cx + 12, width - 200)}, ${Math.max(
@@ -625,10 +702,20 @@ export default function ParameterTrends({
         </svg>
       </div>
 
-      {/* 5. Chart Legend */}
+      {/* 5. Chart Legend with Interactive Hover Highlighting */}
       <div className="spad-chart-legend" aria-label="Chart Series Legend">
         {activeSeries.map((series) => (
-          <div key={series.id} className="spad-legend-item">
+          <div
+            key={series.id}
+            className={`spad-legend-item ${hoveredLegendId === series.id ? 'active-hover' : ''}`}
+            onMouseEnter={() => setHoveredLegendId(series.id)}
+            onMouseLeave={() => setHoveredLegendId(null)}
+            style={{
+              cursor: 'pointer',
+              opacity: hoveredLegendId && hoveredLegendId !== series.id ? 0.45 : 1,
+              transition: 'opacity 0.2s ease',
+            }}
+          >
             <span
               className="spad-legend-dot"
               style={
@@ -647,11 +734,22 @@ export default function ParameterTrends({
                     }
               }
             />
-            <span className="spad-legend-label">{series.label}</span>
+            <span className="spad-legend-label" style={{ fontWeight: hoveredLegendId === series.id ? '700' : '500' }}>
+              {series.label}
+            </span>
           </div>
         ))}
         {typeof dynamicLimit === 'number' && (
-          <div className="spad-legend-item">
+          <div
+            className={`spad-legend-item ${hoveredLegendId === 'limit' ? 'active-hover' : ''}`}
+            onMouseEnter={() => setHoveredLegendId('limit')}
+            onMouseLeave={() => setHoveredLegendId(null)}
+            style={{
+              cursor: 'pointer',
+              opacity: hoveredLegendId && hoveredLegendId !== 'limit' ? 0.45 : 1,
+              transition: 'opacity 0.2s ease',
+            }}
+          >
             <span
               className="spad-legend-dot"
               style={{
@@ -661,7 +759,7 @@ export default function ParameterTrends({
                 backgroundColor: 'transparent',
               }}
             />
-            <span className="spad-legend-label">
+            <span className="spad-legend-label" style={{ fontWeight: hoveredLegendId === 'limit' ? '700' : '500' }}>
               Engineering Limit ({dynamicLimit.toFixed(2)} {activeSpec.unit})
             </span>
           </div>
