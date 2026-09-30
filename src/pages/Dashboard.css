@@ -54,7 +54,7 @@
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
 }
 
 .spad-header-right {
@@ -72,7 +72,7 @@
   background: var(--spad-chip);
   border: 1px solid var(--spad-border-subtle);
   border-radius: 6px;
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
   font-size: 11.5px;
   color: var(--spad-text);
   white-space: nowrap;
@@ -101,7 +101,7 @@
   background: rgba(0, 56, 216, 0.18);
   border: 1px solid rgba(0, 56, 216, 0.4);
   border-radius: 6px;
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
   font-size: 11.5px;
   color: #80a4ff;
   font-weight: 600;
@@ -167,7 +167,7 @@
   font-weight: 700;
   letter-spacing: 0.08em;
   color: var(--spad-text-muted);
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
   text-transform: uppercase;
   white-space: nowrap;
   overflow: hidden;
@@ -209,7 +209,7 @@
 .spad-stat-pct-label {
   font-size: 11px;
   font-weight: 700;
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
   color: var(--spad-text-secondary);
   min-width: 38px;
 }
@@ -262,7 +262,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
 }
 
 /* --------------------------------------------------------------------------
@@ -300,7 +300,7 @@
   font-weight: 700;
   letter-spacing: 0.1em;
   color: var(--spad-green);
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
   text-transform: uppercase;
 }
 
@@ -319,7 +319,7 @@
   color: var(--spad-text-muted);
   margin: -4px 0 0 0;
   line-height: 1.4;
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
 }
 
 .spad-card-badge-static {
@@ -330,7 +330,7 @@
   border-radius: 4px;
   background: var(--spad-chip);
   border: 1px solid var(--spad-border-subtle);
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
   font-size: 9.5px;
   font-weight: 700;
   color: var(--spad-green);
@@ -433,7 +433,7 @@
 .spad-history-count-badge {
   font-size: 9px;
   font-weight: 700;
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
   padding: 2px 6px;
   color: #60A5FA;
   background: #1E3A8A;
@@ -449,7 +449,7 @@
   border-radius: 4px;
   padding: 2px 8px;
   font-size: 10px;
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
   font-weight: 600;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -496,7 +496,7 @@
   text-align: center;
   color: var(--spad-text-muted, #5C6070);
   font-size: 11.5px;
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
 }
 
 /* Screening History All Lots Selector */
@@ -514,7 +514,7 @@
   transition: all 0.18s ease;
   text-align: left;
   margin-bottom: 4px;
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
   outline: none;
   box-sizing: border-box;
 }
@@ -567,7 +567,7 @@
 .spad-history-active-tag {
   font-size: 8px;
   font-weight: 700;
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
   padding: 1px 5px;
   border-radius: 3px;
   background: #0F2A1C;
@@ -581,7 +581,7 @@
 .spad-history-all-tag {
   font-size: 8px;
   font-weight: 600;
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
   padding: 1px 5px;
   border-radius: 3px;
   background: rgba(255, 255, 255, 0.04);
@@ -646,7 +646,7 @@
   font-size: 12px;
   font-weight: 700;
   color: var(--spad-text-primary, #F5F6F8);
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -655,7 +655,7 @@
 .spad-history-status-tag {
   font-size: 9px;
   font-weight: 700;
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
   padding: 1px 6px;
   border-radius: 3px;
   letter-spacing: 0.03em;
@@ -677,7 +677,7 @@
 .spad-history-timestamp {
   font-size: 10px;
   color: var(--spad-text-secondary, #8B8FA3);
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
   margin-top: -3px;
   margin-bottom: 2px;
   padding-left: 14px;
@@ -706,7 +706,7 @@
   color: var(--spad-text-secondary, #8B8FA3);
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -716,7 +716,7 @@
   font-size: 11px;
   font-weight: 700;
   color: var(--spad-text-primary, #F5F6F8);
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -777,7 +777,7 @@
 .spad-progress-val {
   color: var(--spad-blue, #3B82F6);
   font-weight: 800;
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
 }
 
 .spad-pipeline-track {
@@ -834,7 +834,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
   font-size: 10px;
   font-weight: 700;
   z-index: 1;
@@ -874,7 +874,7 @@
   font-size: 12.5px;
   font-weight: 800;
   color: var(--spad-text-primary, #F5F6F8);
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
 }
 
 .spad-node-name {
@@ -886,13 +886,13 @@
   align-items: center;
   justify-content: center;
   text-align: center;
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
 }
 
 .spad-node-badge {
   font-size: 8.5px;
   font-weight: 700;
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
   padding: 1px 6px;
   border-radius: 3px;
   text-transform: uppercase;
@@ -918,7 +918,7 @@
 .spad-node-sub {
   font-size: 9.5px;
   color: var(--spad-text-muted, #5C6070);
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
   margin-top: 1px;
 }
 
@@ -946,14 +946,14 @@
   font-size: 9.5px;
   font-weight: 700;
   color: var(--spad-text-secondary, #8B8FA3);
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
   letter-spacing: 0.06em;
 }
 
 .spad-lot-status-badge {
   font-size: 8.5px;
   font-weight: 700;
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
   color: #60A5FA;
   background: #1E3A8A;
   border: 1px solid rgba(96, 165, 250, 0.3);
@@ -1206,7 +1206,7 @@
   color: var(--spad-text-secondary, #8B8FA3);
   font-size: 11.5px;
   font-weight: 600;
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
   padding: 5px 12px;
   border-radius: 4px;
   cursor: pointer;
@@ -1244,7 +1244,7 @@
   color: var(--spad-text-secondary, #8B8FA3);
   font-size: 11.5px;
   font-weight: 500;
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
   cursor: pointer;
   transition: all 0.15s ease;
   outline: none;
@@ -1266,14 +1266,14 @@
 }
 
 .spad-tab-radio-indicator {
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
   color: var(--spad-blue, #3B82F6);
 }
 
 .spad-tab-unit {
   font-size: 10px;
   color: var(--spad-text-muted, #5C6070);
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
 }
 
 /* Trends Meta & Controls Bar */
@@ -1306,14 +1306,14 @@
   font-size: 11px;
   font-weight: 600;
   color: var(--spad-text-secondary, #8B8FA3);
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
 }
 
 .spad-comp-select-input {
   background: var(--spad-surface, #12141C);
   border: 1px solid var(--spad-border, #1F212B);
   color: var(--spad-text-primary, #F5F6F8);
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
   font-size: 11.5px;
   font-weight: 600;
   padding: 4px 10px;
@@ -1337,7 +1337,7 @@
 }
 
 .spad-summary-pill-id {
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
   font-size: 11px;
   font-weight: 700;
   color: #60A5FA;
@@ -1348,7 +1348,7 @@
 }
 
 .spad-summary-pill-lot {
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
   font-size: 10.5px;
   color: var(--spad-text-secondary, #8B8FA3);
   background: var(--spad-chip, #1F212B);
@@ -1358,7 +1358,7 @@
 }
 
 .spad-summary-pill-status {
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
   font-size: 10.5px;
   font-weight: 700;
   padding: 2px 7px;
@@ -1387,7 +1387,7 @@
 }
 
 .spad-summary-pill-risk {
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
   font-size: 10.5px;
   color: var(--spad-text-secondary, #8B8FA3);
   background: var(--spad-chip, #1F212B);
@@ -1406,11 +1406,11 @@
 .spad-trends-desc {
   font-size: 11.5px;
   color: var(--spad-text-muted, #5C6070);
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
 }
 
 .spad-spec-badge {
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
   font-size: 10.5px;
   color: #f87171;
   background: rgba(239, 68, 68, 0.1);
@@ -1461,7 +1461,7 @@
 }
 
 .spad-legend-label {
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
 }
 
 /* --------------------------------------------------------------------------
@@ -1500,7 +1500,7 @@
   font-size: 11px;
   font-weight: 600;
   cursor: pointer;
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
   transition: all 0.15s ease;
   white-space: nowrap;
 }
@@ -1556,7 +1556,7 @@
   border: none;
   color: var(--spad-text-primary, #F5F6F8);
   font-size: 11.5px;
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
   outline: none;
   width: 100%;
 }
@@ -1605,7 +1605,7 @@
   font-weight: 700;
   letter-spacing: 0.08em;
   color: var(--spad-text-secondary, #8B8FA3);
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
   white-space: nowrap;
 }
 
@@ -1626,7 +1626,7 @@
 }
 
 .spad-td-mono {
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
 }
 
 .text-cyan { color: #60A5FA; }
@@ -1641,7 +1641,7 @@
 }
 
 .spad-risk-val {
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
   font-size: 11px;
   font-weight: 700;
   width: 28px;
@@ -1676,14 +1676,14 @@
   border: 1px solid var(--spad-border, #1F212B);
   padding: 2px 6px;
   border-radius: 3px;
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
 }
 
 .spad-status-pill {
   display: inline-block;
   font-size: 9.5px;
   font-weight: 700;
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
   padding: 2px 7px;
   border-radius: 4px;
   letter-spacing: 0.05em;
@@ -1716,7 +1716,7 @@
   text-align: center;
   padding: 28px !important;
   color: var(--spad-text-muted, #5C6070);
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
 }
 
 .spad-table-footer {
@@ -1728,7 +1728,7 @@
   color: var(--spad-text-secondary, #8B8FA3);
   flex-wrap: wrap;
   gap: 6px;
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
 }
 
 .spad-table-footer-stat strong {
@@ -1736,7 +1736,7 @@
 }
 
 .spad-table-footer-hint {
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
   font-size: 10px;
   color: var(--spad-blue, #3B82F6);
 }
@@ -1795,7 +1795,7 @@
   border-radius: 4px;
   background: #0F2A1C;
   border: 1px solid rgba(34, 197, 94, 0.35);
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
   font-size: 9.5px;
   font-weight: 700;
   color: #22C55E;
@@ -1851,13 +1851,13 @@
   font-size: 12px;
   font-weight: 600;
   color: var(--spad-text-primary, #F5F6F8);
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
 }
 
 .spad-sub-detail {
   font-size: 10.5px;
   color: var(--spad-text-secondary, #8B8FA3);
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
   line-height: 1.3;
 }
 
@@ -1865,21 +1865,21 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
   flex-shrink: 0;
 }
 
 .spad-sub-ping {
   font-size: 10.5px;
   color: var(--spad-text-secondary, #8B8FA3);
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
 }
 
 .spad-sub-status-text {
   font-size: 10.5px;
   color: #22C55E;
   font-weight: 600;
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
 }
 
 .spad-sys-footer {
@@ -1890,7 +1890,7 @@
   border-top: 1px solid var(--spad-border, #1F212B);
   font-size: 10.5px;
   color: var(--spad-text-secondary, #8B8FA3);
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
 }
 
 .spad-sys-footer svg {
@@ -1950,14 +1950,14 @@
 .spad-alert-id {
   font-size: 11px;
   font-weight: 700;
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
   color: var(--spad-text-primary, #F5F6F8);
 }
 
 .spad-alert-sev-tag {
   font-size: 8.5px;
   font-weight: 700;
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
   padding: 1px 6px;
   border-radius: 3px;
   letter-spacing: 0.04em;
@@ -1984,7 +1984,7 @@
 .spad-alert-time {
   font-size: 10px;
   color: var(--spad-text-secondary, #8B8FA3);
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
 }
 
 .spad-alert-message {
@@ -1993,7 +1993,7 @@
   margin: 0;
   line-height: 1.35;
   word-break: break-word;
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
 }
 
 .spad-alerts-footer {
@@ -2001,7 +2001,7 @@
   border-top: 1px solid var(--spad-border, #1F212B);
   font-size: 10.5px;
   color: var(--spad-text-secondary, #8B8FA3);
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
 }
 
 /* --------------------------------------------------------------------------
@@ -2313,14 +2313,14 @@
   gap: 6px;
   font-size: 11px;
   color: var(--spad-text-muted);
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
 }
 
 .spad-modal-switcher .spad-comp-select-input {
   min-height: 30px;
   padding: 3px 8px;
   font-size: 11.5px;
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
 }
 
 .spad-modal-close-btn {
@@ -2410,7 +2410,7 @@
   padding: 1px 6px;
   border-radius: 3px;
   width: fit-content;
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
 }
 
 .spad-section-pill.eng-pill {
@@ -2438,7 +2438,7 @@
 .spad-decision-badge {
   font-size: 11.5px;
   font-weight: 700;
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
   padding: 4px 12px;
   border-radius: 6px;
   border: 1px solid;
@@ -2834,7 +2834,7 @@
   background: var(--spad-inset, #101119);
   border-radius: 4px;
   border-left: 3px solid var(--spad-blue, #3B82F6);
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
 }
 
 /* Modal Footer */
@@ -2852,7 +2852,7 @@
 .spad-modal-footer-hint {
   font-size: 10.5px;
   color: var(--spad-text-muted, #5C6070);
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
 }
 
 .spad-modal-btn-primary {
@@ -2865,7 +2865,7 @@
   font-weight: 600;
   cursor: pointer;
   transition: all 0.15s ease;
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
 }
 
 .spad-modal-btn-primary:hover {
@@ -2951,14 +2951,14 @@
   text-transform: uppercase;
   color: var(--spad-text-secondary, #8B8FA3);
   font-weight: 600;
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
 }
 
 .spad-lot-metric-val {
   font-size: 14px;
   font-weight: 700;
   color: var(--spad-text-primary, #F5F6F8);
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
 }
 
 .spad-lot-selected-panel {
@@ -2984,13 +2984,13 @@
   letter-spacing: 0.05em;
   color: var(--spad-text-secondary, #8B8FA3);
   font-weight: 600;
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
 }
 
 .spad-peer-stat-value {
   font-size: 13.5px;
   font-weight: 700;
-  font-family: var(--font-ui, 'Inter', sans-serif);
+  font-family: var(--font-ui, 'Outfit', sans-serif);
   color: var(--spad-text-primary, #F5F6F8);
 }
 

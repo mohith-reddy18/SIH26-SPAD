@@ -210,12 +210,12 @@ export default function ModelPerformance({ selectedLotId, onSelectLot }) {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '14px' }}>
                 <div className="spad-ai-evidence-card" style={{ padding: '12px 14px', background: 'var(--spad-inset, #101119)', border: '1px solid var(--spad-border, #1F212B)', borderRadius: '6px' }}>
                   <div className="spad-ai-evidence-title-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                    <span className="spad-ai-evidence-k" style={{ fontSize: '12.5px', fontWeight: '600', color: 'var(--spad-text-primary, #F5F6F8)', fontFamily: 'var(--font-ui, Inter, sans-serif)' }}>Population Abnormality</span>
+                    <span className="spad-ai-evidence-k" style={{ fontSize: '12.5px', fontWeight: '600', color: 'var(--spad-text-primary, #F5F6F8)', fontFamily: 'var(--font-ui, Outfit, sans-serif)' }}>Population Abnormality</span>
                     <span className={`spad-ai-status-tag ${anomalies.populationAbnormality === true ? 'tag-warning' : anomalies.populationAbnormality === false ? 'tag-nominal' : ''}`}>
                       {anomalies.populationAbnormality === true ? 'FLAGGED' : anomalies.populationAbnormality === false ? 'NOMINAL' : 'NOT_EVALUATED'}
                     </span>
                   </div>
-                  <p className="spad-ai-evidence-desc" style={{ fontSize: '11px', color: 'var(--spad-text-secondary, #8B8FA3)', margin: 0, lineHeight: 1.4, fontFamily: 'var(--font-ui, Inter, sans-serif)' }}>
+                  <p className="spad-ai-evidence-desc" style={{ fontSize: '11px', color: 'var(--spad-text-secondary, #8B8FA3)', margin: 0, lineHeight: 1.4, fontFamily: 'var(--font-ui, Outfit, sans-serif)' }}>
                     {anomalies.populationAbnormality === true
                       ? 'Multivariate Mahalanobis distance exceeds Gaussian lot threshold.'
                       : anomalies.populationAbnormality === false
@@ -226,12 +226,12 @@ export default function ModelPerformance({ selectedLotId, onSelectLot }) {
 
                 <div className="spad-ai-evidence-card" style={{ padding: '12px 14px', background: 'var(--spad-inset, #101119)', border: '1px solid var(--spad-border, #1F212B)', borderRadius: '6px' }}>
                   <div className="spad-ai-evidence-title-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                    <span className="spad-ai-evidence-k" style={{ fontSize: '12.5px', fontWeight: '600', color: 'var(--spad-text-primary, #F5F6F8)', fontFamily: 'var(--font-ui, Inter, sans-serif)' }}>Trajectory Abnormality</span>
+                    <span className="spad-ai-evidence-k" style={{ fontSize: '12.5px', fontWeight: '600', color: 'var(--spad-text-primary, #F5F6F8)', fontFamily: 'var(--font-ui, Outfit, sans-serif)' }}>Trajectory Abnormality</span>
                     <span className={`spad-ai-status-tag ${anomalies.trajectoryAbnormality === true ? 'tag-warning' : anomalies.trajectoryAbnormality === false ? 'tag-nominal' : ''}`}>
                       {anomalies.trajectoryAbnormality === true ? 'FLAGGED' : anomalies.trajectoryAbnormality === false ? 'NOMINAL' : 'NOT_EVALUATED'}
                     </span>
                   </div>
-                  <p className="spad-ai-evidence-desc" style={{ fontSize: '11px', color: 'var(--spad-text-secondary, #8B8FA3)', margin: 0, lineHeight: 1.4, fontFamily: 'var(--font-ui, Inter, sans-serif)' }}>
+                  <p className="spad-ai-evidence-desc" style={{ fontSize: '11px', color: 'var(--spad-text-secondary, #8B8FA3)', margin: 0, lineHeight: 1.4, fontFamily: 'var(--font-ui, Outfit, sans-serif)' }}>
                     {anomalies.trajectoryAbnormality === true
                       ? 'Non-linear rate of change observed across early burn-in intervals.'
                       : anomalies.trajectoryAbnormality === false
@@ -242,12 +242,12 @@ export default function ModelPerformance({ selectedLotId, onSelectLot }) {
 
                 <div className="spad-ai-evidence-card" style={{ padding: '12px 14px', background: 'var(--spad-inset, #101119)', border: '1px solid var(--spad-border, #1F212B)', borderRadius: '6px' }}>
                   <div className="spad-ai-evidence-title-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                    <span className="spad-ai-evidence-k" style={{ fontSize: '12.5px', fontWeight: '600', color: 'var(--spad-text-primary, #F5F6F8)', fontFamily: 'var(--font-ui, Inter, sans-serif)' }}>Future-Risk Prediction</span>
+                    <span className="spad-ai-evidence-k" style={{ fontSize: '12.5px', fontWeight: '600', color: 'var(--spad-text-primary, #F5F6F8)', fontFamily: 'var(--font-ui, Outfit, sans-serif)' }}>Future-Risk Prediction</span>
                     <span className={`spad-ai-status-tag ${aiRisk > 75 ? 'tag-critical' : aiRisk > 40 ? 'tag-warning' : 'tag-nominal'}`}>
                       {anomalies.futureRiskPrediction || (typeof activeRecord?.riskScore === 'number' ? `${aiRisk}% Risk` : 'NOT_EVALUATED')}
                     </span>
                   </div>
-                  <p className="spad-ai-evidence-desc" style={{ fontSize: '11px', color: 'var(--spad-text-secondary, #8B8FA3)', margin: 0, lineHeight: 1.4, fontFamily: 'var(--font-ui, Inter, sans-serif)' }}>
+                  <p className="spad-ai-evidence-desc" style={{ fontSize: '11px', color: 'var(--spad-text-secondary, #8B8FA3)', margin: 0, lineHeight: 1.4, fontFamily: 'var(--font-ui, Outfit, sans-serif)' }}>
                     {aiRisk > 75
                       ? `High probability (${aiRisk}%) of exceeding engineering limit at 100%.`
                       : aiRisk > 40
@@ -305,10 +305,10 @@ export default function ModelPerformance({ selectedLotId, onSelectLot }) {
                           borderRadius: '6px',
                         }}
                       >
-                        <span style={{ fontSize: '12.5px', color: 'var(--spad-text-primary, #F5F6F8)', fontWeight: '500', fontFamily: 'var(--font-ui, Inter, sans-serif)' }}>
+                        <span style={{ fontSize: '12.5px', color: 'var(--spad-text-primary, #F5F6F8)', fontWeight: '500', fontFamily: 'var(--font-ui, Outfit, sans-serif)' }}>
                           {cleanName}
                         </span>
-                        <span style={{ color: 'var(--spad-blue, #3B82F6)', fontWeight: '700', fontSize: '13px', fontFamily: 'var(--font-ui, Inter, sans-serif)' }}>
+                        <span style={{ color: 'var(--spad-blue, #3B82F6)', fontWeight: '700', fontSize: '13px', fontFamily: 'var(--font-ui, Outfit, sans-serif)' }}>
                           {displayVal}
                         </span>
                       </div>

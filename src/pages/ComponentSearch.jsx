@@ -236,7 +236,7 @@ export default function ComponentSearch({ onNavigateToComponent, initialComponen
 
           {selectedLotId && selectedLotId !== 'ALL' && (
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'rgba(59, 130, 246, 0.12)', border: '1px solid rgba(59, 130, 246, 0.3)', padding: '5px 10px', borderRadius: '6px' }}>
-              <span style={{ fontSize: '11px', color: '#80a4ff', fontFamily: 'var(--font-ui, Inter, sans-serif)', fontWeight: '600' }}>
+              <span style={{ fontSize: '11px', color: '#80a4ff', fontFamily: 'var(--font-ui, Outfit, sans-serif)', fontWeight: '600' }}>
                 Active Lot: <strong style={{ color: '#F5F6F8' }}>{selectedLotId}</strong>
               </span>
               {typeof onSelectLot === 'function' && (

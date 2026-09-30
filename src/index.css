@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Anton&family=Outfit:wght@300;400;500;600;700&display=swap');
 
 /* ==========================================================================
    SPAD Application Global Styles
@@ -43,7 +43,7 @@
 
   /* Typography: Exactly Two Font Families */
   --font-display: 'Anton', sans-serif;
-  --font-ui: 'Inter', sans-serif;
+  --font-ui: 'Outfit', sans-serif;
   --font-sans: var(--font-ui);
   --font-mono: var(--font-ui);
   --spad-font-sans: var(--font-ui);
@@ -56,6 +56,14 @@
 *::before,
 *::after {
   box-sizing: border-box;
+}
+
+input,
+button,
+select,
+textarea,
+optgroup {
+  font-family: inherit;
 }
 
 html,
