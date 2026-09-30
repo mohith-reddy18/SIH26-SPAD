@@ -224,31 +224,13 @@ export default function ComponentTable({ records = [], onSelectComponent }) {
                     })}
                     {/* Method 1: RF — 168h Prediction */}
                     <td>
-                      <div className="spad-rf-cell" style={{ display: 'flex', flexDirection: 'column', gap: '2px', fontFamily: 'var(--font-mono)' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span
-                            style={{
-                              fontSize: '10px',
-                              fontWeight: '700',
-                              padding: '1px 5px',
-                              borderRadius: '3px',
-                              background: m1Flag === 'FLAGGED' ? 'rgba(239, 68, 68, 0.15)' : m1Flag === 'NOT FLAGGED' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(148, 163, 184, 0.15)',
-                              color: m1Flag === 'FLAGGED' ? '#f87171' : m1Flag === 'NOT FLAGGED' ? 'var(--spad-green, #22C55E)' : '#94a3b8',
-                              border: `1px solid ${m1Flag === 'FLAGGED' ? 'rgba(239, 68, 68, 0.3)' : m1Flag === 'NOT FLAGGED' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(148, 163, 184, 0.25)'}`,
-                            }}
-                          >
-                            {m1Flag}
-                          </span>
-                          {riskPercent !== null && (
-                            <span style={{ fontSize: '11px', fontWeight: '600', color: m1Flag === 'FLAGGED' ? '#f87171' : '#cbd5e1' }}>
-                              {riskPercent}%
-                            </span>
-                          )}
-                        </div>
-                        {pred168h !== null && (
-                          <span style={{ fontSize: '10px', color: '#94a3b8' }}>
+                      <div className="spad-rf-cell" style={{ display: 'flex', alignItems: 'center', fontFamily: 'var(--font-mono)' }}>
+                        {pred168h !== null ? (
+                          <span style={{ fontSize: '11px', color: '#94a3b8' }}>
                             168h: <span className="text-cyan font-bold">{pred168h.toFixed(3)} Ω</span>
                           </span>
+                        ) : (
+                          <span className="text-muted" style={{ fontSize: '11px' }}>—</span>
                         )}
                       </div>
                     </td>
