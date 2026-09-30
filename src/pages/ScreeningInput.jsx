@@ -16,9 +16,9 @@ const CANONICAL_PARAMETERS = [
   // 4. Drain-Source Voltage (V_DS) — Test value: 5 V
   { key: 'vds', name: 'Drain-Source Voltage (V_DS)', shortName: 'V_DS', unit: 'V', defaultLimit: '5', direction: 'UPPER', source: 'DATABASE_CATALOG', isAuthoritative: true },
   // 5. Switching Frequency (f_sw) — Test value: 1000 Hz
-  { key: 'freq', name: 'Switching Frequency (f_sw)', shortName: 'f_sw', unit: 'Hz', defaultLimit: '1000', direction: 'NOMINAL', source: 'DATABASE_CATALOG', isAuthoritative: true },
+  { key: 'freq', name: 'Switching Frequency (f_sw)', shortName: 'f_sw', unit: 'Hz', defaultLimit: '1000', direction: 'UPPER', source: 'DATABASE_CATALOG', isAuthoritative: true },
   // 6. Duty Cycle — Test value: 40 %
-  { key: 'dutyCycle', name: 'Duty Cycle', shortName: 'Duty', unit: '%', defaultLimit: '40', direction: 'NOMINAL', source: 'SUPPLIED', isAuthoritative: false },
+  { key: 'dutyCycle', name: 'Duty Cycle', shortName: 'Duty', unit: '%', defaultLimit: '40', direction: 'UPPER', source: 'SUPPLIED', isAuthoritative: false },
   // Optional parameters available through "Add Parameters"
   { key: 'v_th', name: 'Threshold Voltage (V_th)', shortName: 'V_th', unit: 'V', defaultLimit: '1.20', direction: 'LOWER', source: 'DATABASE_CATALOG', isAuthoritative: true },
   { key: 'iddq', name: 'Standby Current (Iddq)', shortName: 'Iddq', unit: 'mA', defaultLimit: '2.80', direction: 'UPPER', source: 'DATABASE_CATALOG', isAuthoritative: true },
@@ -358,10 +358,12 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
       const engineeringLimits = {};
       parameterLimits.forEach((param) => {
         const num = parseFloat(param.limitValue);
+        const rawDir = String(param.direction || 'UPPER').toUpperCase();
+        const safeDir = (rawDir === 'LOWER' || rawDir === 'MIN') ? 'LOWER' : 'UPPER';
         engineeringLimits[param.key] = {
           limitValue: isNaN(num) ? 0 : num,
           unit: param.unit,
-          direction: param.direction || 'UPPER',
+          direction: safeDir,
           source: param.source || (param.isAuthoritative ? 'DATABASE_CATALOG' : 'USER_ENGINEERING_INPUT'),
         };
       });

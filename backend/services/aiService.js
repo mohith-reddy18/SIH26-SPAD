@@ -505,11 +505,33 @@ async function runScreening(payload, explicitSignal = null) {
     formData.append('componentId', String(componentId).trim());
   }
 
-  // 3. Attach engineeringLimits as JSON string
-  const limitsStr = typeof engineeringLimits === 'string'
-    ? engineeringLimits
-    : JSON.stringify(engineeringLimits || {});
-  formData.append('engineeringLimits', limitsStr);
+  // 3. Normalize & Attach engineeringLimits as JSON string (strictly UPPER or LOWER for Python service)
+  let parsedLimits = {};
+  if (typeof engineeringLimits === 'string') {
+    try {
+      parsedLimits = JSON.parse(engineeringLimits);
+    } catch {
+      parsedLimits = {};
+    }
+  } else if (engineeringLimits && typeof engineeringLimits === 'object') {
+    parsedLimits = { ...engineeringLimits };
+  }
+
+  const normalizedLimits = {};
+  for (const [paramKey, limitVal] of Object.entries(parsedLimits)) {
+    if (limitVal && typeof limitVal === 'object' && !Array.isArray(limitVal)) {
+      const rawDir = String(limitVal.direction || 'UPPER').toUpperCase();
+      const safeDir = (rawDir === 'LOWER' || rawDir === 'MIN') ? 'LOWER' : 'UPPER';
+      normalizedLimits[paramKey] = {
+        ...limitVal,
+        direction: safeDir,
+      };
+    } else {
+      normalizedLimits[paramKey] = limitVal;
+    }
+  }
+
+  formData.append('engineeringLimits', JSON.stringify(normalizedLimits));
 
   // 4. Attach context as JSON string
   const contextObj = {
