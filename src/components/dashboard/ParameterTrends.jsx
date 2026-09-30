@@ -5,7 +5,7 @@ import { API_BASE_URL } from '../../config/api';
 
 // Helper for semantic status colors
 function getStatusColor(status) {
-  if (status === 'NORMAL' || status === 'PASS') return '#10b981';
+  if (status === 'NORMAL' || status === 'PASS') return '#22C55E';
   if (status === 'SUSPECT' || status === 'HOLD') return '#f59e0b';
   if (status === 'CRITICAL' || status === 'REJECT') return '#ef4444';
   return '#38bdf8';

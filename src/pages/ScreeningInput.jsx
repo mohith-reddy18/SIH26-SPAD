@@ -1,23 +1,52 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import './ScreeningInput.css';
 import { API_BASE_URL } from '../config/api';
-import { getParameterMeta, PARAMETER_DISPLAY_MAP } from '../utils/recordMapping';
-import { extractDatasetMetadata } from '../utils/datasetMetadataExtractor';
 
 /**
- * Standard selectable parameters supported by the SPAD data layer
+ * Standard complete selectable parameters supported by the SPAD data layer
+ * 6 Default parameters used in last NASA-MOSFET screening test + optional parameters available via Add Parameters
  */
 const CANONICAL_PARAMETERS = [
-  { key: 'rdson', name: 'On-Resistance (RDS(on))', shortName: 'RDS(on)', unit: 'Ω', defaultLimit: '8.00' },
-  { key: 'iddq', name: 'Standby Current (Iddq)', shortName: 'Iddq', unit: 'mA', defaultLimit: '2.80' },
-  { key: 'leakage', name: 'Leakage Current (I_leak)', shortName: 'I_leak', unit: 'µA', defaultLimit: '0.80' },
-  { key: 'delay', name: 'Propagation Delay (t_pd)', shortName: 't_pd', unit: 'ns', defaultLimit: '15.00' },
-  { key: 'v_th', name: 'Threshold Voltage (V_th)', shortName: 'V_th', unit: 'V', defaultLimit: '1.20' },
-  { key: 'temp', name: 'Chamber Temperature (T_j)', shortName: 'T_j', unit: '°C', defaultLimit: '205.0' },
-  { key: 'freq', name: 'Switching Frequency (f_sw)', shortName: 'f_sw', unit: 'Hz', defaultLimit: '1000' },
-  { key: 'vgs', name: 'Gate-Source Voltage (V_GS)', shortName: 'V_GS', unit: 'V', defaultLimit: '12.0' },
-  { key: 'vds', name: 'Drain-Source Voltage (V_DS)', shortName: 'V_DS', unit: 'V', defaultLimit: '6.0' },
+  // 1. On-Resistance (RDS(on)) — Limit: 1.00 Ω
+  { key: 'rdson', name: 'On-Resistance (RDS(on))', shortName: 'RDS(on)', unit: 'Ω', defaultLimit: '1.00', direction: 'UPPER', source: 'DATABASE_CATALOG', isAuthoritative: true },
+  // 2. Chamber Temperature (T_j) — Operating condition: 199–200 °C
+  { key: 'temp', name: 'Chamber Temperature (T_j)', shortName: 'T_j', unit: '°C', defaultLimit: '200', direction: 'UPPER', source: 'DATABASE_CATALOG', isAuthoritative: true },
+  // 3. Gate-Source Voltage (V_GS) — Test value: 10 V
+  { key: 'vgs', name: 'Gate-Source Voltage (V_GS)', shortName: 'V_GS', unit: 'V', defaultLimit: '10', direction: 'UPPER', source: 'DATABASE_CATALOG', isAuthoritative: true },
+  // 4. Drain-Source Voltage (V_DS) — Test value: 5 V
+  { key: 'vds', name: 'Drain-Source Voltage (V_DS)', shortName: 'V_DS', unit: 'V', defaultLimit: '5', direction: 'UPPER', source: 'DATABASE_CATALOG', isAuthoritative: true },
+  // 5. Switching Frequency (f_sw) — Test value: 1000 Hz
+  { key: 'freq', name: 'Switching Frequency (f_sw)', shortName: 'f_sw', unit: 'Hz', defaultLimit: '1000', direction: 'NOMINAL', source: 'DATABASE_CATALOG', isAuthoritative: true },
+  // 6. Duty Cycle — Test value: 40 %
+  { key: 'dutyCycle', name: 'Duty Cycle', shortName: 'Duty', unit: '%', defaultLimit: '40', direction: 'NOMINAL', source: 'SUPPLIED', isAuthoritative: false },
+  // Optional parameters available through "Add Parameters"
+  { key: 'v_th', name: 'Threshold Voltage (V_th)', shortName: 'V_th', unit: 'V', defaultLimit: '1.20', direction: 'LOWER', source: 'DATABASE_CATALOG', isAuthoritative: true },
+  { key: 'iddq', name: 'Standby Current (Iddq)', shortName: 'Iddq', unit: 'mA', defaultLimit: '2.80', direction: 'UPPER', source: 'DATABASE_CATALOG', isAuthoritative: true },
+  { key: 'leakage', name: 'Leakage Current (I_leak)', shortName: 'I_leak', unit: 'µA', defaultLimit: '0.80', direction: 'UPPER', source: 'DATABASE_CATALOG', isAuthoritative: true },
+  { key: 'delay', name: 'Propagation Delay (t_pd)', shortName: 't_pd', unit: 'ns', defaultLimit: '15.00', direction: 'UPPER', source: 'DATABASE_CATALOG', isAuthoritative: true },
+  { key: 'delta_rdson', name: 'Early Drift ΔRDS(0→33)', shortName: 'ΔRDS', unit: 'Ω', defaultLimit: '0.08', direction: 'UPPER', source: 'SUPPLIED', isAuthoritative: false },
 ];
+
+const DEFAULT_PARAMETER_KEYS = ['rdson', 'temp', 'vgs', 'vds', 'freq', 'dutyCycle'];
+
+/**
+ * Returns only the default 6 parameters used in the NASA-MOSFET screening test
+ */
+function getInitialParameterLimits() {
+  return DEFAULT_PARAMETER_KEYS.map((key) => {
+    const p = CANONICAL_PARAMETERS.find((param) => param.key === key);
+    return {
+      key: p.key,
+      name: p.name,
+      shortName: p.shortName,
+      unit: p.unit,
+      limitValue: p.defaultLimit,
+      direction: p.direction || 'UPPER',
+      source: p.source || 'DATABASE_CATALOG',
+      isAuthoritative: p.isAuthoritative ?? true,
+    };
+  });
+}
 
 /**
  * Format bytes to human readable string (KB / MB / GB)
@@ -39,10 +68,10 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
   const [fileError, setFileError] = useState(null);
   const fileInputRef = useRef(null);
 
-  // 2. Lot ID & Parameter Limits State
+  // 2. Lot ID & Parameter Limits State (prefilled immediately on mount with complete limits)
   const [lotId, setLotId] = useState(selectedLotId || 'NASA-MOSFET-199C');
-  const [parameterLimits, setParameterLimits] = useState([]);
-  const [isDetectingParams, setIsDetectingParams] = useState(false);
+  const [parameterLimits, setParameterLimits] = useState(getInitialParameterLimits);
+  const [selectedAddParamKey, setSelectedAddParamKey] = useState('');
   const [formErrors, setFormErrors] = useState({});
 
   // 3. Execution & Processing State
@@ -51,85 +80,52 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
   const [runError, setRunError] = useState(null);
 
   /**
-   * Automatically detect parameters from dataset and load authoritative DB limits.
-   * Extracts metadata sample locally in the browser to avoid uploading multi-GB files twice.
+   * Fetch authoritative engineering limits from database catalog for selected lot if present
    */
-  const detectDatasetParameters = useCallback(async (file, targetLotId) => {
-    if (!file) {
-      setParameterLimits([]);
-      return;
-    }
-
-    setIsDetectingParams(true);
-    setFormErrors((prev) => ({ ...prev, general: null, file: null }));
+  const loadAuthoritativeLimits = useCallback(async (targetLotId) => {
+    if (!targetLotId || !targetLotId.trim()) return;
 
     try {
-      // 1. Extract telemetry metadata sample locally without buffering multi-GB into RAM
-      const meta = await extractDatasetMetadata(file);
-
-      let res;
-      if (meta.sampleText || meta.isMat || file.size > 20 * 1024 * 1024) {
-        // Send lightweight JSON containing only extracted telemetry table header or metadata
-        res = await fetch(`${API_BASE_URL}/api/screening/detect-parameters`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            datasetContent: meta.sampleText || null,
-            fileName: file.name,
-            lotId: (targetLotId && targetLotId.trim()) || '',
-          }),
-        });
-      } else {
-        // Fallback for smaller files: standard multipart request
-        const formData = new FormData();
-        formData.append('file', file);
-        if (targetLotId && targetLotId.trim()) {
-          formData.append('lotId', targetLotId.trim());
-        }
-        formData.append('fileName', file.name);
-
-        res = await fetch(`${API_BASE_URL}/api/screening/detect-parameters`, {
-          method: 'POST',
-          body: formData,
-        });
-      }
-
+      const res = await fetch(`${API_BASE_URL}/api/screening?lotId=${encodeURIComponent(targetLotId.trim())}&limit=1`);
       if (res.ok) {
         const json = await res.json();
-        if (json.success && Array.isArray(json.parameters)) {
-          setParameterLimits(json.parameters);
-          setFileInsights((prev) => ({
-            type: prev?.type || (file.name.toLowerCase().endsWith('.zip') ? 'NASA Dataset Archive (.ZIP)' : file.name.toLowerCase().endsWith('.mat') ? 'MATLAB Matrix (.MAT)' : 'Telemetry Dataset'),
-            unitsDetected: prev?.unitsDetected || (file.name.toLowerCase().endsWith('.zip') ? 'Multi-file Archive' : file.name.toLowerCase().endsWith('.mat') ? 'Binary Matrix' : 'Valid Telemetry'),
-            status: json.parameters.length > 0
-              ? `${json.parameters.length} Params Detected`
-              : file.name.toLowerCase().endsWith('.mat')
-              ? 'Standalone .MAT'
-              : '0 Params Detected',
-          }));
-          return;
+        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+          const sample = json.data[0];
+          const dbLimits = sample.engineeringLimits || {};
+          
+          if (Object.keys(dbLimits).length > 0) {
+            setParameterLimits((prev) => {
+              return prev.map((param) => {
+                const dbLim = dbLimits[param.key];
+                if (dbLim !== undefined && dbLim !== null) {
+                  const limVal = typeof dbLim === 'number' ? dbLim : (dbLim?.limitValue ?? dbLim?.upper ?? dbLim?.max ?? param.limitValue);
+                  const isAuth = typeof dbLim === 'object' ? (String(dbLim.source || '').toUpperCase() === 'DATABASE_CATALOG') : true;
+                  return {
+                    ...param,
+                    limitValue: String(limVal),
+                    source: isAuth ? 'DATABASE_CATALOG' : (dbLim?.source || param.source),
+                    isAuthoritative: isAuth,
+                  };
+                }
+                return param;
+              });
+            });
+          }
         }
-      } else {
-        const errJson = await res.json().catch(() => ({}));
-        setFormErrors((prev) => ({
-          ...prev,
-          general: errJson.error?.message || `Parameter detection request failed (HTTP ${res.status}).`,
-        }));
       }
-    } catch (err) {
-      setFormErrors((prev) => ({
-        ...prev,
-        general: err.message || 'Failed to communicate with parameter detection service.',
-      }));
-    } finally {
-      setIsDetectingParams(false);
+    } catch {
+      // Retain prefilled default limits if database query is not available
     }
   }, []);
 
+  useEffect(() => {
+    if (lotId) {
+      loadAuthoritativeLimits(lotId);
+    }
+  }, [lotId, loadAuthoritativeLimits]);
+
   /**
-   * Safe file parser for preview insights & automatic parameter detection
+   * Safe file parser for preview insights (does not mutate or filter engineering limits)
    */
   const processSelectedFile = useCallback((file) => {
     setFileError(null);
@@ -140,7 +136,6 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
       setSelectedFile(null);
       setFileContent(null);
       setFileInsights(null);
-      setParameterLimits([]);
       return;
     }
 
@@ -152,7 +147,6 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
       setSelectedFile(null);
       setFileContent(null);
       setFileInsights(null);
-      setParameterLimits([]);
       return;
     }
 
@@ -161,13 +155,12 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
       setSelectedFile(null);
       setFileContent(null);
       setFileInsights(null);
-      setParameterLimits([]);
       return;
     }
 
     setSelectedFile(file);
 
-    // Read text content for small CSV/JSON for preview insights
+    // Read preview content for small CSV/JSON files
     if (fileName.endsWith('.csv') || fileName.endsWith('.json')) {
       if (file.size <= 5 * 1024 * 1024) {
         const reader = new FileReader();
@@ -181,23 +174,23 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
               const count = Array.isArray(parsed) ? parsed.length : (parsed.records?.length || 1);
               setFileInsights({
                 type: 'JSON Telemetry',
-                unitsDetected: count,
-                status: 'Detecting params...',
+                unitsDetected: `${count} records`,
+                status: 'Ready for Analysis',
               });
             } else {
               const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
               const rowCount = Math.max(0, lines.length - 1);
               setFileInsights({
                 type: 'CSV Telemetry',
-                unitsDetected: rowCount,
-                status: 'Detecting params...',
+                unitsDetected: `${rowCount} rows`,
+                status: 'Ready for Analysis',
               });
             }
           } catch {
             setFileInsights({
               type: fileName.endsWith('.json') ? 'JSON' : 'CSV',
               unitsDetected: '—',
-              status: 'Raw Stream',
+              status: 'Ready for Analysis',
             });
           }
         };
@@ -210,7 +203,7 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
         setFileInsights({
           type: fileName.endsWith('.json') ? 'JSON Telemetry' : 'CSV Telemetry',
           unitsDetected: 'Streaming Telemetry',
-          status: 'Detecting params...',
+          status: 'Ready for Analysis',
         });
       }
     } else {
@@ -219,13 +212,10 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
       setFileInsights({
         type: fileName.endsWith('.zip') ? 'NASA Dataset Archive (.ZIP)' : 'MATLAB Matrix (.MAT)',
         unitsDetected: fileName.endsWith('.zip') ? 'Multi-file Archive' : 'Binary Dataset',
-        status: 'Detecting params...',
+        status: 'Ready for Analysis',
       });
     }
-
-    // Trigger automatic dataset parameter detection on backend
-    detectDatasetParameters(file, lotId);
-  }, [detectDatasetParameters, lotId]);
+  }, []);
 
   const handleDragOver = (e) => {
     e.preventDefault();
@@ -259,21 +249,17 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
     setFileContent(null);
     setFileInsights(null);
     setFileError(null);
-    setParameterLimits([]);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
   };
 
   /**
-   * Parameter Limit Table Handlers
+   * Parameter Limit Table Handlers — User can freely edit values
    */
   const handleLimitValueChange = (index, value) => {
     setParameterLimits((prev) => {
       const next = [...prev];
-      if (next[index].isAuthoritative) {
-        return prev; // Disallow editing authoritative database limits
-      }
       next[index] = {
         ...next[index],
         limitValue: value,
@@ -288,8 +274,33 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
   };
 
   const handleRemoveParameter = (index) => {
-    if (parameterLimits[index]?.isAuthoritative) return;
     setParameterLimits((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleAddParameter = (paramKey) => {
+    const canonical = CANONICAL_PARAMETERS.find((p) => p.key === paramKey);
+    if (!canonical) return;
+
+    if (parameterLimits.some((p) => p.key === paramKey)) return;
+
+    setParameterLimits((prev) => [
+      ...prev,
+      {
+        key: canonical.key,
+        name: canonical.name,
+        shortName: canonical.shortName,
+        unit: canonical.unit,
+        limitValue: canonical.defaultLimit,
+        direction: canonical.direction || 'UPPER',
+        source: 'USER_ENGINEERING_INPUT',
+        isAuthoritative: false,
+      },
+    ]);
+    setSelectedAddParamKey('');
+  };
+
+  const handleResetDefaultLimits = () => {
+    setParameterLimits(getInitialParameterLimits());
   };
 
   /**
@@ -307,9 +318,7 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
     }
 
     if (parameterLimits.length === 0) {
-      errors.general = selectedFile?.name?.toLowerCase()?.endsWith('.mat')
-        ? 'Direct parameter extraction is not supported for standalone .MAT binary files. Please upload the complete screening dataset archive (.ZIP containing MOSFET CSV + MAT files) or a CSV/JSON telemetry file.'
-        : 'No telemetry parameters detected in the uploaded dataset to screen.';
+      errors.general = 'At least one engineering parameter limit must be configured.';
     }
 
     parameterLimits.forEach((param, idx) => {
@@ -324,7 +333,7 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
   };
 
   /**
-   * Primary Action: Execute Screening Run
+   * Primary Action: Execute Screening Run with complete engineeringLimits payload
    */
   const handleRunScreening = async () => {
     setRunError(null);
@@ -338,14 +347,15 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
     try {
       const cleanLotId = lotId.trim();
 
-      // Build parameter-specific engineering limits map
+      // Build parameter-specific engineering limits map containing all configured limits
       const engineeringLimits = {};
       parameterLimits.forEach((param) => {
+        const num = parseFloat(param.limitValue);
         engineeringLimits[param.key] = {
-          limitValue: parseFloat(param.limitValue),
+          limitValue: isNaN(num) ? 0 : num,
           unit: param.unit,
           direction: param.direction || 'UPPER',
-          source: param.isAuthoritative ? 'DATABASE_CATALOG' : 'USER_ENGINEERING_INPUT',
+          source: param.source || (param.isAuthoritative ? 'DATABASE_CATALOG' : 'USER_ENGINEERING_INPUT'),
         };
       });
 
@@ -523,12 +533,12 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
                       <span className="spad-insight-value">{fileInsights.type}</span>
                     </div>
                     <div className="spad-insight-stat">
-                      <span className="spad-insight-label">Units Detected</span>
+                      <span className="spad-insight-label">Size / Count</span>
                       <span className="spad-insight-value">{fileInsights.unitsDetected}</span>
                     </div>
                     <div className="spad-insight-stat">
-                      <span className="spad-insight-label">Parameters</span>
-                      <span className="spad-insight-value" style={{ color: '#10B981' }}>
+                      <span className="spad-insight-label">Status</span>
+                      <span className="spad-insight-value" style={{ color: 'var(--spad-green, #22C55E)' }}>
                         {fileInsights.status}
                       </span>
                     </div>
@@ -545,7 +555,7 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
         </section>
 
         {/* ================================================================
-            RIGHT PANEL: ENGINEERING INPUT (Parameter-Specific Limits)
+            RIGHT PANEL: ENGINEERING INPUT (Complete Prefilled Limits)
             ================================================================ */}
         <section className="spad-input-panel" aria-label="Engineering Input Panel">
           <div className="spad-panel-header">
@@ -556,7 +566,17 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
               </svg>
               <h2 className="spad-panel-title">ENGINEERING INPUT</h2>
             </div>
-            <span className="spad-panel-badge green">PARAMETER LIMITS</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <button
+                type="button"
+                onClick={handleResetDefaultLimits}
+                className="spad-view-all-btn"
+                title="Reset all limits to catalog defaults"
+              >
+                Reset Defaults
+              </button>
+              <span className="spad-panel-badge green">PARAMETER LIMITS</span>
+            </div>
           </div>
 
           <div className="spad-eng-form">
@@ -579,9 +599,6 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
                   if (formErrors.lotId) {
                     setFormErrors((prev) => ({ ...prev, lotId: null }));
                   }
-                  if (selectedFile) {
-                    detectDatasetParameters(selectedFile, newLotId);
-                  }
                 }}
                 placeholder="e.g. NASA-MOSFET-199C"
                 required
@@ -591,30 +608,21 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
                 <button
                   type="button"
                   className="spad-preset-btn"
-                  onClick={() => {
-                    setLotId('NASA-MOSFET-199C');
-                    if (selectedFile) detectDatasetParameters(selectedFile, 'NASA-MOSFET-199C');
-                  }}
+                  onClick={() => setLotId('NASA-MOSFET-199C')}
                 >
                   NASA-MOSFET-199C
                 </button>
                 <button
                   type="button"
                   className="spad-preset-btn"
-                  onClick={() => {
-                    setLotId('LOT-2026-001');
-                    if (selectedFile) detectDatasetParameters(selectedFile, 'LOT-2026-001');
-                  }}
+                  onClick={() => setLotId('LOT-2026-001')}
                 >
                   LOT-2026-001
                 </button>
                 <button
                   type="button"
                   className="spad-preset-btn"
-                  onClick={() => {
-                    setLotId('LOT-2026-W01');
-                    if (selectedFile) detectDatasetParameters(selectedFile, 'LOT-2026-W01');
-                  }}
+                  onClick={() => setLotId('LOT-2026-W01')}
                 >
                   LOT-2026-W01
                 </button>
@@ -624,14 +632,14 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
               )}
             </div>
 
-            {/* 2. Parameter-Specific Engineering Limits Table */}
+            {/* 2. Parameter-Specific Engineering Limits Table (Prefilled Immediately) */}
             <div className="spad-form-field">
               <div className="spad-field-label-row">
                 <label className="spad-field-label">
                   ENGINEERING LIMITS <span className="required">*</span>
                 </label>
                 <span className="spad-field-tag">
-                  {parameterLimits.length > 0 ? `${parameterLimits.length} DETECTED` : 'AUTOMATIC DETECTION'}
+                  {parameterLimits.length} CONFIGURED
                 </span>
               </div>
 
@@ -644,78 +652,84 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
                   <span></span>
                 </div>
 
-                {parameterLimits.length === 0 ? (
-                  <div className="spad-empty-limits-box">
-                    {isDetectingParams ? (
-                      <span>Detecting dataset engineering parameters...</span>
-                    ) : selectedFile ? (
-                      selectedFile.name.toLowerCase().endsWith('.mat') ? (
-                        <span>
-                          Direct telemetry parameter extraction is not supported for standalone .MAT binary files. Automatic parameter detection is supported for .ZIP archives containing telemetry tables (CSV/JSON) or standalone CSV/JSON files.
+                <div className="spad-limits-list">
+                  {parameterLimits.map((param, idx) => (
+                    <div key={param.key} className="spad-limit-row">
+                      {/* Parameter Name & Tag */}
+                      <div className="spad-param-cell">
+                        <span className="spad-param-name" title={param.name}>
+                          {param.name}
                         </span>
-                      ) : (
-                        <span>No recognized telemetry parameter columns detected in the uploaded file.</span>
-                      )
-                    ) : (
-                      <span>Upload a screening dataset archive (.ZIP) or telemetry table (.CSV / .JSON) to automatically detect engineering parameters.</span>
-                    )}
-                  </div>
-                ) : (
-                  <div className="spad-limits-list">
-                    {parameterLimits.map((param, idx) => (
-                      <div key={param.key} className="spad-limit-row">
-                        {/* Parameter Name & Tag */}
-                        <div className="spad-param-cell">
-                          <span className="spad-param-name" title={param.name}>
-                            {param.name}
-                          </span>
-                          <span className="spad-param-code">
-                            {param.key} • detected
-                          </span>
-                        </div>
-
-                        {/* Limit Numeric Input */}
-                        <div className="spad-limit-input-cell">
-                          <input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            disabled={param.isAuthoritative}
-                            className={`spad-limit-input ${formErrors[`limit_${idx}`] ? 'error' : ''}`}
-                            value={param.limitValue}
-                            onChange={(e) => handleLimitValueChange(idx, e.target.value)}
-                            placeholder="0.00"
-                            aria-label={`Limit for ${param.name}`}
-                          />
-                        </div>
-
-                        {/* Unit Badge */}
-                        <span className="spad-unit-badge">{param.unit}</span>
-
-                        {/* Authoritative / Operator Source Badge */}
-                        <span
-                          className={`spad-source-badge ${param.isAuthoritative ? 'authoritative' : 'operator'}`}
-                          title={param.isAuthoritative ? 'Authoritative limit from database catalog — locked' : 'Operator-configured engineering limit'}
-                        >
-                          {param.isAuthoritative ? 'DB AUTH (LOCKED)' : 'OPERATOR'}
+                        <span className="spad-param-code">
+                          {param.key} • {param.direction || 'UPPER'}
                         </span>
-
-                        {/* Remove Button (disabled if authoritative) */}
-                        <button
-                          type="button"
-                          className="spad-row-action-btn"
-                          onClick={() => handleRemoveParameter(idx)}
-                          disabled={param.isAuthoritative}
-                          title={param.isAuthoritative ? 'Authoritative database catalog limit cannot be removed' : 'Remove parameter'}
-                          aria-label={`Remove ${param.name}`}
-                        >
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <line x1="18" y1="6" x2="6" y2="18" />
-                            <line x1="6" y1="6" x2="18" y2="18" />
-                          </svg>
-                        </button>
                       </div>
-                    ))}
+
+                      {/* Limit Numeric Input (Fully editable) */}
+                      <div className="spad-limit-input-cell">
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          className={`spad-limit-input ${formErrors[`limit_${idx}`] ? 'error' : ''}`}
+                          value={param.limitValue}
+                          onChange={(e) => handleLimitValueChange(idx, e.target.value)}
+                          placeholder="0.00"
+                          aria-label={`Limit for ${param.name}`}
+                        />
+                      </div>
+
+                      {/* Unit Badge */}
+                      <span className="spad-unit-badge">{param.unit}</span>
+
+                      {/* Authoritative / Operator Source Badge */}
+                      <span
+                        className={`spad-source-badge ${param.isAuthoritative ? 'authoritative' : 'operator'}`}
+                        title={param.isAuthoritative ? 'Authoritative limit from database catalog' : 'Operator-configured engineering limit'}
+                      >
+                        {param.isAuthoritative ? 'DB AUTH' : 'OPERATOR'}
+                      </span>
+
+                      {/* Remove Button */}
+                      <button
+                        type="button"
+                        className="spad-row-action-btn"
+                        onClick={() => handleRemoveParameter(idx)}
+                        disabled={parameterLimits.length <= 1}
+                        title={parameterLimits.length <= 1 ? 'At least one parameter limit required' : 'Remove parameter'}
+                        aria-label={`Remove ${param.name}`}
+                      >
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <line x1="18" y1="6" x2="6" y2="18" />
+                          <line x1="6" y1="6" x2="18" y2="18" />
+                        </svg>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Add Parameter Dropdown if any canonical parameter was removed */}
+                {availableParamsToAdd.length > 0 && (
+                  <div className="spad-add-param-row">
+                    <select
+                      className="spad-input-control"
+                      style={{ padding: '6px 10px', fontSize: '12px' }}
+                      value={selectedAddParamKey}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val) {
+                          handleAddParameter(val);
+                        }
+                      }}
+                      aria-label="Add screening parameter"
+                    >
+                      <option value="">+ Add Additional Parameter Limit...</option>
+                      {availableParamsToAdd.map((p) => (
+                        <option key={p.key} value={p.key}>
+                          {p.name} ({p.unit})
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 )}
               </div>

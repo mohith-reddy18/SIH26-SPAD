@@ -3,7 +3,7 @@ import './Dashboard.css';
 import { API_BASE_URL } from '../config/api';
 
 function getStatusColor(status) {
-  if (status === 'NORMAL' || status === 'PASS') return '#10b981';
+  if (status === 'NORMAL' || status === 'PASS') return '#22C55E';
   if (status === 'SUSPECT' || status === 'HOLD') return '#f59e0b';
   if (status === 'CRITICAL' || status === 'REJECT') return '#ef4444';
   return '#38bdf8';
@@ -312,7 +312,7 @@ export default function Reports({ selectedLotId, onSelectLot }) {
                 <span className="spad-status-pill" style={{ fontSize: '13px', padding: '6px 14px', backgroundColor: getStatusColor(engineeringStatus) + '20', color: getStatusColor(engineeringStatus), borderColor: getStatusColor(engineeringStatus) + '60' }}>
                   ENGINEERING: {engineeringStatus}
                 </span>
-                <span className="spad-status-pill" style={{ fontSize: '12px', padding: '4px 12px', backgroundColor: (aiStatus === 'FLAGGED' ? '#f59e0b20' : '#10b98120'), color: (aiStatus === 'FLAGGED' ? '#fbbf24' : '#34d399'), borderColor: (aiStatus === 'FLAGGED' ? '#f59e0b60' : '#10b98160') }}>
+                <span className="spad-status-pill" style={{ fontSize: '12px', padding: '4px 12px', backgroundColor: (aiStatus === 'FLAGGED' ? '#f59e0b20' : 'rgba(34, 197, 94, 0.15)'), color: (aiStatus === 'FLAGGED' ? '#fbbf24' : 'var(--spad-green, #22C55E)'), borderColor: (aiStatus === 'FLAGGED' ? '#f59e0b60' : 'rgba(34, 197, 94, 0.4)') }}>
                   AI STATUS: {aiStatus}
                 </span>
                 <div className="font-mono" style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
@@ -368,7 +368,7 @@ export default function Reports({ selectedLotId, onSelectLot }) {
                         <td className="spad-td-mono">{obs96h !== undefined && obs96h !== null ? `${typeof obs96h === 'number' ? obs96h.toFixed(2) : obs96h} ${unit}` : '—'}</td>
                         <td className="spad-td-mono font-bold" style={{ color: '#38bdf8' }}>{predVal !== undefined && predVal !== null ? `${typeof predVal === 'number' ? predVal.toFixed(2) : predVal} ${unit}` : '—'}</td>
                         <td className="spad-td-mono" style={{ color: '#f87171', fontWeight: '700' }}>{limitVal !== undefined && limitVal !== null ? `${typeof limitVal === 'number' ? limitVal.toFixed(2) : limitVal} ${unit}` : '—'}</td>
-                        <td className="spad-td-mono" style={{ color: isBreached ? '#ef4444' : '#10b981' }}>{margin !== '—' ? `+${margin} ${unit}` : '—'}</td>
+                        <td className="spad-td-mono" style={{ color: isBreached ? '#ef4444' : 'var(--spad-green, #22C55E)' }}>{margin !== '—' ? `+${margin} ${unit}` : '—'}</td>
                         <td>
                           <span className={`spad-status-pill ${isBreached ? 'badge-status-critical' : 'badge-status-normal'}`}>
                             {isBreached ? 'EXCEEDS LIMIT' : 'WITHIN LIMIT'}
@@ -395,13 +395,13 @@ export default function Reports({ selectedLotId, onSelectLot }) {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '12px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(56, 189, 248, 0.04)', borderRadius: '4px' }}>
                   <span style={{ fontSize: '13px', color: '#94a3b8' }}>Population Abnormality:</span>
-                  <span className="font-mono" style={{ color: anomalies.populationAbnormality === true ? '#f59e0b' : anomalies.populationAbnormality === false ? '#10b981' : '#94a3b8', fontWeight: '700' }}>
+                  <span className="font-mono" style={{ color: anomalies.populationAbnormality === true ? '#f59e0b' : anomalies.populationAbnormality === false ? 'var(--spad-green, #22C55E)' : '#94a3b8', fontWeight: '700' }}>
                     {anomalies.populationAbnormality === true ? 'FLAGGED (Outlier)' : anomalies.populationAbnormality === false ? 'NOMINAL (Within Bounds)' : 'NOT_EVALUATED'}
                   </span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(56, 189, 248, 0.04)', borderRadius: '4px' }}>
                   <span style={{ fontSize: '13px', color: '#94a3b8' }}>Trajectory Abnormality:</span>
-                  <span className="font-mono" style={{ color: anomalies.trajectoryAbnormality === true ? '#f59e0b' : anomalies.trajectoryAbnormality === false ? '#10b981' : '#94a3b8', fontWeight: '700' }}>
+                  <span className="font-mono" style={{ color: anomalies.trajectoryAbnormality === true ? '#f59e0b' : anomalies.trajectoryAbnormality === false ? 'var(--spad-green, #22C55E)' : '#94a3b8', fontWeight: '700' }}>
                     {anomalies.trajectoryAbnormality === true ? 'FLAGGED (Drift)' : anomalies.trajectoryAbnormality === false ? 'NOMINAL (Linear)' : 'NOT_EVALUATED'}
                   </span>
                 </div>
@@ -429,7 +429,7 @@ export default function Reports({ selectedLotId, onSelectLot }) {
                   (modelExplanation.features || []).slice(0, 4).map((f, i) => (
                     <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 10px', background: 'rgba(255, 255, 255, 0.02)', borderRadius: '4px', fontSize: '12px' }}>
                       <span style={{ color: '#f8fafc' }}>{f.name}</span>
-                      <span className="font-mono" style={{ color: f.shapValue >= 0 ? '#f87171' : '#34d399', fontWeight: '700' }}>
+                      <span className="font-mono" style={{ color: f.shapValue >= 0 ? '#f87171' : 'var(--spad-green, #22C55E)', fontWeight: '700' }}>
                         {f.shapValue >= 0 ? `+${f.shapValue.toFixed(2)}` : f.shapValue.toFixed(2)}
                       </span>
                     </div>
@@ -446,7 +446,7 @@ export default function Reports({ selectedLotId, onSelectLot }) {
         /* LOT COMPLIANCE SUMMARY REPORT */
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           {/* Lot Header Banner */}
-          <div className="spad-card" style={{ padding: '24px', borderLeft: '4px solid #10b981' }}>
+          <div className="spad-card" style={{ padding: '24px', borderLeft: '4px solid var(--spad-green, #22C55E)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
               <div>
                 <span className="spad-card-section-label font-mono">LOT QUALIFICATION SUMMARY</span>
@@ -455,14 +455,14 @@ export default function Reports({ selectedLotId, onSelectLot }) {
                 </h2>
                 <div style={{ display: 'flex', gap: '14px', fontSize: '13px', color: '#94a3b8' }}>
                   <span>Total Screened Units: <strong style={{ color: '#f8fafc' }}>{lotTotalUnits}</strong></span>
-                  <span>Predicted Yield: <strong style={{ color: '#10b981' }}>{lotYield}%</strong></span>
+                  <span>Predicted Yield: <strong style={{ color: 'var(--spad-green, #22C55E)' }}>{lotYield}%</strong></span>
                   <span>Chamber: <strong style={{ color: '#f8fafc' }}>CHAMBER-B4-RAD (125°C)</strong></span>
                 </div>
               </div>
 
               <div style={{ display: 'flex', gap: '10px' }}>
                 <div style={{ padding: '8px 14px', background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: '4px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '10px', color: '#34d399', fontWeight: '700' }}>NORMAL</div>
+                  <div style={{ fontSize: '10px', color: 'var(--spad-green, #22C55E)', fontWeight: '700' }}>NORMAL</div>
                   <div className="font-mono" style={{ fontSize: '16px', color: '#f8fafc', fontWeight: '800' }}>{lotNormalUnits}</div>
                 </div>
                 <div style={{ padding: '8px 14px', background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.3)', borderRadius: '4px', textAlign: 'center' }}>
@@ -519,7 +519,7 @@ export default function Reports({ selectedLotId, onSelectLot }) {
                         <td className="spad-td-mono">{rds0Val}</td>
                         <td className="spad-td-mono">{rds33Val}</td>
                         <td className="spad-td-mono">{rds100Val}</td>
-                        <td className="spad-td-mono font-bold" style={{ color: cRisk > 75 ? '#ef4444' : cRisk > 40 ? '#f59e0b' : '#10b981' }}>{cRisk}%</td>
+                        <td className="spad-td-mono font-bold" style={{ color: cRisk > 75 ? '#ef4444' : cRisk > 40 ? '#f59e0b' : 'var(--spad-green, #22C55E)' }}>{cRisk}%</td>
                         <td className="spad-td-evidence"><span className="spad-evidence-pill">{cEvidence}</span></td>
                         <td>
                           <span className={`spad-status-pill ${cStatus === 'CRITICAL' ? 'badge-status-critical' : cStatus === 'SUSPECT' ? 'badge-status-suspect' : 'badge-status-normal'}`}>

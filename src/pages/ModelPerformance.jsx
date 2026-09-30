@@ -3,7 +3,7 @@ import './Dashboard.css';
 import { API_BASE_URL } from '../config/api';
 
 function getStatusColor(status) {
-  if (status === 'NORMAL' || status === 'PASS') return '#10b981';
+  if (status === 'NORMAL' || status === 'PASS') return '#22C55E';
   if (status === 'SUSPECT' || status === 'HOLD') return '#f59e0b';
   if (status === 'CRITICAL' || status === 'REJECT') return '#ef4444';
   return '#38bdf8';
@@ -89,7 +89,7 @@ export default function ModelPerformance({ selectedLotId, onSelectLot }) {
   };
   const aiAssessment = activeRecord?.aiStatus || 'NOT_EVALUATED';
 
-  const riskColor = aiStatus === 'FLAGGED' ? '#f59e0b' : aiStatus === 'NOT_EVALUATED' ? '#94a3b8' : '#10b981';
+  const riskColor = aiStatus === 'FLAGGED' ? '#f59e0b' : aiStatus === 'NOT_EVALUATED' ? '#94a3b8' : '#22C55E';
   const riskCategory = aiStatus === 'FLAGGED' ? 'FLAGGED RISK' : (aiRisk > 75 ? 'HIGH RISK' : aiRisk > 40 ? 'MODERATE RISK' : 'LOW RISK');
   const maxAbsShap = (explanation.features || []).reduce(
     (max, f) => Math.max(max, Math.abs(f.shapValue || 0)),

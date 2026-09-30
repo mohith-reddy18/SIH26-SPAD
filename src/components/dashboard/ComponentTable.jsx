@@ -233,7 +233,7 @@ export default function ComponentTable({ records = [], onSelectComponent }) {
                               padding: '1px 5px',
                               borderRadius: '3px',
                               background: m1Flag === 'FLAGGED' ? 'rgba(239, 68, 68, 0.15)' : m1Flag === 'NOT FLAGGED' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(148, 163, 184, 0.15)',
-                              color: m1Flag === 'FLAGGED' ? '#f87171' : m1Flag === 'NOT FLAGGED' ? '#34d399' : '#94a3b8',
+                              color: m1Flag === 'FLAGGED' ? '#f87171' : m1Flag === 'NOT FLAGGED' ? 'var(--spad-green, #22C55E)' : '#94a3b8',
                               border: `1px solid ${m1Flag === 'FLAGGED' ? 'rgba(239, 68, 68, 0.3)' : m1Flag === 'NOT FLAGGED' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(148, 163, 184, 0.25)'}`,
                             }}
                           >
@@ -263,7 +263,7 @@ export default function ComponentTable({ records = [], onSelectComponent }) {
                               padding: '1px 5px',
                               borderRadius: '3px',
                               background: m2Flag === 'FLAGGED' ? 'rgba(239, 68, 68, 0.15)' : m2Flag === 'NOT FLAGGED' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(148, 163, 184, 0.15)',
-                              color: m2Flag === 'FLAGGED' ? '#f87171' : m2Flag === 'NOT FLAGGED' ? '#34d399' : '#94a3b8',
+                              color: m2Flag === 'FLAGGED' ? '#f87171' : m2Flag === 'NOT FLAGGED' ? 'var(--spad-green, #22C55E)' : '#94a3b8',
                               border: `1px solid ${m2Flag === 'FLAGGED' ? 'rgba(239, 68, 68, 0.3)' : m2Flag === 'NOT FLAGGED' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(148, 163, 184, 0.25)'}`,
                             }}
                           >

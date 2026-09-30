@@ -3,7 +3,7 @@ import './Dashboard.css';
 import { API_BASE_URL } from '../config/api';
 
 function getStatusColor(status) {
-  if (status === 'NORMAL' || status === 'PASS') return '#10b981';
+  if (status === 'NORMAL' || status === 'PASS') return '#22C55E';
   if (status === 'SUSPECT' || status === 'HOLD') return '#f59e0b';
   if (status === 'CRITICAL' || status === 'REJECT') return '#ef4444';
   return '#38bdf8';
@@ -297,7 +297,7 @@ export default function ObservabilityStudy({ selectedLotId, onSelectLot }) {
                       </td>
                       <td className="spad-td-mono">
                         {row.margin !== null ? (
-                          <span style={{ color: row.isBreached ? '#ef4444' : '#10b981' }}>
+                          <span style={{ color: row.isBreached ? '#ef4444' : 'var(--spad-green, #22C55E)' }}>
                             +{row.margin} {row.unit}
                           </span>
                         ) : '—'}

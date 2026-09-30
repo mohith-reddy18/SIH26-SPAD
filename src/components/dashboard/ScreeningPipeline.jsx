@@ -53,7 +53,7 @@ export default function ScreeningPipeline({
             fontSize: '11px',
             fontWeight: '700',
             padding: '3px 9px',
-            color: isComplete ? '#10b981' : '#94a3b8',
+            color: isComplete ? 'var(--spad-green, #22C55E)' : '#94a3b8',
             borderColor: isComplete ? 'rgba(16, 185, 129, 0.4)' : 'rgba(148, 163, 184, 0.3)',
             backgroundColor: isComplete ? 'rgba(16, 185, 129, 0.12)' : 'rgba(148, 163, 184, 0.1)',
           }}
@@ -69,7 +69,7 @@ export default function ScreeningPipeline({
           <span
             className="spad-lot-status-badge"
             style={{
-              color: isComplete ? '#10b981' : '#38bdf8',
+              color: isComplete ? 'var(--spad-green, #22C55E)' : '#38bdf8',
               background: isComplete ? 'rgba(16, 185, 129, 0.12)' : 'rgba(56, 189, 248, 0.12)',
               borderColor: isComplete ? 'rgba(16, 185, 129, 0.3)' : 'rgba(56, 189, 248, 0.3)',
             }}
@@ -93,7 +93,7 @@ export default function ScreeningPipeline({
 
             <div className="spad-lot-stat-item">
               <span className="spad-lot-stat-k">Lot Screening Status</span>
-              <span className="spad-lot-stat-v" style={{ color: isComplete ? '#10b981' : '#f8fafc' }}>
+              <span className="spad-lot-stat-v" style={{ color: isComplete ? 'var(--spad-green, #22C55E)' : '#f8fafc' }}>
                 {lotStatusText}
               </span>
             </div>
@@ -193,7 +193,7 @@ export default function ScreeningPipeline({
           aria-label="Open Random Forest Future Prediction workflow modal"
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '9.5px', fontWeight: '700', color: '#38bdf8', fontFamily: 'var(--font-mono)', letterSpacing: '0.04em' }}>
+            <span style={{ fontSize: '9.5px', fontWeight: '700', color: 'var(--spad-green, #22C55E)', fontFamily: 'var(--font-mono)', letterSpacing: '0.04em' }}>
               MODEL 1 &bull; REGRESSION
             </span>
             <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
@@ -205,7 +205,7 @@ export default function ScreeningPipeline({
                   padding: '1px 5px',
                   borderRadius: '3px',
                   background: futurePredAvailable ? 'rgba(16, 185, 129, 0.15)' : 'rgba(148, 163, 184, 0.1)',
-                  color: futurePredAvailable ? '#10b981' : '#94a3b8',
+                  color: futurePredAvailable ? 'var(--spad-green, #22C55E)' : '#94a3b8',
                   border: `1px solid ${futurePredAvailable ? 'rgba(16, 185, 129, 0.3)' : 'rgba(148, 163, 184, 0.2)'}`,
                 }}
               >
@@ -253,7 +253,7 @@ export default function ScreeningPipeline({
           aria-label="Open Isolation Forest Lot-Level Anomaly Detection workflow modal"
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '9.5px', fontWeight: '700', color: '#a78bfa', fontFamily: 'var(--font-mono)', letterSpacing: '0.04em' }}>
+            <span style={{ fontSize: '9.5px', fontWeight: '700', color: 'var(--spad-green, #22C55E)', fontFamily: 'var(--font-mono)', letterSpacing: '0.04em' }}>
               MODEL 2 &bull; LOT ANOMALY
             </span>
             <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
@@ -265,7 +265,7 @@ export default function ScreeningPipeline({
                   padding: '1px 5px',
                   borderRadius: '3px',
                   background: anomalyDetAvailable ? 'rgba(16, 185, 129, 0.15)' : 'rgba(148, 163, 184, 0.1)',
-                  color: anomalyDetAvailable ? '#10b981' : '#94a3b8',
+                  color: anomalyDetAvailable ? 'var(--spad-green, #22C55E)' : '#94a3b8',
                   border: `1px solid ${anomalyDetAvailable ? 'rgba(16, 185, 129, 0.3)' : 'rgba(148, 163, 184, 0.2)'}`,
                 }}
               >
@@ -539,10 +539,10 @@ export default function ScreeningPipeline({
                     background: 'rgba(15, 23, 42, 0.65)',
                     border: '1px solid rgba(255, 255, 255, 0.06)',
                     borderRadius: '6px',
-                    borderLeft: '4px solid #10b981',
+                    borderLeft: '4px solid var(--spad-green, #22C55E)',
                   }}
                 >
-                  <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', fontFamily: 'var(--font-mono)', fontSize: '13px', flexShrink: 0 }}>
+                  <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(16, 185, 129, 0.15)', color: 'var(--spad-green, #22C55E)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', fontFamily: 'var(--font-mono)', fontSize: '13px', flexShrink: 0 }}>
                     7
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', flex: 1 }}>
@@ -550,7 +550,7 @@ export default function ScreeningPipeline({
                       <span style={{ fontSize: '13px', fontWeight: '700', color: '#f8fafc' }}>
                         7. PREDICTION STATUS
                       </span>
-                      <span style={{ fontSize: '10px', color: '#10b981', fontFamily: 'var(--font-mono)', background: 'rgba(16, 185, 129, 0.15)', padding: '1px 6px', borderRadius: '3px' }}>
+                      <span style={{ fontSize: '10px', color: 'var(--spad-green, #22C55E)', fontFamily: 'var(--font-mono)', background: 'rgba(16, 185, 129, 0.15)', padding: '1px 6px', borderRadius: '3px' }}>
                         AI ADVISORY
                       </span>
                     </div>
@@ -589,7 +589,7 @@ export default function ScreeningPipeline({
                 </div>
                 <div>
                   <span style={{ color: '#64748b', display: 'block', fontSize: '10px' }}>AI DISPOSITIONS</span>
-                  <span style={{ color: '#10b981', fontWeight: '600' }}>FLAGGED / NOT FLAGGED</span>
+                  <span style={{ color: 'var(--spad-green, #22C55E)', fontWeight: '600' }}>FLAGGED / NOT FLAGGED</span>
                 </div>
               </div>
             </div>
@@ -866,10 +866,10 @@ export default function ScreeningPipeline({
                     background: 'rgba(15, 23, 42, 0.65)',
                     border: '1px solid rgba(255, 255, 255, 0.06)',
                     borderRadius: '6px',
-                    borderLeft: '4px solid #10b981',
+                    borderLeft: '4px solid var(--spad-green, #22C55E)',
                   }}
                 >
-                  <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', fontFamily: 'var(--font-mono)', fontSize: '13px', flexShrink: 0 }}>
+                  <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(16, 185, 129, 0.15)', color: 'var(--spad-green, #22C55E)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', fontFamily: 'var(--font-mono)', fontSize: '13px', flexShrink: 0 }}>
                     7
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', flex: 1 }}>
@@ -877,7 +877,7 @@ export default function ScreeningPipeline({
                       <span style={{ fontSize: '13px', fontWeight: '700', color: '#f8fafc' }}>
                         7. PRODUCE FINAL AI STATUS
                       </span>
-                      <span style={{ fontSize: '10px', color: '#10b981', fontFamily: 'var(--font-mono)', background: 'rgba(16, 185, 129, 0.15)', padding: '1px 6px', borderRadius: '3px' }}>
+                      <span style={{ fontSize: '10px', color: 'var(--spad-green, #22C55E)', fontFamily: 'var(--font-mono)', background: 'rgba(16, 185, 129, 0.15)', padding: '1px 6px', borderRadius: '3px' }}>
                         AI ADVISORY
                       </span>
                     </div>
@@ -916,7 +916,7 @@ export default function ScreeningPipeline({
                 </div>
                 <div>
                   <span style={{ color: '#64748b', display: 'block', fontSize: '10px' }}>AI DISPOSITIONS</span>
-                  <span style={{ color: '#10b981', fontWeight: '600' }}>FLAGGED / NOT FLAGGED / NOT_EVALUATED</span>
+                  <span style={{ color: 'var(--spad-green, #22C55E)', fontWeight: '600' }}>FLAGGED / NOT FLAGGED / NOT_EVALUATED</span>
                 </div>
               </div>
             </div>

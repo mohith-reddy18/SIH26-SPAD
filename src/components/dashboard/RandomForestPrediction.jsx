@@ -107,7 +107,7 @@ export default function RandomForestPrediction({ records = [] }) {
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
           <span style={{ fontSize: '10px', color: '#38bdf8', fontWeight: '700', letterSpacing: '0.05em' }}>STEP 5 • PREDICTION STATUS</span>
-          <span style={{ fontSize: '12px', color: flaggedCount > 0 ? '#ef4444' : '#10b981', fontWeight: '700' }}>
+          <span style={{ fontSize: '12px', color: flaggedCount > 0 ? '#ef4444' : 'var(--spad-green, #22C55E)', fontWeight: '700' }}>
             {flaggedCount > 0 ? `${flaggedCount} FLAGGED` : 'ALL NOT FLAGGED'}
           </span>
           <span style={{ fontSize: '10.5px', color: '#94a3b8' }}>FLAGGED / NOT FLAGGED</span>
@@ -130,7 +130,7 @@ export default function RandomForestPrediction({ records = [] }) {
         </div>
         <div className="spad-lot-metric-pill">
           <span className="spad-lot-metric-label">RANDOM FOREST FLAGGED</span>
-          <span className="spad-lot-metric-val" style={{ color: flaggedCount > 0 ? '#ef4444' : '#10b981' }}>
+          <span className="spad-lot-metric-val" style={{ color: flaggedCount > 0 ? '#ef4444' : 'var(--spad-green, #22C55E)' }}>
             {flaggedCount > 0 ? `${flaggedCount} FLAGGED` : '0 FLAGGED (NOMINAL)'}
           </span>
         </div>
@@ -160,7 +160,7 @@ export default function RandomForestPrediction({ records = [] }) {
         </div>
         <div>
           <span style={{ color: '#64748b', display: 'block', fontSize: '10px' }}>VALIDATION ERROR</span>
-          <span style={{ color: '#10b981', fontWeight: '600' }}>LOOCV MAE: 0.0528 Ω (R²: 0.941)</span>
+          <span style={{ color: 'var(--spad-green, #22C55E)', fontWeight: '600' }}>LOOCV MAE: 0.0528 Ω (R²: 0.941)</span>
         </div>
         <div>
           <span style={{ color: '#64748b', display: 'block', fontSize: '10px' }}>CLASSIFICATION SUMMARY</span>

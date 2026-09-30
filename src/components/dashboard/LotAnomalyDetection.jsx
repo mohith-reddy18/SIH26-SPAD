@@ -48,7 +48,7 @@ function StatusIcon({ status }) {
   }
   if (status === 'NOT FLAGGED') {
     return (
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--spad-green, #22C55E)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
         <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
         <polyline points="22 4 12 14.01 9 11.01" />
       </svg>
@@ -219,7 +219,7 @@ export default function LotAnomalyDetection({ records = [] }) {
         </div>
         <div>
           <span style={{ color: '#64748b', marginRight: '6px' }}>Cohort:</span>
-          <span style={{ color: cohortCount >= 3 ? '#10b981' : '#f59e0b', fontWeight: '600' }}>
+          <span style={{ color: cohortCount >= 3 ? 'var(--spad-green, #22C55E)' : '#f59e0b', fontWeight: '600' }}>
             {cohortCount >= 3 ? 'SUFFICIENT (≥ 3 Units)' : 'INSUFFICIENT (< 3 Units)'}
           </span>
         </div>
@@ -384,7 +384,7 @@ export default function LotAnomalyDetection({ records = [] }) {
                     ? '#ef4444'
                     : isNotEvaluated
                     ? '#94a3b8'
-                    : '#10b981',
+                    : 'var(--spad-green, #22C55E)',
                   border: `1px solid ${
                     isFlagged
                       ? 'rgba(239, 68, 68, 0.4)'
@@ -430,12 +430,12 @@ export default function LotAnomalyDetection({ records = [] }) {
                     style={{
                       height: '100%',
                       width: `${Math.min(100, Math.max(12, Math.abs(activeComp.lotAnomalyScore) * 100))}%`,
-                      background: isFlagged ? '#ef4444' : '#10b981',
+                      background: isFlagged ? '#ef4444' : 'var(--spad-green, #22C55E)',
                       borderRadius: '2px',
                     }}
                   />
                 </div>
-                <span style={{ fontSize: '9.5px', color: isFlagged ? '#f87171' : '#10b981', fontFamily: 'var(--font-mono)', fontWeight: '600' }}>
+                <span style={{ fontSize: '9.5px', color: isFlagged ? '#f87171' : 'var(--spad-green, #22C55E)', fontFamily: 'var(--font-mono)', fontWeight: '600' }}>
                   {isFlagged ? 'Outlier' : 'Nominal'}
                 </span>
               </div>

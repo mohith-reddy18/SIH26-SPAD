@@ -13,7 +13,7 @@
   max-width: 100%;
   box-sizing: border-box;
   margin: 0;
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 /* --------------------------------------------------------------------------
@@ -466,7 +466,6 @@
   overflow-y: auto;
   flex: 1;
   min-height: 0;
-  max-height: calc(100vh - 110px);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -1004,7 +1003,7 @@
 }
 
 .spad-lot-stat-v.status-yield {
-  color: #34d399;
+  color: var(--spad-green, #22C55E);
 }
 
 .spad-lot-stat-v.status-anom {
@@ -2508,7 +2507,7 @@
 
 .spad-limit-pill.pill-within {
   background: rgba(16, 185, 129, 0.12);
-  color: #34d399;
+  color: var(--spad-green, #22C55E);
   border: 1px solid rgba(16, 185, 129, 0.3);
 }
 
@@ -2583,7 +2582,7 @@
 
 .spad-ai-status-tag.tag-nominal {
   background: rgba(16, 185, 129, 0.12);
-  color: #34d399;
+  color: var(--spad-green, #22C55E);
   border: 1px solid rgba(16, 185, 129, 0.3);
 }
 
@@ -2804,7 +2803,7 @@
 }
 
 .spad-shap-val-badge.shap-neg {
-  color: #34d399;
+  color: var(--spad-green, #22C55E);
   background: rgba(16, 185, 129, 0.1);
   border: 1px solid rgba(16, 185, 129, 0.2);
 }
@@ -2819,7 +2818,7 @@
 }
 
 .spad-shap-scale-legend .text-green {
-  color: #34d399;
+  color: var(--spad-green, #22C55E);
 }
 
 .spad-shap-scale-legend .text-red {

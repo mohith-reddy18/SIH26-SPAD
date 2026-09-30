@@ -81,14 +81,14 @@ body {
   font-family: var(--font-ui);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 #root {
   min-height: 100vh;
   width: 100%;
   display: flex;
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 /* Headings: Anton condensed display */
@@ -106,7 +106,7 @@ h1, h2, h3, h4, h5, h6 {
   width: 100%;
   min-height: 100vh;
   position: relative;
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 /* Main Layout Wrapper */
@@ -118,7 +118,7 @@ h1, h2, h3, h4, h5, h6 {
   flex-direction: column;
   position: relative;
   transition: margin-left 0.28s ease, width 0.28s ease;
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 /* Global Workspace Two-Column Layout (Main Workspace + Sticky History Sidebar) */
@@ -150,13 +150,14 @@ h1, h2, h3, h4, h5, h6 {
   max-width: 350px;
   position: -webkit-sticky;
   position: sticky;
-  top: 18px;
-  height: calc(100vh - 36px);
-  max-height: calc(100vh - 36px);
+  top: 22px;
+  height: calc(100vh - 44px);
+  max-height: calc(100vh - 44px);
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
   z-index: 10;
+  align-self: start;
 }
 
 .app-history-sidebar .spad-history-card {

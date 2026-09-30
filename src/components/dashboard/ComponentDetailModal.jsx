@@ -5,7 +5,7 @@ import { getParameterMeta, getNormalizedEngineeringStatus, getNormalizedAiStatus
 function getEngineeringBadgeStyle(status) {
   const s = String(status || '').toUpperCase().trim();
   if (s === 'NORMAL' || s === 'PASS') {
-    return { bg: 'rgba(16, 185, 129, 0.15)', border: 'rgba(16, 185, 129, 0.4)', text: '#34d399' };
+    return { bg: 'rgba(16, 185, 129, 0.15)', border: 'rgba(16, 185, 129, 0.4)', text: 'var(--spad-green, #22C55E)' };
   }
   if (s === 'SUSPECT' || s === 'HOLD') {
     return { bg: 'rgba(245, 158, 11, 0.15)', border: 'rgba(245, 158, 11, 0.4)', text: '#fbbf24' };
@@ -23,7 +23,7 @@ function getAiBadgeStyle(status) {
     return { bg: 'rgba(239, 68, 68, 0.15)', border: 'rgba(239, 68, 68, 0.4)', text: '#f87171' };
   }
   if (s === 'NOT FLAGGED' || s === 'NOT_FLAGGED') {
-    return { bg: 'rgba(16, 185, 129, 0.15)', border: 'rgba(16, 185, 129, 0.4)', text: '#34d399' };
+    return { bg: 'rgba(16, 185, 129, 0.15)', border: 'rgba(16, 185, 129, 0.4)', text: 'var(--spad-green, #22C55E)' };
   }
   return { bg: 'rgba(148, 163, 184, 0.15)', border: 'rgba(148, 163, 184, 0.3)', text: '#94a3b8' };
 }
@@ -633,7 +633,7 @@ export default function ComponentDetailModal({
               </div>
               <div className="spad-peer-stat-box">
                 <span className="spad-peer-stat-label">Cohort Quality</span>
-                <span className="spad-peer-stat-value" style={{ color: cohortQuality === 'SUFFICIENT' ? '#34d399' : '#fbbf24' }}>
+                <span className="spad-peer-stat-value" style={{ color: cohortQuality === 'SUFFICIENT' ? 'var(--spad-green, #22C55E)' : '#fbbf24' }}>
                   {cohortQuality}
                 </span>
               </div>

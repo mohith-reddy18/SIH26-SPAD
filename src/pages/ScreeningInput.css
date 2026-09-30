@@ -796,7 +796,7 @@
   letter-spacing: 0.03em;
 }
 
-.spad-metric-value.normal { color: #10B981; }
+.spad-metric-value.normal { color: var(--spad-green, #22C55E); }
 .spad-metric-value.suspect { color: #F59E0B; }
 .spad-metric-value.critical { color: #EF4444; }
 .spad-metric-value.flagged { color: #F97316; }

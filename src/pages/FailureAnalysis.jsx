@@ -3,7 +3,7 @@ import './Dashboard.css';
 import { API_BASE_URL } from '../config/api';
 
 function getStatusColor(status) {
-  if (status === 'NORMAL' || status === 'PASS') return '#10b981';
+  if (status === 'NORMAL' || status === 'PASS') return '#22C55E';
   if (status === 'SUSPECT' || status === 'HOLD') return '#f59e0b';
   if (status === 'CRITICAL' || status === 'REJECT') return '#ef4444';
   return '#38bdf8';
@@ -250,7 +250,7 @@ export default function FailureAnalysis({ selectedLotId, onSelectLot }) {
                       <td className="spad-td-mono">{obsFormatted}</td>
                       <td className="spad-td-mono font-bold" style={{ color: '#38bdf8' }}>{predVal !== undefined && predVal !== null ? `${typeof predVal === 'number' ? predVal.toFixed(2) : predVal} ${unit}` : '—'}</td>
                       <td className="spad-td-mono" style={{ color: '#f87171', fontWeight: '700' }}>{limitVal !== undefined && limitVal !== null ? `${typeof limitVal === 'number' ? limitVal.toFixed(2) : limitVal} ${unit}` : '—'}</td>
-                      <td className="spad-td-mono" style={{ color: isBreached ? '#ef4444' : '#10b981' }}>{margin !== '—' ? `+${margin} ${unit}` : '—'}</td>
+                      <td className="spad-td-mono" style={{ color: isBreached ? '#ef4444' : 'var(--spad-green, #22C55E)' }}>{margin !== '—' ? `+${margin} ${unit}` : '—'}</td>
                       <td>
                         <span className={`spad-status-pill ${isBreached ? 'badge-status-critical' : 'badge-status-normal'}`}>
                           {isBreached ? 'EXCEEDS LIMIT' : 'WITHIN LIMIT'}
@@ -277,13 +277,13 @@ export default function FailureAnalysis({ selectedLotId, onSelectLot }) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '12px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(56, 189, 248, 0.04)', borderRadius: '4px' }}>
                 <span style={{ fontSize: '13px', color: '#94a3b8' }}>Population Abnormality:</span>
-                <span className="font-mono" style={{ color: anomalies.populationAbnormality === true ? '#f59e0b' : anomalies.populationAbnormality === false ? '#10b981' : '#94a3b8', fontWeight: '700' }}>
+                <span className="font-mono" style={{ color: anomalies.populationAbnormality === true ? '#f59e0b' : anomalies.populationAbnormality === false ? 'var(--spad-green, #22C55E)' : '#94a3b8', fontWeight: '700' }}>
                   {anomalies.populationAbnormality === true ? 'FLAGGED (Outlier)' : anomalies.populationAbnormality === false ? 'NOMINAL (Normal Distribution)' : 'NOT_EVALUATED'}
                 </span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(56, 189, 248, 0.04)', borderRadius: '4px' }}>
                 <span style={{ fontSize: '13px', color: '#94a3b8' }}>Trajectory Abnormality:</span>
-                <span className="font-mono" style={{ color: anomalies.trajectoryAbnormality === true ? '#f59e0b' : anomalies.trajectoryAbnormality === false ? '#10b981' : '#94a3b8', fontWeight: '700' }}>
+                <span className="font-mono" style={{ color: anomalies.trajectoryAbnormality === true ? '#f59e0b' : anomalies.trajectoryAbnormality === false ? 'var(--spad-green, #22C55E)' : '#94a3b8', fontWeight: '700' }}>
                   {anomalies.trajectoryAbnormality === true ? 'FLAGGED (Non-Linear Drift)' : anomalies.trajectoryAbnormality === false ? 'NOMINAL (Stable)' : 'NOT_EVALUATED'}
                 </span>
               </div>
@@ -311,7 +311,7 @@ export default function FailureAnalysis({ selectedLotId, onSelectLot }) {
                 (modelExplanation.features || []).slice(0, 4).map((f, i) => (
                   <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 10px', background: 'rgba(255, 255, 255, 0.02)', borderRadius: '4px', fontSize: '12px' }}>
                     <span style={{ color: '#f8fafc' }}>{f.name}</span>
-                    <span className="font-mono" style={{ color: f.shapValue >= 0 ? '#f87171' : '#34d399', fontWeight: '700' }}>
+                    <span className="font-mono" style={{ color: f.shapValue >= 0 ? '#f87171' : 'var(--spad-green, #22C55E)', fontWeight: '700' }}>
                       {f.shapValue >= 0 ? `+${f.shapValue.toFixed(2)}` : f.shapValue.toFixed(2)}
                     </span>
                   </div>
@@ -335,7 +335,7 @@ export default function FailureAnalysis({ selectedLotId, onSelectLot }) {
 
           {!isAnomalous ? (
             <div style={{ padding: '16px 20px', background: 'rgba(16, 185, 129, 0.05)', border: '1px solid rgba(16, 185, 129, 0.2)', borderRadius: '4px' }}>
-              <div style={{ color: '#34d399', fontWeight: '700', fontSize: '14px' }}>
+              <div style={{ color: 'var(--spad-green, #22C55E)', fontWeight: '700', fontSize: '14px' }}>
                 ✓ Non-Destructive Screening Status: NOMINAL QUALIFICATION
               </div>
               <p style={{ fontSize: '13px', color: '#94a3b8', margin: '6px 0 0 0', lineHeight: '1.5' }}>
