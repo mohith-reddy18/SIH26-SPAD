@@ -126,7 +126,7 @@ export default function ScreeningPipeline({
               <span className="spad-lot-stat-k">Anomaly Detection</span>
               <span
                 className="spad-lot-stat-v"
-                style={{ color: anomalyDetAvailable ? '#a78bfa' : '#94a3b8' }}
+                style={{ color: anomalyDetAvailable ? 'var(--spad-green, #22C55E)' : '#94a3b8' }}
               >
                 {anomalyDetAvailable ? 'Available' : 'Not Available'}
               </span>
@@ -233,7 +233,7 @@ export default function ScreeningPipeline({
           onClick={() => setActiveModal('if')}
           style={{
             background: 'rgba(15, 23, 42, 0.65)',
-            border: '1px solid rgba(167, 139, 250, 0.25)',
+            border: '1px solid rgba(34, 197, 94, 0.25)',
             borderRadius: '6px',
             padding: '10px 12px',
             display: 'flex',
@@ -271,7 +271,7 @@ export default function ScreeningPipeline({
               >
                 {anomalyDetAvailable ? 'AVAILABLE' : 'OFFLINE'}
               </span>
-              <span style={{ fontSize: '10px', color: '#a78bfa', fontFamily: 'var(--font-mono)', fontWeight: '700' }}>
+              <span style={{ fontSize: '10px', color: 'var(--spad-green, #22C55E)', fontFamily: 'var(--font-mono)', fontWeight: '700' }}>
                 ↗
               </span>
             </div>
@@ -282,7 +282,7 @@ export default function ScreeningPipeline({
           <div style={{ fontSize: '10px', color: '#94a3b8', lineHeight: '1.35' }}>
             Lot-wide multivariate screening &rarr; isolates distribution outliers &amp; latent defective components.
           </div>
-          <div style={{ fontSize: '9.5px', color: '#a78bfa', fontWeight: '600', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <div style={{ fontSize: '9.5px', color: 'var(--spad-green, #22C55E)', fontWeight: '600', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
             <span>Click to view 6-step workflow</span> &rarr;
           </div>
         </div>
@@ -629,7 +629,7 @@ export default function ScreeningPipeline({
             <div className="spad-modal-header">
               <div className="spad-modal-title-group">
                 <div className="spad-modal-label-row">
-                  <span className="spad-modal-lot-tag" style={{ color: '#a78bfa', borderColor: 'rgba(167, 139, 250, 0.4)' }}>
+                  <span className="spad-modal-lot-tag" style={{ color: 'var(--spad-green, #22C55E)', borderColor: 'rgba(34, 197, 94, 0.4)' }}>
                     METHOD 2 &bull; LOT-WIDE NOVELTY
                   </span>
                   <span className="spad-modal-stage-tag">EXPLANATORY WORKFLOW</span>
@@ -653,8 +653,8 @@ export default function ScreeningPipeline({
               {/* Batch Lot Execution Highlight Banner */}
               <div
                 style={{
-                  background: 'rgba(167, 139, 250, 0.08)',
-                  border: '1px solid rgba(167, 139, 250, 0.25)',
+                  background: 'rgba(34, 197, 94, 0.08)',
+                  border: '1px solid rgba(34, 197, 94, 0.25)',
                   borderRadius: '6px',
                   padding: '12px 16px',
                   fontSize: '12.5px',
@@ -666,14 +666,14 @@ export default function ScreeningPipeline({
                   <span style={{ fontSize: '9px', fontWeight: '800', background: 'rgba(245, 158, 11, 0.2)', color: '#f59e0b', padding: '2px 6px', borderRadius: '3px', border: '1px solid rgba(245, 158, 11, 0.4)', fontFamily: 'var(--font-mono)' }}>
                     BATCH LOT EXECUTION
                   </span>
-                  <strong style={{ color: '#a78bfa' }}>Cohort-Level Novelty Methodology:</strong>
+                  <strong style={{ color: 'var(--spad-green, #22C55E)' }}>Cohort-Level Novelty Methodology:</strong>
                 </div>
                 Isolation Forest operates at the <strong>lot level</strong>. Components are screened one-by-one first. Once the eligible same-lot screening set is available, Isolation Forest executes across the peer cohort to detect statistical and multivariate anomalies.
               </div>
 
               {/* 7-Step Explanatory Workflow */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <span style={{ fontSize: '11px', fontWeight: '700', color: '#a78bfa', fontFamily: 'var(--font-mono)', letterSpacing: '0.05em' }}>
+                <span style={{ fontSize: '11px', fontWeight: '700', color: 'var(--spad-green, #22C55E)', fontFamily: 'var(--font-mono)', letterSpacing: '0.05em' }}>
                   METHODOLOGY PIPELINE (7 STEPS):
                 </span>
 
@@ -686,10 +686,10 @@ export default function ScreeningPipeline({
                     background: 'rgba(15, 23, 42, 0.65)',
                     border: '1px solid rgba(255, 255, 255, 0.06)',
                     borderRadius: '6px',
-                    borderLeft: '4px solid #a78bfa',
+                    borderLeft: '4px solid var(--spad-green, #22C55E)',
                   }}
                 >
-                  <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(167, 139, 250, 0.15)', color: '#a78bfa', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', fontFamily: 'var(--font-mono)', fontSize: '13px', flexShrink: 0 }}>
+                  <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(34, 197, 94, 0.15)', color: 'var(--spad-green, #22C55E)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', fontFamily: 'var(--font-mono)', fontSize: '13px', flexShrink: 0 }}>
                     1
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', flex: 1 }}>
@@ -697,7 +697,7 @@ export default function ScreeningPipeline({
                       <span style={{ fontSize: '13px', fontWeight: '700', color: '#f8fafc' }}>
                         1. COMPLETE INDIVIDUAL COMPONENT SCREENING
                       </span>
-                      <span style={{ fontSize: '10px', color: '#a78bfa', fontFamily: 'var(--font-mono)', background: 'rgba(167, 139, 250, 0.1)', padding: '1px 6px', borderRadius: '3px' }}>
+                      <span style={{ fontSize: '10px', color: 'var(--spad-green, #22C55E)', fontFamily: 'var(--font-mono)', background: 'rgba(34, 197, 94, 0.1)', padding: '1px 6px', borderRadius: '3px' }}>
                         INDIVIDUAL GATES
                       </span>
                     </div>
@@ -716,10 +716,10 @@ export default function ScreeningPipeline({
                     background: 'rgba(15, 23, 42, 0.65)',
                     border: '1px solid rgba(255, 255, 255, 0.06)',
                     borderRadius: '6px',
-                    borderLeft: '4px solid #a78bfa',
+                    borderLeft: '4px solid var(--spad-green, #22C55E)',
                   }}
                 >
-                  <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(167, 139, 250, 0.15)', color: '#a78bfa', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', fontFamily: 'var(--font-mono)', fontSize: '13px', flexShrink: 0 }}>
+                  <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(34, 197, 94, 0.15)', color: 'var(--spad-green, #22C55E)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', fontFamily: 'var(--font-mono)', fontSize: '13px', flexShrink: 0 }}>
                     2
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', flex: 1 }}>
@@ -727,7 +727,7 @@ export default function ScreeningPipeline({
                       <span style={{ fontSize: '13px', fontWeight: '700', color: '#f8fafc' }}>
                         2. COLLECT ELIGIBLE SAME-LOT COMPONENTS
                       </span>
-                      <span style={{ fontSize: '10px', color: '#a78bfa', fontFamily: 'var(--font-mono)', background: 'rgba(167, 139, 250, 0.1)', padding: '1px 6px', borderRadius: '3px' }}>
+                      <span style={{ fontSize: '10px', color: 'var(--spad-green, #22C55E)', fontFamily: 'var(--font-mono)', background: 'rgba(34, 197, 94, 0.1)', padding: '1px 6px', borderRadius: '3px' }}>
                         SAME-LOT PEERS
                       </span>
                     </div>
@@ -746,10 +746,10 @@ export default function ScreeningPipeline({
                     background: 'rgba(15, 23, 42, 0.65)',
                     border: '1px solid rgba(255, 255, 255, 0.06)',
                     borderRadius: '6px',
-                    borderLeft: '4px solid #a78bfa',
+                    borderLeft: '4px solid var(--spad-green, #22C55E)',
                   }}
                 >
-                  <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(167, 139, 250, 0.15)', color: '#a78bfa', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', fontFamily: 'var(--font-mono)', fontSize: '13px', flexShrink: 0 }}>
+                  <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(34, 197, 94, 0.15)', color: 'var(--spad-green, #22C55E)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', fontFamily: 'var(--font-mono)', fontSize: '13px', flexShrink: 0 }}>
                     3
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', flex: 1 }}>
@@ -757,7 +757,7 @@ export default function ScreeningPipeline({
                       <span style={{ fontSize: '13px', fontWeight: '700', color: '#f8fafc' }}>
                         3. CHECK MINIMUM COHORT REQUIREMENT
                       </span>
-                      <span style={{ fontSize: '10px', color: '#a78bfa', fontFamily: 'var(--font-mono)', background: 'rgba(167, 139, 250, 0.1)', padding: '1px 6px', borderRadius: '3px' }}>
+                      <span style={{ fontSize: '10px', color: 'var(--spad-green, #22C55E)', fontFamily: 'var(--font-mono)', background: 'rgba(34, 197, 94, 0.1)', padding: '1px 6px', borderRadius: '3px' }}>
                         COHORT CRITERIA
                       </span>
                     </div>
@@ -776,10 +776,10 @@ export default function ScreeningPipeline({
                     background: 'rgba(15, 23, 42, 0.65)',
                     border: '1px solid rgba(255, 255, 255, 0.06)',
                     borderRadius: '6px',
-                    borderLeft: '4px solid #a78bfa',
+                    borderLeft: '4px solid var(--spad-green, #22C55E)',
                   }}
                 >
-                  <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(167, 139, 250, 0.15)', color: '#a78bfa', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', fontFamily: 'var(--font-mono)', fontSize: '13px', flexShrink: 0 }}>
+                  <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(34, 197, 94, 0.15)', color: 'var(--spad-green, #22C55E)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', fontFamily: 'var(--font-mono)', fontSize: '13px', flexShrink: 0 }}>
                     4
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', flex: 1 }}>
@@ -787,7 +787,7 @@ export default function ScreeningPipeline({
                       <span style={{ fontSize: '13px', fontWeight: '700', color: '#f8fafc' }}>
                         4. INSUFFICIENT COHORT DISPOSITION
                       </span>
-                      <span style={{ fontSize: '10px', color: '#a78bfa', fontFamily: 'var(--font-mono)', background: 'rgba(167, 139, 250, 0.1)', padding: '1px 6px', borderRadius: '3px' }}>
+                      <span style={{ fontSize: '10px', color: 'var(--spad-green, #22C55E)', fontFamily: 'var(--font-mono)', background: 'rgba(34, 197, 94, 0.1)', padding: '1px 6px', borderRadius: '3px' }}>
                         SAMPLE GUARD
                       </span>
                     </div>
@@ -806,10 +806,10 @@ export default function ScreeningPipeline({
                     background: 'rgba(15, 23, 42, 0.65)',
                     border: '1px solid rgba(255, 255, 255, 0.06)',
                     borderRadius: '6px',
-                    borderLeft: '4px solid #a78bfa',
+                    borderLeft: '4px solid var(--spad-green, #22C55E)',
                   }}
                 >
-                  <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(167, 139, 250, 0.15)', color: '#a78bfa', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', fontFamily: 'var(--font-mono)', fontSize: '13px', flexShrink: 0 }}>
+                  <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(34, 197, 94, 0.15)', color: 'var(--spad-green, #22C55E)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', fontFamily: 'var(--font-mono)', fontSize: '13px', flexShrink: 0 }}>
                     5
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', flex: 1 }}>
@@ -817,7 +817,7 @@ export default function ScreeningPipeline({
                       <span style={{ fontSize: '13px', fontWeight: '700', color: '#f8fafc' }}>
                         5. RUN ISOLATION FOREST ACROSS SAME-LOT PEERS
                       </span>
-                      <span style={{ fontSize: '10px', color: '#a78bfa', fontFamily: 'var(--font-mono)', background: 'rgba(167, 139, 250, 0.1)', padding: '1px 6px', borderRadius: '3px' }}>
+                      <span style={{ fontSize: '10px', color: 'var(--spad-green, #22C55E)', fontFamily: 'var(--font-mono)', background: 'rgba(34, 197, 94, 0.1)', padding: '1px 6px', borderRadius: '3px' }}>
                         TREE PARTITIONING
                       </span>
                     </div>
@@ -836,10 +836,10 @@ export default function ScreeningPipeline({
                     background: 'rgba(15, 23, 42, 0.65)',
                     border: '1px solid rgba(255, 255, 255, 0.06)',
                     borderRadius: '6px',
-                    borderLeft: '4px solid #a78bfa',
+                    borderLeft: '4px solid var(--spad-green, #22C55E)',
                   }}
                 >
-                  <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(167, 139, 250, 0.15)', color: '#a78bfa', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', fontFamily: 'var(--font-mono)', fontSize: '13px', flexShrink: 0 }}>
+                  <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(34, 197, 94, 0.15)', color: 'var(--spad-green, #22C55E)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', fontFamily: 'var(--font-mono)', fontSize: '13px', flexShrink: 0 }}>
                     6
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', flex: 1 }}>
@@ -847,7 +847,7 @@ export default function ScreeningPipeline({
                       <span style={{ fontSize: '13px', fontWeight: '700', color: '#f8fafc' }}>
                         6. CALCULATE ANOMALY SCORE &amp; EVIDENCE
                       </span>
-                      <span style={{ fontSize: '10px', color: '#a78bfa', fontFamily: 'var(--font-mono)', background: 'rgba(167, 139, 250, 0.1)', padding: '1px 6px', borderRadius: '3px' }}>
+                      <span style={{ fontSize: '10px', color: 'var(--spad-green, #22C55E)', fontFamily: 'var(--font-mono)', background: 'rgba(34, 197, 94, 0.1)', padding: '1px 6px', borderRadius: '3px' }}>
                         PEER EVIDENCE
                       </span>
                     </div>
@@ -908,7 +908,7 @@ export default function ScreeningPipeline({
                 </div>
                 <div>
                   <span style={{ color: '#64748b', display: 'block', fontSize: '10px' }}>EVALUATION SCOPE</span>
-                  <span style={{ color: '#a78bfa', fontWeight: '600' }}>Same-Lot Peer Cohort</span>
+                  <span style={{ color: 'var(--spad-green, #22C55E)', fontWeight: '600' }}>Same-Lot Peer Cohort</span>
                 </div>
                 <div>
                   <span style={{ color: '#64748b', display: 'block', fontSize: '10px' }}>MINIMUM REQUIREMENT</span>

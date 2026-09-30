@@ -549,7 +549,7 @@ export default function ComponentDetailModal({
               )}
               <div style={{ background: 'rgba(15, 23, 42, 0.6)', border: '1px solid rgba(56, 189, 248, 0.12)', borderRadius: '6px', padding: '8px 10px', textAlign: 'center' }}>
                 <div style={{ fontSize: '9.5px', color: '#94a3b8', fontWeight: '600', textTransform: 'uppercase' }}>100% [PREDICTED]</div>
-                <div style={{ fontSize: '13px', fontWeight: '700', color: '#a855f7', fontFamily: 'var(--font-mono)', marginTop: '2px' }}>
+                <div style={{ fontSize: '13px', fontWeight: '700', color: 'var(--spad-green, #22C55E)', fontFamily: 'var(--font-mono)', marginTop: '2px' }}>
                   {pred168h !== null ? `${pred168h.toFixed(3)} Ω` : '—'}
                 </div>
               </div>
