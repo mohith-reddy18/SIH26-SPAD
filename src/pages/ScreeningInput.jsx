@@ -78,6 +78,8 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
   const [runStatus, setRunStatus] = useState('IDLE'); // 'IDLE' | 'PROCESSING' | 'COMPLETED' | 'ERROR'
   const [runResult, setRunResult] = useState(null);
   const [runError, setRunError] = useState(null);
+  const activeAbortControllerRef = useRef(null);
+  const activeRunIdRef = useRef(null);
 
   /**
    * Fetch authoritative engineering limits from database catalog for selected lot if present
@@ -342,6 +344,11 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
       return;
     }
 
+    const runId = `run_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    activeRunIdRef.current = runId;
+    const abortController = new AbortController();
+    activeAbortControllerRef.current = abortController;
+
     setRunStatus('PROCESSING');
 
     try {
@@ -371,17 +378,28 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
       const formData = new FormData();
       formData.append('file', selectedFile);
       formData.append('lotId', cleanLotId);
+      formData.append('runId', runId);
       formData.append('engineeringLimits', JSON.stringify(engineeringLimits));
       formData.append('context', JSON.stringify(contextData));
 
       const response = await fetch(`${API_BASE_URL}/api/screening/run`, {
         method: 'POST',
+        headers: {
+          'X-Run-ID': runId,
+        },
         body: formData,
+        signal: abortController.signal,
       });
 
       const data = await response.json();
 
       if (!response.ok || !data.success) {
+        if (response.status === 499 || data.error?.code === 'SCREENING_ABORTED') {
+          setRunStatus('IDLE');
+          setRunResult(null);
+          setRunError('SCREENING ANALYSIS STOPPED — Run cancelled by operator.');
+          return;
+        }
         throw new Error(data.error?.message || data.message || `Server returned HTTP ${response.status}`);
       }
 
@@ -396,8 +414,53 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
         onRefreshHistory();
       }
     } catch (err) {
+      if (err.name === 'AbortError' || abortController.signal.aborted) {
+        setRunStatus('IDLE');
+        setRunResult(null);
+        setRunError('SCREENING ANALYSIS STOPPED — Run cancelled by operator.');
+        return;
+      }
       setRunError(err.message || 'An error occurred during screening analysis.');
       setRunStatus('ERROR');
+    } finally {
+      activeAbortControllerRef.current = null;
+      activeRunIdRef.current = null;
+    }
+  };
+
+  /**
+   * Explicit FORCE STOP handler to cancel client request and tell backend to terminate running jobs
+   */
+  const handleForceStop = async () => {
+    const currentRunId = activeRunIdRef.current;
+    const cleanLotId = lotId?.trim();
+
+    // 1. Immediately abort active browser fetch
+    if (activeAbortControllerRef.current) {
+      activeAbortControllerRef.current.abort();
+      activeAbortControllerRef.current = null;
+    }
+
+    // 2. Return UI to idle state immediately with stopped notification
+    setRunStatus('IDLE');
+    setRunResult(null);
+    setRunError('SCREENING ANALYSIS STOPPED — Run cancelled by operator.');
+
+    // 3. Notify backend to terminate server-side process and clean up temporary files
+    try {
+      await fetch(`${API_BASE_URL}/api/screening/stop`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(currentRunId ? { 'X-Run-ID': currentRunId } : {}),
+        },
+        body: JSON.stringify({
+          runId: currentRunId || undefined,
+          lotId: cleanLotId || undefined,
+        }),
+      });
+    } catch (err) {
+      console.warn('Backend stop notification note:', err);
     }
   };
 
@@ -743,35 +806,54 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
           3. EXECUTION SECTION & STATUS BANNERS
           ================================================================ */}
       <div className="spad-action-section">
-        {/* Primary Action Button */}
-        <button
-          type="button"
-          className={`spad-run-btn ${runStatus === 'PROCESSING' ? 'processing' : ''}`}
-          onClick={handleRunScreening}
-          disabled={runStatus === 'PROCESSING'}
-          id="spad-run-screening-btn"
-        >
-          {runStatus === 'PROCESSING' ? (
-            <>
-              <span className="spad-spinner" aria-hidden="true" />
-              <span>Running screening analysis...</span>
-            </>
-          ) : runStatus === 'COMPLETED' ? (
-            <>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="20 6 9 17 4 12" />
+        {/* Primary Action Button & Force Stop Button */}
+        <div className="spad-run-actions-container">
+          <button
+            type="button"
+            className={`spad-run-btn ${runStatus === 'PROCESSING' ? 'processing' : ''}`}
+            onClick={handleRunScreening}
+            disabled={runStatus === 'PROCESSING'}
+            id="spad-run-screening-btn"
+          >
+            {runStatus === 'PROCESSING' ? (
+              <>
+                <span className="spad-spinner" aria-hidden="true" />
+                <span>Running screening analysis...</span>
+              </>
+            ) : runStatus === 'COMPLETED' ? (
+              <>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+                <span>RE-RUN SCREENING ANALYSIS</span>
+              </>
+            ) : (
+              <>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polygon points="5 3 19 12 5 21 5 3" />
+                </svg>
+                <span>RUN SCREENING ANALYSIS</span>
+              </>
+            )}
+          </button>
+
+          {/* Clearly visible FORCE STOP button shown exclusively during active processing */}
+          {runStatus === 'PROCESSING' && (
+            <button
+              type="button"
+              className="spad-stop-btn"
+              onClick={handleForceStop}
+              id="spad-force-stop-btn"
+              title="Force stop active screening analysis"
+              aria-label="Force stop active screening analysis"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                <rect x="5" y="5" width="14" height="14" rx="2" />
               </svg>
-              <span>RE-RUN SCREENING ANALYSIS</span>
-            </>
-          ) : (
-            <>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polygon points="5 3 19 12 5 21 5 3" />
-              </svg>
-              <span>RUN SCREENING ANALYSIS</span>
-            </>
+              <span>FORCE STOP</span>
+            </button>
           )}
-        </button>
+        </div>
 
         {/* Processing State Details */}
         {runStatus === 'PROCESSING' && (
@@ -807,8 +889,8 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
           </div>
         )}
 
-        {/* Error State Banner */}
-        {runStatus === 'ERROR' && runError && (
+        {/* Error / Stopped State Banner */}
+        {runError && runStatus !== 'PROCESSING' && runStatus !== 'COMPLETED' && (
           <div className="spad-error-banner" role="alert">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="10" />
@@ -816,7 +898,9 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
               <line x1="12" y1="16" x2="12.01" y2="16" />
             </svg>
             <div className="spad-error-content">
-              <div className="spad-error-title">SCREENING ANALYSIS FAILED</div>
+              <div className="spad-error-title">
+                {runError.includes('STOPPED') ? 'SCREENING ANALYSIS STOPPED' : 'SCREENING ANALYSIS FAILED'}
+              </div>
               <div className="spad-error-desc">{runError}</div>
             </div>
           </div>

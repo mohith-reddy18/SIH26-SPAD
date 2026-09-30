@@ -413,7 +413,7 @@ async function callRemoteInference(endpointPath, payload) {
  * @param {Object} [payload.context]
  * @returns {Promise<Object>} Complete Python SPAD V4 screening outcome
  */
-async function runScreening(payload) {
+async function runScreening(payload, explicitSignal = null) {
   if (!process.env.AI_SERVICE_URL || !process.env.AI_SERVICE_URL.trim()) {
     throw {
       statusCode: 503,
@@ -491,6 +491,30 @@ async function runScreening(payload) {
   };
   formData.append('context', JSON.stringify(contextObj));
 
+  const signal = explicitSignal || payload?.signal || null;
+  if (signal && signal.aborted) {
+    throw {
+      statusCode: 499,
+      code: 'SCREENING_ABORTED',
+      message: 'Screening analysis was forcefully stopped by operator',
+    };
+  }
+
+  let requestSignal;
+  const timeoutSignal = AbortSignal.timeout(timeoutMs);
+  if (signal) {
+    if (typeof AbortSignal.any === 'function') {
+      requestSignal = AbortSignal.any([timeoutSignal, signal]);
+    } else {
+      const combinedController = new AbortController();
+      timeoutSignal.addEventListener('abort', () => combinedController.abort(new Error('Inference request timed out')));
+      signal.addEventListener('abort', () => combinedController.abort(new Error('Screening aborted by operator')));
+      requestSignal = combinedController.signal;
+    }
+  } else {
+    requestSignal = timeoutSignal;
+  }
+
   try {
     const headers = {
       ...(process.env.AI_SERVICE_KEY ? { Authorization: `Bearer ${process.env.AI_SERVICE_KEY}` } : {}),
@@ -500,7 +524,7 @@ async function runScreening(payload) {
       method: 'POST',
       headers,
       body: formData,
-      signal: AbortSignal.timeout(timeoutMs),
+      signal: requestSignal,
     });
 
     if (!response.ok) {
@@ -514,7 +538,14 @@ async function runScreening(payload) {
     const data = await response.json();
     return data;
   } catch (err) {
-    if (err.code === 'MODEL_UNAVAILABLE' || err.statusCode === 503) {
+    if (signal && signal.aborted) {
+      throw {
+        statusCode: 499,
+        code: 'SCREENING_ABORTED',
+        message: 'Screening analysis was forcefully stopped by operator',
+      };
+    }
+    if (err.code === 'MODEL_UNAVAILABLE' || err.statusCode === 503 || err.code === 'SCREENING_ABORTED' || err.statusCode === 499) {
       throw err;
     }
     throw {

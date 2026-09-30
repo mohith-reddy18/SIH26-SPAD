@@ -408,6 +408,83 @@ app.post('/api/screening/detect-parameters', handleUploadSingle('file'), async (
   }
 });
 
+// Active Screening Runs Registry for Force Stop and Job Lifecycle Management
+const activeScreeningRuns = new Map();
+
+/**
+ * POST /api/screening/stop
+ * Force stop an active screening analysis run, terminate Python/Node processing, and clean up temporary files.
+ */
+app.post(['/api/screening/stop', '/api/screening/stop/:runId', '/api/screening/run/stop'], async (req, res) => {
+  try {
+    const runId = req.params?.runId || req.body?.runId || req.headers['x-run-id'];
+    const lotId = req.body?.lotId;
+
+    let targetRun = null;
+    let targetRunId = null;
+
+    if (runId && activeScreeningRuns.has(runId)) {
+      targetRun = activeScreeningRuns.get(runId);
+      targetRunId = runId;
+    } else if (lotId) {
+      for (const [id, run] of activeScreeningRuns.entries()) {
+        if (run.lotId === lotId) {
+          targetRun = run;
+          targetRunId = id;
+          break;
+        }
+      }
+    }
+
+    if (targetRun) {
+      if (targetRun.abortController && !targetRun.abortController.signal.aborted) {
+        targetRun.abortController.abort();
+      }
+      if (targetRun.tempFilePath) {
+        cleanupTempFile(targetRun.tempFilePath);
+      }
+      if (process.env.AI_SERVICE_URL && process.env.AI_SERVICE_URL.trim()) {
+        try {
+          fetch(`${process.env.AI_SERVICE_URL.replace(/\/+$/, '')}/cancel-screening`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ runId: targetRunId, lotId: targetRun.lotId }),
+            signal: AbortSignal.timeout(3000),
+          }).catch(() => {});
+        } catch {
+          // Non-blocking best-effort Python cancel notification
+        }
+      }
+      activeScreeningRuns.delete(targetRunId);
+
+      return res.status(200).json({
+        success: true,
+        message: 'Screening analysis forcefully stopped',
+        runId: targetRunId,
+        lotId: targetRun.lotId,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'No active screening analysis found for the specified run/lot or run already completed',
+      runId: runId || null,
+      lotId: lotId || null,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      error: {
+        code: 'STOP_FAILED',
+        message: error.message || 'Failed to stop screening analysis',
+        timestamp: new Date().toISOString(),
+      },
+    });
+  }
+});
+
 /**
  * POST /api/screening/run
  * Execute full end-to-end screening orchestration flow:
@@ -417,6 +494,10 @@ app.post('/api/screening/detect-parameters', handleUploadSingle('file'), async (
 app.post('/api/screening/run', handleUploadSingle('file'), async (req, res) => {
   const file = req.file || null;
   const tempFilePath = file?.path;
+  const runId = req.headers['x-run-id'] || req.body?.runId || `run_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const runAbortController = new AbortController();
+
+  let onCloseHandler = null;
 
   try {
     const {
@@ -474,6 +555,23 @@ app.post('/api/screening/run', handleUploadSingle('file'), async (req, res) => {
         },
       });
     }
+
+    // Register active run for tracking and Force Stop propagation
+    activeScreeningRuns.set(runId, {
+      runId,
+      lotId: cleanLotId,
+      componentId: cleanCompId,
+      tempFilePath,
+      abortController: runAbortController,
+      startedAt: new Date().toISOString(),
+    });
+
+    onCloseHandler = () => {
+      if (activeScreeningRuns.has(runId)) {
+        runAbortController.abort();
+      }
+    };
+    req.on('close', onCloseHandler);
 
     // Validate engineeringLimits format if supplied
     if (engineeringLimits !== undefined && engineeringLimits !== null) {
@@ -553,6 +651,7 @@ app.post('/api/screening/run', handleUploadSingle('file'), async (req, res) => {
       fileName,
       fileType,
       fileSize,
+      signal: runAbortController.signal,
     });
     return res.status(200).json(result);
   } catch (error) {
@@ -568,6 +667,10 @@ app.post('/api/screening/run', handleUploadSingle('file'), async (req, res) => {
       },
     });
   } finally {
+    activeScreeningRuns.delete(runId);
+    if (onCloseHandler) {
+      req.removeListener('close', onCloseHandler);
+    }
     cleanupTempFile(tempFilePath);
   }
 });

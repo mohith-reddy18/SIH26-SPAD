@@ -323,8 +323,16 @@ async function evaluateSingleComponent({ targetDoc, sameLotDocs = [], customLimi
 /**
  * Normalizes and persists results returned from external Python SPAD V4 screening pipeline.
  */
-async function processRemoteScreeningRun({ lotId, componentId, customLimits = null, context = {}, file = null, rawDataset, fileName, fileType, fileSize }) {
+async function processRemoteScreeningRun({ lotId, componentId, customLimits = null, context = {}, file = null, rawDataset, fileName, fileType, fileSize, signal = null }) {
   const cleanLotId = lotId.trim();
+
+  if (signal && signal.aborted) {
+    throw {
+      statusCode: 499,
+      code: 'SCREENING_ABORTED',
+      message: 'Screening analysis was forcefully stopped by operator',
+    };
+  }
 
   // 1. Dispatch single request to external Python service: POST ${AI_SERVICE_URL}/run-screening
   const payload = {
@@ -342,9 +350,18 @@ async function processRemoteScreeningRun({ lotId, componentId, customLimits = nu
       ...(fileType ? { fileType } : {}),
       ...(fileSize !== undefined ? { fileSize } : {}),
     },
+    signal,
   };
 
-  const rawOutput = await aiService.runScreening(payload);
+  const rawOutput = await aiService.runScreening(payload, signal);
+
+  if (signal && signal.aborted) {
+    throw {
+      statusCode: 499,
+      code: 'SCREENING_ABORTED',
+      message: 'Screening analysis was forcefully stopped by operator',
+    };
+  }
 
   if (!rawOutput || typeof rawOutput !== 'object') {
     throw {
@@ -512,7 +529,15 @@ async function processRemoteScreeningRun({ lotId, componentId, customLimits = nu
     evaluatedRecords.push(canonicalRecord);
   }
 
-  // 8. Persist all records to MongoDB
+  // 8. Persist all records to MongoDB (skip if aborted)
+  if (signal && signal.aborted) {
+    throw {
+      statusCode: 499,
+      code: 'SCREENING_ABORTED',
+      message: 'Screening analysis was forcefully stopped by operator',
+    };
+  }
+
   if (evaluatedRecords.length > 0) {
     const bulkOps = evaluatedRecords.map((rec) => ({
       updateOne: {
@@ -582,6 +607,7 @@ async function processRemoteScreeningRun({ lotId, componentId, customLimits = nu
  * @param {string} [params.fileName]
  * @param {string} [params.fileType]
  * @param {number} [params.fileSize]
+ * @param {AbortSignal} [params.signal]
  * @returns {Promise<Object>} Combined screening evaluation outcome or lot summary
  */
 async function runScreeningOrchestration({
@@ -596,7 +622,18 @@ async function runScreeningOrchestration({
   fileName,
   fileType,
   fileSize,
+  signal = null,
 }) {
+  if (signal && signal.aborted) {
+    throw {
+      statusCode: 499,
+      code: 'SCREENING_ABORTED',
+      message: 'Screening analysis was forcefully stopped by operator',
+      componentId,
+      lotId,
+    };
+  }
+
   // Validation: if componentId is explicitly passed, it must not be empty/whitespace
   if (componentId !== undefined && componentId !== null) {
     if (typeof componentId !== 'string' || !componentId.trim()) {
@@ -637,6 +674,7 @@ async function runScreeningOrchestration({
       fileName,
       fileType,
       fileSize,
+      signal,
     });
   }
 
