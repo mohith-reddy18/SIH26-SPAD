@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Analytics } from '@vercel/analytics/react';
 import Sidebar from './components/Sidebar';
 import MobileNavbar from './components/MobileNavbar';
 import ScreeningHistory from './components/dashboard/ScreeningHistory';
@@ -166,7 +165,6 @@ export default function App() {
           </aside>
         </div>
       </div>
-      <Analytics />
     </div>
   );
 }
