@@ -672,7 +672,17 @@ app.post('/api/screening/run', handleUploadSingle('file'), async (req, res) => {
             upsert: true,
           },
         }));
-        await ScreeningRecord.bulkWrite(bulkOps);
+        const rawBulkResult = await ScreeningRecord.bulkWrite(bulkOps);
+        console.log(`[SPAD WRITE TRACE 1: RAW INGESTION] time: ${new Date().toISOString()} | op: bulkWrite | lotId: ${cleanLotId} | count: ${bulkOps.length} | matched: ${rawBulkResult?.matchedCount} | modified: ${rawBulkResult?.modifiedCount} | upserted: ${rawBulkResult?.upsertedCount}`);
+
+        const test06Raw = await ScreeningRecord.findOne({ componentId: 'TEST-06', lotId: cleanLotId }).lean();
+        if (test06Raw) {
+          const hasAi = Boolean(test06Raw.aiAssessment && Object.keys(test06Raw.aiAssessment).length > 0 && (test06Raw.aiAssessment.overallStatus || test06Raw.aiAssessment.prediction));
+          const predsEmpty = !test06Raw.predictions || Object.keys(test06Raw.predictions).length === 0;
+          const paramsEmpty = !test06Raw.parameters || Object.keys(test06Raw.parameters).length === 0;
+          const anomEmpty = !test06Raw.anomalies || Object.keys(test06Raw.anomalies).length === 0;
+          console.log(`[SPAD WRITE TRACE 1 POST-CHECK TEST-06] type: RAW INGESTION | _id: ${test06Raw._id} | componentId: ${test06Raw.componentId} | lotId: ${test06Raw.lotId} | updatedAt: ${test06Raw.updatedAt} | hasAiAssessment: ${hasAi} | legacyEmpty(preds/params/anom): ${predsEmpty}/${paramsEmpty}/${anomEmpty}`);
+        }
       } else if (typeof rawContent === 'string' && rawContent.trim().length > 0) {
         // Content was provided but failed parsing
         const existingCount = cleanLotId ? await ScreeningRecord.countDocuments({ lotId: cleanLotId }) : 0;
@@ -710,6 +720,30 @@ app.post('/api/screening/run', handleUploadSingle('file'), async (req, res) => {
       fileSize,
       signal: runAbortController.signal,
     });
+
+    // Check TEST-06 state at the very end of /api/screening/run before returning response
+    const finalTest06Check = await ScreeningRecord.findOne({ componentId: 'TEST-06', lotId: cleanLotId }).lean();
+    if (finalTest06Check) {
+      const hasAi = Boolean(
+        finalTest06Check.aiAssessment &&
+        typeof finalTest06Check.aiAssessment === 'object' &&
+        (finalTest06Check.aiAssessment.overallStatus || finalTest06Check.aiAssessment.prediction)
+      );
+      console.log(`[SPAD END OF /api/screening/run CHECK TEST-06]`, {
+        _id: finalTest06Check._id,
+        componentId: finalTest06Check.componentId,
+        lotId: finalTest06Check.lotId,
+        updatedAt: finalTest06Check.updatedAt,
+        hasAiAssessment: hasAi,
+        aiAssessment: finalTest06Check.aiAssessment,
+        predictions: finalTest06Check.predictions,
+        parameters: finalTest06Check.parameters,
+        anomalies: finalTest06Check.anomalies,
+      });
+    } else {
+      console.log(`[SPAD END OF /api/screening/run CHECK TEST-06] TEST-06 not found for lot "${cleanLotId}"`);
+    }
+
     return res.status(200).json(result);
   } catch (error) {
     const statusCode = error.statusCode || 500;

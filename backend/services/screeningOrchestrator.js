@@ -693,9 +693,13 @@ async function processRemoteScreeningRun({ lotId, componentId, customLimits = nu
       };
     });
 
+    const test06Op = bulkOps.find((op) => op.updateOne.filter.componentId === 'TEST-06') || bulkOps[0];
+    console.log('[SPAD EXACT bulkOps[TEST-06] PAYLOAD BEFORE BULKWRITE]:\n' + JSON.stringify(test06Op, null, 2));
+    console.log('[SPAD bulkOps[TEST-06] aiAssessment present]:', Boolean(test06Op?.updateOne?.update?.$set?.aiAssessment));
+
     try {
       const bulkResult = await ScreeningRecord.bulkWrite(bulkOps);
-      console.log(`[SPAD BulkWrite Result] matchedCount: ${bulkResult?.matchedCount} | modifiedCount: ${bulkResult?.modifiedCount} | upsertedCount: ${bulkResult?.upsertedCount} | insertedCount: ${bulkResult?.insertedCount ?? 0}`);
+      console.log(`[SPAD WRITE TRACE 2: EVALUATED PERSISTENCE] time: ${new Date().toISOString()} | op: bulkWrite | lotId: ${cleanLotId} | opsCount: ${bulkOps.length} | matchedCount: ${bulkResult?.matchedCount} | modifiedCount: ${bulkResult?.modifiedCount} | upsertedCount: ${bulkResult?.upsertedCount} | insertedCount: ${bulkResult?.insertedCount ?? 0}`);
 
       // Post-write verification query using the exact same lotId used in the screening run
       const sampleTest06 = await ScreeningRecord.findOne({ componentId: 'TEST-06', lotId: cleanLotId }).lean();
@@ -705,10 +709,20 @@ async function processRemoteScreeningRun({ lotId, componentId, customLimits = nu
           typeof sampleTest06.aiAssessment === 'object' &&
           (sampleTest06.aiAssessment.overallStatus || sampleTest06.aiAssessment.prediction)
         );
-        console.log(`[SPAD Post-BulkWrite Check TEST-06] found: true | lotId: ${sampleTest06.lotId} | _id: ${sampleTest06._id} | updatedAt: ${sampleTest06.updatedAt} | hasAiAssessment: ${hasAi}`);
+        console.log(`[SPAD WRITE TRACE 2 POST-CHECK TEST-06]`, {
+          _id: sampleTest06._id,
+          componentId: sampleTest06.componentId,
+          lotId: sampleTest06.lotId,
+          updatedAt: sampleTest06.updatedAt,
+          hasAiAssessment: hasAi,
+          aiAssessment: sampleTest06.aiAssessment,
+          predictions: sampleTest06.predictions,
+          parameters: sampleTest06.parameters,
+          anomalies: sampleTest06.anomalies,
+        });
       } else {
         const anyTest06 = await ScreeningRecord.findOne({ componentId: 'TEST-06' }).lean();
-        console.log(`[SPAD Post-BulkWrite Check TEST-06] found in lot "${cleanLotId}": false | found in any lot: ${Boolean(anyTest06)} | lotId: ${anyTest06?.lotId}`);
+        console.log(`[SPAD WRITE TRACE 2 POST-CHECK TEST-06] found in lot "${cleanLotId}": false | found in any lot:`, anyTest06 ? { _id: anyTest06._id, lotId: anyTest06.lotId } : 'none');
       }
     } catch (writeErr) {
       console.error(`[SPAD CRITICAL ERROR] ScreeningRecord.bulkWrite failed:`, writeErr);
@@ -744,7 +758,15 @@ async function processRemoteScreeningRun({ lotId, componentId, customLimits = nu
   const totalComponents = evaluatedRecords.length;
   const engineeringYield = Number(currentYield(evaluatedRecords).toFixed(2));
 
+  // Retrieve actual persisted records from MongoDB to guarantee persistence parity
+  const persistedDocs = await ScreeningRecord.find({ lotId: cleanLotId })
+    .sort({ updatedAt: -1, createdAt: -1 })
+    .lean();
+
   const singleDoc = componentId ? evaluatedRecords.find((r) => r.componentId === componentId) : null;
+  const finalData = (persistedDocs && persistedDocs.length > 0)
+    ? (componentId ? persistedDocs.find((r) => r.componentId === componentId) : persistedDocs)
+    : (singleDoc || evaluatedRecords);
 
   console.log(`[SCREENING TRACE] evaluatedRecords.length = ${evaluatedRecords.length}`);
   console.log(`[SCREENING TRACE] FINAL evaluatedRecords.length = ${evaluatedRecords.length}`);
@@ -764,7 +786,7 @@ async function processRemoteScreeningRun({ lotId, componentId, customLimits = nu
       aiNotEvaluatedCount,
       engineeringYield,
     },
-    data: singleDoc || evaluatedRecords,
+    data: finalData,
   };
 }
 
