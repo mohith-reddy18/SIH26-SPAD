@@ -286,20 +286,37 @@ export default function ParameterTrends({
     }
   });
 
-  const dataMin = allValues.length > 0 ? Math.min(...allValues) : 0;
-  const dataMax = allValues.length > 0 ? Math.max(...allValues) : 1;
+  const hasLimit = typeof dynamicLimit === 'number' && !isNaN(dynamicLimit);
+  const dataMin = allValues.length > 0 ? Math.min(...allValues) : (hasLimit ? dynamicLimit : 0);
+  const dataMax = allValues.length > 0 ? Math.max(...allValues) : (hasLimit ? dynamicLimit : 1);
 
-  // Only include dynamicLimit in Y-axis scaling if it is in comparable physical range (e.g. <= 2.2x dataMax)
-  // This prevents an out-of-scale limit (e.g. 7.00 Ω) from flattening 0.48–0.69 Ω telemetry.
-  const isLimitInPhysicalRange = typeof dynamicLimit === 'number' && !isNaN(dynamicLimit) && dynamicLimit > 0 && dynamicLimit <= dataMax * 2.2;
-  if (isLimitInPhysicalRange) {
-    allValues.push(dynamicLimit);
+  // Parameter-specific combined bounds (enclosing both real trajectory & engineering limit)
+  let rawMin = hasLimit ? Math.min(dataMin, dynamicLimit) : dataMin;
+  let rawMax = hasLimit ? Math.max(dataMax, dynamicLimit) : dataMax;
+  const initialSpan = rawMax - rawMin;
+  const centerVal = (rawMin + rawMax) / 2;
+
+  // Sensible minimum span to prevent trajectory and limit from visually collapsing when values are tight
+  const minSpanByMagnitude = Math.abs(centerVal || 1) * 0.025;
+  const minAbsoluteSpan = 0.05;
+  const targetSpan = Math.max(initialSpan, minSpanByMagnitude, minAbsoluteSpan);
+
+  // If initial span is tighter than target span, center the expanded window
+  if (initialSpan < targetSpan) {
+    const diff = (targetSpan - initialSpan) / 2;
+    rawMin -= diff;
+    rawMax += diff;
   }
 
-  const effectiveMin = allValues.length > 0 ? Math.min(...allValues) : dataMin;
-  const effectiveMax = allValues.length > 0 ? Math.max(...allValues) : dataMax;
-  const minVal = Math.max(0, effectiveMin * 0.85);
-  const maxVal = effectiveMax * 1.15;
+  // Dynamic padding above and below the combined range (10% of target span)
+  const paddingSpan = targetSpan * 0.10;
+  let minVal = rawMin - paddingSpan;
+  let maxVal = rawMax + paddingSpan;
+
+  // Prevent strictly non-negative parameters from showing negative lower axis if data/limit are non-negative
+  if (dataMin >= 0 && (!hasLimit || dynamicLimit >= 0) && minVal < 0) {
+    minVal = 0;
+  }
 
   // Dynamic checkpoints: 0% [OBSERVED], 33.3% [OBSERVED], 66.7% [PREDICTED], 100% [PREDICTED]
   // Authoritative NASA V1 mapping: 0% -> 0hr, 33.3% -> 24hr, 66.7% -> 96hr, 100% -> 168hr
@@ -317,12 +334,14 @@ export default function ParameterTrends({
   const getY = (val) => padding.top + chartH - ((val - minVal) / (maxVal - minVal || 1)) * chartH;
 
   // Spec Limit Line Y coordinate
-  const specLimitY = typeof dynamicLimit === 'number' ? getY(dynamicLimit) : -100;
+  const specLimitY = hasLimit ? getY(dynamicLimit) : -100;
 
-  // Y-axis Ticks (5 evenly distributed steps)
+  // Y-axis Ticks (5 evenly distributed steps) with parameter-adaptive precision
+  const rangeSpan = maxVal - minVal;
+  const tickDecimals = rangeSpan < 0.01 ? 4 : rangeSpan < 0.5 ? 3 : rangeSpan < 10 ? 2 : 1;
   const yTicks = [0, 1, 2, 3, 4].map((step) => {
-    const val = minVal + ((maxVal - minVal) * step) / 4;
-    return { val: val.toFixed(2), y: getY(val) };
+    const val = minVal + (rangeSpan * step) / 4;
+    return { val: val.toFixed(tickDecimals), y: getY(val) };
   });
 
   return (
