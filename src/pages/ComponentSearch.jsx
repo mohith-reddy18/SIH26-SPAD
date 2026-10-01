@@ -73,11 +73,14 @@ export default function ComponentSearch({ onNavigateToComponent, initialComponen
       setIsModalOpen(true);
     }
 
+    const targetLotId = existing?.lotId || (selectedLot !== 'ALL' ? selectedLot : '');
+
     setIsLoadingDetail(true);
     setFetchError(null);
 
     try {
-      const endpoint = `${API_BASE_URL}/api/screening/${encodeURIComponent(targetId)}`;
+      const query = targetLotId ? `?lotId=${encodeURIComponent(targetLotId)}` : '';
+      const endpoint = `${API_BASE_URL}/api/screening/${encodeURIComponent(targetId)}${query}`;
       const response = await fetch(endpoint);
 
       if (response.ok) {

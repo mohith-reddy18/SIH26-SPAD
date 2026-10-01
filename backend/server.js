@@ -803,7 +803,7 @@ app.get('/api/screening', async (req, res) => {
 
     const maxLimit = Math.min(Math.max(parseInt(limit, 10) || 100, 1), 500);
     const records = await ScreeningRecord.find(filter)
-      .sort({ createdAt: -1 })
+      .sort({ updatedAt: -1, createdAt: -1 })
       .limit(maxLimit)
       .lean();
 
@@ -925,10 +925,12 @@ app.get('/api/screening/lots', async (req, res) => {
 /**
  * GET /api/screening/:componentId
  * Retrieve the screening record(s) for a specific component with parameter sanitization.
+ * Supports optional lotId query parameter for lot-scoped queries.
  */
 app.get('/api/screening/:componentId', async (req, res) => {
   try {
     const { componentId } = req.params;
+    const { lotId } = req.query;
 
     if (!componentId || typeof componentId !== 'string' || !componentId.trim()) {
       return res.status(400).json({
@@ -939,19 +941,35 @@ app.get('/api/screening/:componentId', async (req, res) => {
     }
 
     const cleanCompId = componentId.trim();
+    const cleanLotId = (typeof lotId === 'string' && lotId.trim()) ? lotId.trim() : null;
 
-    // Find the latest screening record for this component
-    const record = await ScreeningRecord.findOne({ componentId: cleanCompId })
-      .sort({ createdAt: -1 })
+    const query = { componentId: cleanCompId };
+    if (cleanLotId) {
+      query.lotId = cleanLotId;
+    }
+
+    // Find the latest evaluated/updated screening record for this component
+    const record = await ScreeningRecord.findOne(query)
+      .sort({ updatedAt: -1, createdAt: -1 })
       .lean();
 
     if (!record) {
       return res.status(404).json({
         success: false,
         error: 'Not Found',
-        message: `Screening record for component "${cleanCompId}" not found`
+        message: `Screening record for component "${cleanCompId}"${cleanLotId ? ` in lot "${cleanLotId}"` : ''} not found`
       });
     }
+
+    const hasAiAssessment = Boolean(
+      record.aiAssessment &&
+      typeof record.aiAssessment === 'object' &&
+      Object.keys(record.aiAssessment).length > 0 &&
+      (record.aiAssessment.overallStatus || record.aiAssessment.prediction || record.aiAssessment.lotAnomaly)
+    );
+
+    // Diagnostic logging
+    console.log(`[SPAD Screening Retrieval] componentId: ${cleanCompId} | requested lotId: ${cleanLotId || '(none)'} | selected record lotId: ${record.lotId || '(unknown)'} | updatedAt: ${record.updatedAt || record.createdAt || '(none)'} | hasAiAssessment: ${hasAiAssessment}`);
 
     return res.status(200).json({
       success: true,

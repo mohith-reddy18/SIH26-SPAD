@@ -78,11 +78,15 @@ export default function ParameterTrends({
     const targetId = selectedComponentId || components[0]?.id || components[0]?.componentId;
     if (!targetId || targetId === 'Healthy Reference') return;
 
+    const matchedComp = components.find((c) => (c.id || c.componentId) === targetId);
+    const targetLotId = matchedComp?.lotId || context?.lotId || '';
+
     async function fetchComponentScreening() {
       setIsLoadingComp(true);
       setCompFetchError(null);
       try {
-        const response = await fetch(`${API_BASE_URL}/api/screening/${encodeURIComponent(targetId)}`);
+        const query = targetLotId ? `?lotId=${encodeURIComponent(targetLotId)}` : '';
+        const response = await fetch(`${API_BASE_URL}/api/screening/${encodeURIComponent(targetId)}${query}`);
         if (response.ok) {
           const result = await response.json();
           if (result.success && result.data && isMounted) {
@@ -110,7 +114,7 @@ export default function ParameterTrends({
     return () => {
       isMounted = false;
     };
-  }, [selectedComponentId, components]);
+  }, [selectedComponentId, components, context?.lotId]);
 
   // Active Component resolution: Live API record primary, prop fallback secondary
   const activeComponent = useMemo(() => {
