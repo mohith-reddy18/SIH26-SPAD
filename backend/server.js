@@ -251,7 +251,7 @@ function parseDatasetContent(content, fallbackLotId) {
       const items = Array.isArray(parsed) ? parsed : [parsed];
       return items.map((item) => {
         const compId = item.Test_ID || item.componentId || item.Component_ID || item.id || item.Sample_ID;
-        const lot = item.lotId || fallbackLotId;
+        const lot = fallbackLotId || item.lotId;
         const measurements = item.measurements ? { ...item.measurements } : {};
 
         const rds0 = item.RDS0 ?? item.val0h ?? measurements.rdson?.['0h'] ?? item['0h'] ?? item[0];
@@ -308,7 +308,7 @@ function parseDatasetContent(content, fallbackLotId) {
     const rawCompId = compIdIdx !== -1 ? cols[compIdIdx] : cols[0];
     if (!rawCompId) continue;
 
-    const rowLotId = lotIdIdx !== -1 ? cols[lotIdIdx] : fallbackLotId;
+    const rowLotId = fallbackLotId || (lotIdIdx !== -1 ? cols[lotIdIdx] : fallbackLotId);
     const v0 = rds0Idx !== -1 ? parseFloat(cols[rds0Idx]) : NaN;
     const v24 = rds33Idx !== -1 ? parseFloat(cols[rds33Idx]) : NaN;
 
@@ -802,10 +802,54 @@ app.get('/api/screening', async (req, res) => {
     }
 
     const maxLimit = Math.min(Math.max(parseInt(limit, 10) || 100, 1), 500);
-    const records = await ScreeningRecord.find(filter)
+    const rawRecords = await ScreeningRecord.find(filter)
       .sort({ updatedAt: -1, createdAt: -1 })
-      .limit(maxLimit)
+      .limit(maxLimit * 2)
       .lean();
+
+    // Deduplicate by componentId (or lotId + componentId if no lotId filter), prioritizing evaluated records with aiAssessment
+    const dedupedMap = new Map();
+    for (const rec of rawRecords) {
+      const key = filter.lotId ? rec.componentId : `${rec.lotId || ''}__${rec.componentId}`;
+      const hasAi = Boolean(
+        rec.aiAssessment &&
+        typeof rec.aiAssessment === 'object' &&
+        Object.keys(rec.aiAssessment).length > 0 &&
+        (rec.aiAssessment.overallStatus || rec.aiAssessment.prediction || rec.aiAssessment.lotAnomaly)
+      );
+
+      if (!dedupedMap.has(key)) {
+        dedupedMap.set(key, rec);
+      } else {
+        const existing = dedupedMap.get(key);
+        const existingHasAi = Boolean(
+          existing.aiAssessment &&
+          typeof existing.aiAssessment === 'object' &&
+          Object.keys(existing.aiAssessment).length > 0 &&
+          (existing.aiAssessment.overallStatus || existing.aiAssessment.prediction || existing.aiAssessment.lotAnomaly)
+        );
+        if (hasAi && !existingHasAi) {
+          dedupedMap.set(key, rec);
+        }
+      }
+    }
+
+    const records = Array.from(dedupedMap.values()).slice(0, maxLimit);
+
+    // Diagnostic logging for TEST-06 in list retrieval
+    const test06 = records.find((r) => r.componentId === 'TEST-06');
+    if (test06) {
+      const hasAi = Boolean(
+        test06.aiAssessment &&
+        typeof test06.aiAssessment === 'object' &&
+        Object.keys(test06.aiAssessment).length > 0 &&
+        (test06.aiAssessment.overallStatus || test06.aiAssessment.prediction || test06.aiAssessment.lotAnomaly)
+      );
+      const predsEmpty = !test06.predictions || Object.keys(test06.predictions).length === 0;
+      const paramsEmpty = !test06.parameters || Object.keys(test06.parameters).length === 0;
+      const anomEmpty = !test06.anomalies || Object.keys(test06.anomalies).length === 0;
+      console.log(`[SPAD Diagnostic TEST-06 List] componentId: ${test06.componentId} | lotId: ${test06.lotId} | _id: ${test06._id} | createdAt: ${test06.createdAt} | updatedAt: ${test06.updatedAt} | hasAiAssessment: ${hasAi} | legacyEmpty(preds/params/anom): ${predsEmpty}/${paramsEmpty}/${anomEmpty}`);
+    }
 
     return res.status(200).json({
       success: true,
@@ -948,10 +992,23 @@ app.get('/api/screening/:componentId', async (req, res) => {
       query.lotId = cleanLotId;
     }
 
-    // Find the latest evaluated/updated screening record for this component
-    const record = await ScreeningRecord.findOne(query)
+    // 1. Prefer evaluated record with aiAssessment (overallStatus / prediction / lotAnomaly)
+    let record = await ScreeningRecord.findOne({
+      ...query,
+      $or: [
+        { 'aiAssessment.overallStatus': { $exists: true, $ne: null } },
+        { 'aiAssessment.prediction': { $exists: true, $ne: null } },
+      ],
+    })
       .sort({ updatedAt: -1, createdAt: -1 })
       .lean();
+
+    // 2. Fallback to latest record matching query if no evaluated record exists yet
+    if (!record) {
+      record = await ScreeningRecord.findOne(query)
+        .sort({ updatedAt: -1, createdAt: -1 })
+        .lean();
+    }
 
     if (!record) {
       return res.status(404).json({
@@ -968,8 +1025,12 @@ app.get('/api/screening/:componentId', async (req, res) => {
       (record.aiAssessment.overallStatus || record.aiAssessment.prediction || record.aiAssessment.lotAnomaly)
     );
 
-    // Diagnostic logging
-    console.log(`[SPAD Screening Retrieval] componentId: ${cleanCompId} | requested lotId: ${cleanLotId || '(none)'} | selected record lotId: ${record.lotId || '(unknown)'} | updatedAt: ${record.updatedAt || record.createdAt || '(none)'} | hasAiAssessment: ${hasAiAssessment}`);
+    const predsEmpty = !record.predictions || Object.keys(record.predictions).length === 0;
+    const paramsEmpty = !record.parameters || Object.keys(record.parameters).length === 0;
+    const anomEmpty = !record.anomalies || Object.keys(record.anomalies).length === 0;
+
+    // Diagnostic logging showing required fields
+    console.log(`[SPAD Diagnostic TEST-06 Single] componentId: ${cleanCompId} | requested lotId: ${cleanLotId || '(none)'} | selected lotId: ${record.lotId || '(unknown)'} | _id: ${record._id} | createdAt: ${record.createdAt || '(none)'} | updatedAt: ${record.updatedAt || record.createdAt || '(none)'} | hasAiAssessment: ${hasAiAssessment} | legacyEmpty(preds/params/anom): ${predsEmpty}/${paramsEmpty}/${anomEmpty}`);
 
     return res.status(200).json({
       success: true,
