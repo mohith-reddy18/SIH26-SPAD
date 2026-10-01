@@ -11,6 +11,7 @@
  * 7. Return single record or lot summary
  */
 
+const mongoose = require('mongoose');
 const ScreeningRecord = require('../models/ScreeningRecord');
 const aiService = require('./aiService');
 const {
@@ -311,13 +312,30 @@ async function evaluateSingleComponent({ targetDoc, sameLotDocs = [], customLimi
   // ==========================================================================
   // 7. Persist Combined Screening Record to MongoDB (Upsert / Update)
   // ==========================================================================
-  const savedDocument = await ScreeningRecord.findOneAndUpdate(
-    { componentId: cleanCompId, lotId: resolvedLotId },
-    { $set: combinedRecord },
-    { new: true, upsert: true, setDefaultsOnInsert: true }
-  ).lean();
+  try {
+    const savedDocument = await ScreeningRecord.findOneAndUpdate(
+      { componentId: cleanCompId, lotId: resolvedLotId },
+      { $set: combinedRecord },
+      { new: true, upsert: true, setDefaultsOnInsert: true }
+    ).lean();
 
-  return savedDocument;
+    const hasAi = Boolean(
+      savedDocument?.aiAssessment &&
+      typeof savedDocument.aiAssessment === 'object' &&
+      (savedDocument.aiAssessment.overallStatus || savedDocument.aiAssessment.prediction)
+    );
+    console.log(`[SPAD Single Component Persisted] componentId: ${cleanCompId} | lotId: ${resolvedLotId} | _id: ${savedDocument?._id} | updatedAt: ${savedDocument?.updatedAt} | hasAiAssessment: ${hasAi}`);
+
+    return savedDocument;
+  } catch (err) {
+    console.error(`[SPAD CRITICAL ERROR] ScreeningRecord.findOneAndUpdate failed for ${cleanCompId}:`, err);
+    throw {
+      statusCode: 500,
+      code: 'DATABASE_WRITE_FAILED',
+      message: `Failed to persist evaluated record for ${cleanCompId} to MongoDB: ${err.message}`,
+      error: err,
+    };
+  }
 }
 
 /**
@@ -658,14 +676,49 @@ async function processRemoteScreeningRun({ lotId, componentId, customLimits = nu
   }
 
   if (evaluatedRecords.length > 0) {
-    const bulkOps = evaluatedRecords.map((rec) => ({
-      updateOne: {
-        filter: { componentId: rec.componentId, lotId: rec.lotId },
-        update: { $set: rec },
-        upsert: true,
-      },
-    }));
-    await ScreeningRecord.bulkWrite(bulkOps);
+    const dbState = mongoose.connection ? mongoose.connection.readyState : -1;
+    const dbName = mongoose.connection?.db?.databaseName || mongoose.connection?.name || 'unknown';
+    const collName = ScreeningRecord.collection?.collectionName || 'screeningrecords';
+
+    console.log(`[SPAD Persistence Info] mongoose.readyState: ${dbState} | database: ${dbName} | collection: ${collName} | operationsCount: ${evaluatedRecords.length}`);
+
+    const bulkOps = evaluatedRecords.map((rec) => {
+      const filter = { componentId: rec.componentId, lotId: rec.lotId };
+      return {
+        updateOne: {
+          filter,
+          update: { $set: rec },
+          upsert: true,
+        },
+      };
+    });
+
+    try {
+      const bulkResult = await ScreeningRecord.bulkWrite(bulkOps);
+      console.log(`[SPAD BulkWrite Result] matchedCount: ${bulkResult?.matchedCount} | modifiedCount: ${bulkResult?.modifiedCount} | upsertedCount: ${bulkResult?.upsertedCount} | insertedCount: ${bulkResult?.insertedCount ?? 0}`);
+
+      // Post-write verification query using the exact same lotId used in the screening run
+      const sampleTest06 = await ScreeningRecord.findOne({ componentId: 'TEST-06', lotId: cleanLotId }).lean();
+      if (sampleTest06) {
+        const hasAi = Boolean(
+          sampleTest06.aiAssessment &&
+          typeof sampleTest06.aiAssessment === 'object' &&
+          (sampleTest06.aiAssessment.overallStatus || sampleTest06.aiAssessment.prediction)
+        );
+        console.log(`[SPAD Post-BulkWrite Check TEST-06] found: true | lotId: ${sampleTest06.lotId} | _id: ${sampleTest06._id} | updatedAt: ${sampleTest06.updatedAt} | hasAiAssessment: ${hasAi}`);
+      } else {
+        const anyTest06 = await ScreeningRecord.findOne({ componentId: 'TEST-06' }).lean();
+        console.log(`[SPAD Post-BulkWrite Check TEST-06] found in lot "${cleanLotId}": false | found in any lot: ${Boolean(anyTest06)} | lotId: ${anyTest06?.lotId}`);
+      }
+    } catch (writeErr) {
+      console.error(`[SPAD CRITICAL ERROR] ScreeningRecord.bulkWrite failed:`, writeErr);
+      throw {
+        statusCode: 500,
+        code: 'DATABASE_WRITE_FAILED',
+        message: `Failed to persist evaluated screening records to MongoDB: ${writeErr.message}`,
+        error: writeErr,
+      };
+    }
   }
 
   // 9. Derive summary metrics
