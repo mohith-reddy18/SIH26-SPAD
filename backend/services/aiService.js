@@ -535,6 +535,13 @@ async function runScreening(payload, explicitSignal = null) {
       }
     }
 
+    // Filter to Python-supported parameter evaluation ('rdson' only)
+    const pythonLimits = {};
+    const rdsonLimit = normalizedLimits.rdson ?? normalizedLimits.rds_on ?? normalizedLimits.RDS_ON;
+    if (rdsonLimit !== undefined) {
+      pythonLimits.rdson = rdsonLimit;
+    }
+
     // 3. Normalize context
     const contextObj = {
       ...(context && typeof context === 'object' ? context : {}),
@@ -552,7 +559,7 @@ async function runScreening(payload, explicitSignal = null) {
     if (componentId) {
       prefixParts.push(`--${boundary}\r\nContent-Disposition: form-data; name="componentId"\r\n\r\n${String(componentId).trim()}\r\n`);
     }
-    prefixParts.push(`--${boundary}\r\nContent-Disposition: form-data; name="engineeringLimits"\r\n\r\n${JSON.stringify(normalizedLimits)}\r\n`);
+    prefixParts.push(`--${boundary}\r\nContent-Disposition: form-data; name="engineeringLimits"\r\n\r\n${JSON.stringify(pythonLimits)}\r\n`);
     prefixParts.push(`--${boundary}\r\nContent-Disposition: form-data; name="context"\r\n\r\n${JSON.stringify(contextObj)}\r\n`);
 
     let hasFile = false;
