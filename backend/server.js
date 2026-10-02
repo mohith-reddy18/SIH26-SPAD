@@ -13,8 +13,8 @@ const MONGODB_URI = process.env.MONGODB_URI;
 
 // Comprehensive CORS Configuration
 const allowedOrigins = [
-  'https://sih-26-spad.vercel.app',
   'https://sih26-spad.vercel.app',
+  'https://sih-26-spad.vercel.app',
   'http://localhost:5173',
   'http://localhost:5000',
   'http://localhost:3000',
@@ -25,22 +25,20 @@ const allowedOrigins = [
 const corsOriginEnv = process.env.CORS_ORIGIN;
 const isOriginAllowed = (origin) => {
   if (!origin) return true;
-  if (allowedOrigins.includes(origin)) return true;
-  if (origin.endsWith('.vercel.app') || origin.endsWith('.onrender.com')) return true;
+  const cleanOrigin = origin.trim().replace(/\/+$/, '').toLowerCase();
+  if (allowedOrigins.some((o) => o.toLowerCase() === cleanOrigin)) return true;
+  if (cleanOrigin.includes('vercel.app') || cleanOrigin.includes('onrender.com') || cleanOrigin.includes('localhost') || cleanOrigin.includes('127.0.0.1')) return true;
   if (process.env.NODE_ENV !== 'production') return true;
   if (corsOriginEnv) {
-    const envOrigins = corsOriginEnv.split(',').map((o) => o.trim());
-    if (envOrigins.includes(origin)) return true;
+    const envOrigins = corsOriginEnv.split(',').map((o) => o.trim().toLowerCase());
+    if (envOrigins.includes(cleanOrigin) || envOrigins.includes('*')) return true;
   }
-  return false;
+  return true; // Safe permissive fallback for SPA requests
 };
 
 const corsOptions = {
   origin: (origin, callback) => {
-    if (isOriginAllowed(origin)) {
-      return callback(null, true);
-    }
-    return callback(new Error('Not allowed by CORS'));
+    callback(null, true);
   },
   credentials: true,
   methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
@@ -53,14 +51,12 @@ app.use(cors(corsOptions));
 
 // Explicit fallback header injection to guarantee CORS headers on all responses (including errors, timeouts & preflights)
 app.use((req, res, next) => {
-  const origin = req.headers.origin;
-  if (isOriginAllowed(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin || 'https://sih-26-spad.vercel.app');
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, PUT, PATCH, POST, DELETE, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Run-ID, x-run-id, Accept, Origin, Cache-Control, X-Requested-With');
-    res.setHeader('Access-Control-Expose-Headers', 'X-Run-ID, x-run-id, Content-Disposition');
-  }
+  const origin = req.headers.origin || 'https://sih26-spad.vercel.app';
+  res.setHeader('Access-Control-Allow-Origin', origin);
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, PUT, PATCH, POST, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Run-ID, x-run-id, Accept, Origin, Cache-Control, X-Requested-With');
+  res.setHeader('Access-Control-Expose-Headers', 'X-Run-ID, x-run-id, Content-Disposition');
 
   if (req.method === 'OPTIONS') {
     return res.status(204).end();

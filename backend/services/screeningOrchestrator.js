@@ -408,9 +408,15 @@ async function processRemoteScreeningRun({ lotId, componentId, customLimits = nu
     };
   }
 
-  const datasetTransientMap = (file?.path || typeof rawDataset === 'string')
-    ? extractTransientEvidenceFromDisk(file?.path || rawDataset, customLimits)
-    : new Map();
+  let datasetTransientMap = new Map();
+  try {
+    if (file?.path || typeof rawDataset === 'string') {
+      datasetTransientMap = extractTransientEvidenceFromDisk(file?.path || rawDataset, customLimits);
+    }
+  } catch (err) {
+    console.warn('[SPAD transientExtractor] Extraction skipped safely:', err?.message || err);
+    datasetTransientMap = new Map();
+  }
 
   const evaluatedRecords = [];
   let skippedItemsCount = 0;
