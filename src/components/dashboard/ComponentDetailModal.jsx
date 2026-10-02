@@ -162,14 +162,6 @@ export default function ComponentDetailModal({
   const lotId = component.lotId || 'NASA-MOSFET-199C';
   const stage = component.stage || '24h';
 
-  // 1. Engineering Screening Evaluation
-  const engineeringResult = evaluateComponentEngineeringDecision(
-    component.measurements,
-    component.engineeringLimits,
-    component.engineeringStatus || component.status
-  );
-  const engBadgeStyle = getEngineeringBadgeStyle(engineeringResult.decision);
-
   // 2. AI Assessment & Methods Extraction
   const aiAssessment = component.aiAssessment || {};
   const predictionObj = aiAssessment.prediction || (component.predictions ? { status: 'PREDICTED', parameters: component.predictions } : null);
@@ -181,16 +173,35 @@ export default function ComponentDetailModal({
   const m1Params = predictionObj?.parameters || {};
   const m1Param = m1Params.rdson || Object.values(m1Params)[0] || {};
 
+  // 1. Engineering Screening Evaluation (Resolving active limits with precedence)
+  const compLimits = {
+    ...(component.engineeringLimits && typeof component.engineeringLimits === 'object' ? component.engineeringLimits : {}),
+    ...(m1Param.engineeringLimit ? { rdson: m1Param.engineeringLimit } : {}),
+  };
+
+  const engineeringResult = evaluateComponentEngineeringDecision(
+    component.measurements,
+    compLimits,
+    component.engineeringStatus || component.status
+  );
+  const engBadgeStyle = getEngineeringBadgeStyle(engineeringResult.decision);
+
   const obs0h = component.measurements?.rdson?.['0h'] ??
                 component.measurements?.rdson?.[0] ??
                 (Array.isArray(component.measurements?.rdson) ? component.measurements?.rdson[0] : null) ??
                 m1Param.observed?.['0h'] ??
+                component.measurements?.['0h'] ??
+                component.measurements?.RDS0 ??
+                component.RDS0 ??
                 null;
 
   const obs24h = component.measurements?.rdson?.['24h'] ??
                  component.measurements?.rdson?.[1] ??
                  (Array.isArray(component.measurements?.rdson) ? component.measurements?.rdson[1] : null) ??
                  m1Param.observed?.['24h'] ??
+                 component.measurements?.['24h'] ??
+                 component.measurements?.RDS33 ??
+                 component.RDS33 ??
                  null;
 
   const pred96h = (typeof m1Param.predicted96h === 'number') ? m1Param.predicted96h : null;
@@ -202,10 +213,41 @@ export default function ComponentDetailModal({
     ? component.predictions.rdson
     : (typeof component.predictions?.rdson?.predicted168h === 'number')
     ? component.predictions.rdson.predicted168h
+    : (typeof component.predictions?.['rdson_168h'] === 'number')
+    ? component.predictions['rdson_168h']
+    : (typeof component.predicted168h === 'number')
+    ? component.predicted168h
+    : (typeof component.Predicted_RDS100 === 'number')
+    ? component.Predicted_RDS100
     : null;
 
-  const m1Status = m1Param.status || predictionObj?.status || 'PREDICTED';
-  const m1Flag = m1Param.aiFlag || (m1Param.status === 'FLAGGED' ? 'FLAGGED' : 'NOT FLAGGED');
+  const m1Status = (pred168h !== null || m1Param.status === 'PREDICTED')
+    ? 'PREDICTED'
+    : (m1Param.status || 'NOT_EVALUATED');
+
+  let m1Flag = 'NOT_EVALUATED';
+  const rawM1Flag = m1Param.aiFlag ??
+                    predictionObj?.aiFlag ??
+                    component.prediction?.aiFlag ??
+                    component.predictions?.rdson?.aiFlag ??
+                    component.predictions?.aiFlag ??
+                    component.prediction?.Module_B_Flag ??
+                    component.prediction?.Module_B_Anomaly ??
+                    component.Module_B_Flag ??
+                    component.Module_B_Anomaly;
+
+  if (rawM1Flag !== undefined && rawM1Flag !== null) {
+    const s = String(rawM1Flag).trim().toUpperCase();
+    if (s === '1' || s === 'TRUE' || s === 'FLAGGED') {
+      m1Flag = 'FLAGGED';
+    } else if (s === '0' || s === 'FALSE' || s === 'NOT FLAGGED' || s === 'NOT_FLAGGED' || s === 'NOMINAL' || s === 'NORMAL' || s === 'PASS') {
+      m1Flag = 'NOT FLAGGED';
+    } else if (s === 'NOT_EVALUATED') {
+      m1Flag = 'NOT_EVALUATED';
+    }
+  } else if (m1Param.status === 'PREDICTED' && typeof m1Param.limitBreachProbability === 'number') {
+    m1Flag = m1Param.limitBreachProbability > 0.5 ? 'FLAGGED' : 'NOT FLAGGED';
+  }
   const m1BadgeStyle = getAiBadgeStyle(m1Flag);
 
   const roc = (typeof m1Param.rateOfChangePerHour === 'number')

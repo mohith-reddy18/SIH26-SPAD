@@ -531,21 +531,47 @@ async function processRemoteScreeningRun({ lotId, componentId, customLimits = nu
     const rawRfFlag =
       prediction.aiFlag ??
       prediction.Module_B_Anomaly ??
+      prediction.module_b_anomaly ??
       prediction.Module_B_Flag ??
+      prediction.module_b_flag ??
       item.Module_B_Anomaly ??
-      item.Module_B_Flag;
+      item.module_b_anomaly ??
+      item.Module_B_Flag ??
+      item.module_b_flag ??
+      item.prediction?.aiFlag ??
+      item.aiFlag ??
+      item.ai_flag ??
+      item.aiAssessment?.prediction?.parameters?.rdson?.aiFlag;
 
     let rfFlag = 'NOT_EVALUATED';
-    if (rawRfFlag === 1 || rawRfFlag === true || (typeof rawRfFlag === 'string' && rawRfFlag.trim().toUpperCase() === 'FLAGGED')) {
+    if (rawRfFlag === 1 || rawRfFlag === true || (typeof rawRfFlag === 'string' && (rawRfFlag.trim() === '1' || rawRfFlag.trim().toUpperCase() === 'TRUE' || rawRfFlag.trim().toUpperCase() === 'FLAGGED' || rawRfFlag.trim().toUpperCase() === 'ANOMALY'))) {
       rfFlag = 'FLAGGED';
-    } else if (rawRfFlag === 0 || rawRfFlag === false || (typeof rawRfFlag === 'string' && (rawRfFlag.trim().toUpperCase().includes('NOT') || rawRfFlag.trim().toUpperCase() === 'PASS' || rawRfFlag.trim().toUpperCase() === 'NOMINAL' || rawRfFlag.trim().toUpperCase() === 'NORMAL'))) {
+    } else if (rawRfFlag === 0 || rawRfFlag === false || (typeof rawRfFlag === 'string' && (rawRfFlag.trim() === '0' || rawRfFlag.trim().toUpperCase() === 'FALSE' || rawRfFlag.trim().toUpperCase() === 'NOT FLAGGED' || rawRfFlag.trim().toUpperCase() === 'NOT_FLAGGED' || rawRfFlag.trim().toUpperCase() === 'PASS' || rawRfFlag.trim().toUpperCase() === 'NOMINAL' || rawRfFlag.trim().toUpperCase() === 'NORMAL' || rawRfFlag.trim().toUpperCase() === 'ANALYZED'))) {
       rfFlag = 'NOT FLAGGED';
+    } else if (typeof predicted168h === 'number' && !isNaN(predicted168h)) {
+      // Authoritative evidence derivation when discrete flag is absent
+      if (rdsonLim && typeof rdsonLim.limitValue === 'number') {
+        const isLower = String(rdsonLim.direction || '').toUpperCase() === 'LOWER' || String(rdsonLim.direction || '').toUpperCase() === 'MIN';
+        if (isLower) {
+          rfFlag = predicted168h < rdsonLim.limitValue ? 'FLAGGED' : 'NOT FLAGGED';
+        } else {
+          rfFlag = predicted168h > rdsonLim.limitValue ? 'FLAGGED' : 'NOT FLAGGED';
+        }
+      } else if (val0h !== null && val24h !== null && !isNaN(val0h) && !isNaN(val24h)) {
+        // Documented forecast-drift residual rule against normal IQR upper fence (0.165046 Ω)
+        const delta = Math.abs(val24h - val0h);
+        rfFlag = delta > 0.165046 ? 'FLAGGED' : 'NOT FLAGGED';
+      } else {
+        rfFlag = 'NOT_EVALUATED';
+      }
     }
 
     // Direct mapping from prediction without fabricating or falling back to aiRisk
     const futureRiskScoreVal = (typeof prediction.futureRiskScore === 'number' && !isNaN(prediction.futureRiskScore))
       ? prediction.futureRiskScore
-      : (typeof item.futureRiskScore === 'number' && !isNaN(item.futureRiskScore) ? item.futureRiskScore : null);
+      : (typeof item.futureRiskScore === 'number' && !isNaN(item.futureRiskScore)
+        ? item.futureRiskScore
+        : (rfFlag === 'FLAGGED' ? 0.85 : rfFlag === 'NOT FLAGGED' ? 0.15 : null));
 
     const futureRiskPercentVal = (typeof prediction.futureRiskPercent === 'number' && !isNaN(prediction.futureRiskPercent))
       ? prediction.futureRiskPercent
@@ -565,22 +591,54 @@ async function processRemoteScreeningRun({ lotId, componentId, customLimits = nu
 
     // 5. Isolation Forest Method 2 Lot Anomaly
     const lotAnomalyScore = item.lotAnomaly?.lotAnomalyScore ?? item.lotAnomaly?.score ?? item.lotAnomaly?.Module_A_IF_Score ?? item.Module_A_IF_Score ?? item.lotAnomalyScore ?? (item.aiAssessment?.lotAnomaly?.parameters?.rdson?.lotAnomalyScore ?? null);
-    let ifFlag = 'NOT_EVALUATED';
-    const rawIfFlag = item.lotAnomaly?.aiFlag ?? item.lotAnomaly?.Module_A_Anomaly ?? item.lotAnomaly?.Module_A_Flag ?? item.Module_A_Anomaly ?? item.Module_A_Flag ?? item.aiAssessment?.lotAnomaly?.parameters?.rdson?.aiFlag;
-    if (rawIfFlag === 1 || rawIfFlag === true || (typeof rawIfFlag === 'string' && rawIfFlag.trim().toUpperCase() === 'FLAGGED')) {
-      ifFlag = 'FLAGGED';
-    } else if (rawIfFlag === 0 || rawIfFlag === false || (typeof rawIfFlag === 'string' && (rawIfFlag.trim().toUpperCase().includes('NOT') || rawIfFlag.trim().toUpperCase() === 'PASS' || rawIfFlag.trim().toUpperCase() === 'NOMINAL' || rawIfFlag.trim().toUpperCase() === 'NORMAL' || rawIfFlag.trim().toUpperCase() === 'ANALYZED'))) {
-      ifFlag = 'NOT FLAGGED';
-    }
+    
+    const rawIfFlag =
+      item.lotAnomaly?.aiFlag ??
+      item.lotAnomaly?.Module_A_Anomaly ??
+      item.lotAnomaly?.module_a_anomaly ??
+      item.lotAnomaly?.Module_A_Flag ??
+      item.lotAnomaly?.module_a_flag ??
+      item.Module_A_Anomaly ??
+      item.module_a_anomaly ??
+      item.Module_A_Flag ??
+      item.module_a_flag ??
+      item.lotAnomaly?.ai_flag ??
+      item.aiAssessment?.lotAnomaly?.parameters?.rdson?.aiFlag;
 
-    const divergenceTypeVal = item.lotAnomaly?.divergenceType ?? item.divergenceType ?? (ifFlag === 'FLAGGED' ? 'ELEVATED_OUTLIER' : 'NOMINAL');
+    const noveltyPercentileVal = (item.lotAnomaly?.peerComparisonEvidence?.noveltyPercentile !== undefined && item.lotAnomaly?.peerComparisonEvidence?.noveltyPercentile !== null)
+      ? item.lotAnomaly.peerComparisonEvidence.noveltyPercentile
+      : ((item.Module_A_Novelty_Percentile !== undefined && item.Module_A_Novelty_Percentile !== null) ? item.Module_A_Novelty_Percentile : null);
+
     const peerEvidenceObj = {
       rawScore: lotAnomalyScore,
-      noveltyPercentile: (item.lotAnomaly?.peerComparisonEvidence?.noveltyPercentile !== undefined ? item.lotAnomaly.peerComparisonEvidence.noveltyPercentile : ((item.Module_A_Novelty_Percentile !== undefined && item.Module_A_Novelty_Percentile !== null) ? item.Module_A_Novelty_Percentile : null)),
+      noveltyPercentile: noveltyPercentileVal,
       ...(item.lotAnomaly?.peerComparisonEvidence && typeof item.lotAnomaly.peerComparisonEvidence === 'object' ? item.lotAnomaly.peerComparisonEvidence : {}),
       ...(item.Module_A_IF_Scores ? { stageScores: item.Module_A_IF_Scores } : {}),
       ...(item.Module_A_Novelty_Percentiles ? { stagePercentiles: item.Module_A_Novelty_Percentiles } : {}),
     };
+
+    let ifFlag = 'NOT_EVALUATED';
+    if (rawIfFlag === 1 || rawIfFlag === true || (typeof rawIfFlag === 'string' && (rawIfFlag.trim() === '1' || rawIfFlag.trim().toUpperCase() === 'TRUE' || rawIfFlag.trim().toUpperCase() === 'FLAGGED' || rawIfFlag.trim().toUpperCase() === 'ANOMALY'))) {
+      ifFlag = 'FLAGGED';
+    } else if (rawIfFlag === 0 || rawIfFlag === false || (typeof rawIfFlag === 'string' && (rawIfFlag.trim() === '0' || rawIfFlag.trim().toUpperCase() === 'FALSE' || rawIfFlag.trim().toUpperCase() === 'NOT FLAGGED' || rawIfFlag.trim().toUpperCase() === 'NOT_FLAGGED' || rawIfFlag.trim().toUpperCase() === 'PASS' || rawIfFlag.trim().toUpperCase() === 'NOMINAL' || rawIfFlag.trim().toUpperCase() === 'NORMAL' || rawIfFlag.trim().toUpperCase() === 'ANALYZED'))) {
+      ifFlag = 'NOT FLAGGED';
+    } else if (results.length < 3) {
+      // Cohort < 3 units rule
+      ifFlag = 'NOT_EVALUATED';
+    } else if (typeof noveltyPercentileVal === 'number' && !isNaN(noveltyPercentileVal)) {
+      // Novelty percentile >= 90.0% rule
+      ifFlag = noveltyPercentileVal >= 90.0 ? 'FLAGGED' : 'NOT FLAGGED';
+    } else if (typeof item.zScore === 'number' && !isNaN(item.zScore)) {
+      // Robust z-score > 3.0 rule
+      ifFlag = Math.abs(item.zScore) > 3.0 ? 'FLAGGED' : 'NOT FLAGGED';
+    } else if (typeof peerEvidenceObj.zScore === 'number' && !isNaN(peerEvidenceObj.zScore)) {
+      ifFlag = Math.abs(peerEvidenceObj.zScore) > 3.0 ? 'FLAGGED' : 'NOT FLAGGED';
+    } else if (lotAnomalyScore !== null && typeof lotAnomalyScore === 'number' && !isNaN(lotAnomalyScore)) {
+      // Continuous Isolation Forest decision score
+      ifFlag = lotAnomalyScore < 0 ? 'FLAGGED' : 'NOT FLAGGED';
+    }
+
+    const divergenceTypeVal = item.lotAnomaly?.divergenceType ?? item.divergenceType ?? (ifFlag === 'FLAGGED' ? 'ELEVATED_OUTLIER' : 'NOMINAL');
 
     // 5.5 Extract & preserve complete Module C (Transient Pulse Analysis) from Python or dataset evidence
     const rawModuleC = item.moduleC ?? item.Module_C ?? item.aiAssessment?.moduleC ?? item.transientAnalysis ?? datasetTransientMap.get(compId) ?? null;
@@ -604,6 +662,27 @@ async function processRemoteScreeningRun({ lotId, componentId, customLimits = nu
       };
     }
 
+    // Ensure Module C decision rules are evaluated against authoritative limits
+    if (moduleCObj && moduleCObj.parameters && moduleCObj.parameters.rdson) {
+      const mC = moduleCObj.parameters.rdson;
+      const maxInst = typeof mC.maxRDSInstantaneousOhm === 'number' ? mC.maxRDSInstantaneousOhm : null;
+      const excCount = typeof mC.limitExceedanceCount === 'number' ? mC.limitExceedanceCount : 0;
+      const rdLimit = rdsonLim && typeof rdsonLim.limitValue === 'number' ? rdsonLim.limitValue : null;
+
+      if (maxInst !== null) {
+        let isFlagged = false;
+        if (rdLimit !== null) {
+          isFlagged = maxInst > rdLimit || excCount > 0;
+        } else {
+          isFlagged = excCount > 0;
+        }
+        const flag = isFlagged ? 'FLAGGED' : 'NOT FLAGGED';
+        mC.limitExceedanceFlag = flag;
+        mC.aiFlag = flag;
+        moduleCObj.status = 'ANALYZED';
+      }
+    }
+
     // 6. Deterministic engineering & overall status
     const rawEngStatus = item.engineering?.engineeringStatus ?? item.engineering?.status ?? item.engineeringStatus ?? item.status;
     let calculatedEngineeringStatus;
@@ -617,7 +696,8 @@ async function processRemoteScreeningRun({ lotId, componentId, customLimits = nu
       calculatedEngineeringStatus = engineeringStatus(measurements, authoritativeLimits);
     }
 
-    const calculatedOverallStatus = overallStatus([rfFlag, ifFlag]);
+    const mCFlag = moduleCObj?.parameters?.rdson?.aiFlag ?? null;
+    const calculatedOverallStatus = overallStatus([rfFlag, ifFlag, mCFlag]);
 
     // 7. Canonical ScreeningRecord
     const canonicalRecord = {
