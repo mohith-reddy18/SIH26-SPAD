@@ -1,0 +1,203 @@
+const fs = require('fs');
+const path = require('path');
+const zlib = require('zlib');
+
+/**
+ * Parses transient evidence CSV text and aggregates pulse-level metrics per Test_ID.
+ *
+ * @param {string} csvText - Content of transient_evidence.csv
+ * @param {Object} [engineeringLimits] - Official engineering specification limits
+ * @returns {Map<string, Object>} Map of componentId to Module C evaluation object
+ */
+function parseTransientCsvContent(csvText, engineeringLimits = {}) {
+  const componentMap = new Map();
+  if (!csvText || typeof csvText !== 'string') return componentMap;
+
+  const lines = csvText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  if (lines.length < 2) return componentMap;
+
+  const headers = lines[0].split(',').map((h) => h.trim().replace(/^["']|["']$/g, '').toLowerCase());
+  const compIdIdx = headers.findIndex((h) => /^(test_id|componentid|component_id|id|sample_id)$/i.test(h));
+  const runIdx = headers.findIndex((h) => /^(run|run_id|transient_id|transient|pulse)$/i.test(h));
+  const timeIdx = headers.findIndex((h) => /^(time_us|time|timeus|timestamp_us|t_us)$/i.test(h));
+  const rdsIdx = headers.findIndex((h) => /^(rds_ohm|rdson|rds|r_ds|maxrdsinstantaneousohm)$/i.test(h));
+  const vdsIdx = headers.findIndex((h) => /^(vds|v_ds)$/i.test(h));
+  const idIdx = headers.findIndex((h) => /^(id|i_d|current)$/i.test(h));
+
+  const rdsonLimit = typeof engineeringLimits?.rdson === 'object'
+    ? (engineeringLimits.rdson.limitValue ?? engineeringLimits.rdson.upper ?? null)
+    : (typeof engineeringLimits?.rdson === 'number' ? engineeringLimits.rdson : null);
+
+  // Intermediate aggregation per component
+  const stats = new Map();
+
+  for (let i = 1; i < lines.length; i++) {
+    const cols = lines[i].split(',').map((c) => c.trim().replace(/^["']|["']$/g, ''));
+    if (cols.length === 0 || !cols[0]) continue;
+
+    const rawCompId = compIdIdx !== -1 ? cols[compIdIdx] : cols[0];
+    if (!rawCompId) continue;
+
+    const compId = rawCompId.startsWith('TEST-') ? rawCompId : (isNaN(Number(rawCompId)) ? rawCompId : `TEST-${String(rawCompId).padStart(2, '0')}`);
+    const runVal = runIdx !== -1 ? cols[runIdx] : `Run 1`;
+    const timeVal = timeIdx !== -1 ? parseFloat(cols[timeIdx]) : null;
+
+    let rdsVal = rdsIdx !== -1 ? parseFloat(cols[rdsIdx]) : NaN;
+    if (isNaN(rdsVal) && vdsIdx !== -1 && idIdx !== -1) {
+      const vds = parseFloat(cols[vdsIdx]);
+      const id = parseFloat(cols[idIdx]);
+      if (!isNaN(vds) && !isNaN(id) && id > 0) {
+        rdsVal = vds / id;
+      }
+    }
+
+    if (isNaN(rdsVal)) continue;
+
+    let compStat = stats.get(compId);
+    if (!compStat) {
+      compStat = {
+        maxRDSInstantaneousOhm: rdsVal,
+        peakRun: runVal,
+        peakTimeUs: !isNaN(timeVal) ? timeVal : null,
+        exceedanceCount: 0,
+        totalPoints: 0,
+      };
+      stats.set(compId, compStat);
+    }
+
+    compStat.totalPoints++;
+    if (rdsVal > compStat.maxRDSInstantaneousOhm) {
+      compStat.maxRDSInstantaneousOhm = rdsVal;
+      compStat.peakRun = runVal;
+      if (!isNaN(timeVal)) compStat.peakTimeUs = timeVal;
+    }
+
+    if (typeof rdsonLimit === 'number' && rdsonLimit > 0 && rdsVal > rdsonLimit) {
+      compStat.exceedanceCount++;
+    }
+  }
+
+  // Construct Module C objects
+  for (const [compId, s] of stats.entries()) {
+    const isExceeded = s.exceedanceCount > 0 || (typeof rdsonLimit === 'number' && rdsonLimit > 0 && s.maxRDSInstantaneousOhm > rdsonLimit);
+    const flag = isExceeded ? 'FLAGGED' : 'NOT FLAGGED';
+
+    componentMap.set(compId, {
+      status: 'ANALYZED',
+      method: 'TRANSIENT_PULSE_EXTRACTION',
+      parameters: {
+        rdson: {
+          maxRDSInstantaneousOhm: Number(s.maxRDSInstantaneousOhm.toFixed(6)),
+          limitExceedanceCount: s.exceedanceCount,
+          limitExceedanceFlag: flag,
+          evidenceTransientId: s.peakRun,
+          evidenceTimeUs: s.peakTimeUs,
+          aiFlag: flag,
+          totalTransientPoints: s.totalPoints,
+        },
+      },
+    });
+  }
+
+  return componentMap;
+}
+
+/**
+ * Extracts transient evidence from a file path on disk (ZIP archive or direct CSV)
+ *
+ * @param {string} filePath - Path to file on disk
+ * @param {Object} [engineeringLimits] - Engineering limits map
+ * @returns {Map<string, Object>} Map of componentId to Module C evaluation object
+ */
+function extractTransientEvidenceFromDisk(filePath, engineeringLimits = {}) {
+  if (!filePath || !fs.existsSync(filePath)) return new Map();
+
+  const lowerName = filePath.toLowerCase();
+
+  // 1. Direct CSV file
+  if (lowerName.endsWith('.csv')) {
+    try {
+      const text = fs.readFileSync(filePath, 'utf-8');
+      if (text.toLowerCase().includes('transient') || text.toLowerCase().includes('time_us') || text.toLowerCase().includes('rds_ohm')) {
+        return parseTransientCsvContent(text, engineeringLimits);
+      }
+    } catch {
+      return new Map();
+    }
+  }
+
+  // 2. ZIP Archive
+  if (lowerName.endsWith('.zip')) {
+    let fd;
+    try {
+      const stats = fs.statSync(filePath);
+      const fileSize = stats.size;
+      if (fileSize < 30) return new Map();
+
+      fd = fs.openSync(filePath, 'r');
+      let offset = 0;
+      const headerBuf = Buffer.alloc(30);
+      let entryCount = 0;
+
+      while (offset + 30 <= fileSize && entryCount < 100) {
+        entryCount++;
+        const readBytes = fs.readSync(fd, headerBuf, 0, 30, offset);
+        if (readBytes < 30) break;
+
+        // Check local file header signature 0x04034b50
+        if (headerBuf.readUInt32LE(0) !== 0x04034b50) {
+          break;
+        }
+
+        const method = headerBuf.readUInt16LE(8);
+        const compSize = headerBuf.readUInt32LE(18);
+        const uncompSize = headerBuf.readUInt32LE(22);
+        const fnLen = headerBuf.readUInt16LE(26);
+        const extraLen = headerBuf.readUInt16LE(28);
+
+        if (fnLen > 0) {
+          const nameBuf = Buffer.alloc(fnLen);
+          fs.readSync(fd, nameBuf, 0, fnLen, offset + 30);
+          const entryName = nameBuf.toString('utf-8').toLowerCase();
+          const dataStart = offset + 30 + fnLen + extraLen;
+
+          if ((entryName.includes('transient') || entryName.endsWith('_evidence.csv')) && compSize > 0 && dataStart + compSize <= fileSize) {
+            const dataChunk = Buffer.alloc(compSize);
+            fs.readSync(fd, dataChunk, 0, compSize, dataStart);
+
+            let text = '';
+            if (method === 0) {
+              text = dataChunk.toString('utf-8');
+            } else if (method === 8) {
+              try {
+                const decompressed = zlib.inflateRawSync(dataChunk);
+                text = decompressed.toString('utf-8');
+              } catch {
+                // Decompression error handled safely
+              }
+            }
+
+            if (text) {
+              return parseTransientCsvContent(text, engineeringLimits);
+            }
+          }
+        }
+
+        offset += 30 + fnLen + extraLen + compSize;
+      }
+    } catch {
+      return new Map();
+    } finally {
+      if (fd !== undefined) {
+        try { fs.closeSync(fd); } catch {}
+      }
+    }
+  }
+
+  return new Map();
+}
+
+module.exports = {
+  parseTransientCsvContent,
+  extractTransientEvidenceFromDisk,
+};

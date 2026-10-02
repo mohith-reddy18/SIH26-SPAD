@@ -21,6 +21,7 @@ const {
   overallStatus,
   currentYield,
 } = require('../utils/contractCalculations');
+const { extractTransientEvidenceFromDisk } = require('../utils/transientExtractor');
 
 /**
  * Normalizes parameter observations from measurements dictionary or history.
@@ -407,6 +408,10 @@ async function processRemoteScreeningRun({ lotId, componentId, customLimits = nu
     };
   }
 
+  const datasetTransientMap = (file?.path || typeof rawDataset === 'string')
+    ? extractTransientEvidenceFromDisk(file?.path || rawDataset, customLimits)
+    : new Map();
+
   const evaluatedRecords = [];
   let skippedItemsCount = 0;
 
@@ -571,8 +576,8 @@ async function processRemoteScreeningRun({ lotId, componentId, customLimits = nu
       ...(item.Module_A_Novelty_Percentiles ? { stagePercentiles: item.Module_A_Novelty_Percentiles } : {}),
     };
 
-    // 5.5 Extract & preserve complete Module C (Transient Pulse Analysis) from Python response
-    const rawModuleC = item.moduleC ?? item.Module_C ?? item.aiAssessment?.moduleC ?? item.transientAnalysis ?? null;
+    // 5.5 Extract & preserve complete Module C (Transient Pulse Analysis) from Python or dataset evidence
+    const rawModuleC = item.moduleC ?? item.Module_C ?? item.aiAssessment?.moduleC ?? item.transientAnalysis ?? datasetTransientMap.get(compId) ?? null;
     let moduleCObj = null;
     if (rawModuleC && typeof rawModuleC === 'object') {
       moduleCObj = { ...rawModuleC };

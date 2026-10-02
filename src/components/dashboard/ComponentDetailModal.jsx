@@ -289,6 +289,21 @@ export default function ComponentDetailModal({
   const m2BadgeStyle = getAiBadgeStyle(m2Flag);
 
   // --------------------------------------------------------------------------
+  // METHOD 3: Module C — Transient Pulse Extraction & Exceedance Evidence
+  // --------------------------------------------------------------------------
+  const moduleCObj = aiAssessment.moduleC || component.moduleC || null;
+  const m3Params = moduleCObj?.parameters || {};
+  const m3Param = m3Params.rdson || Object.values(m3Params)[0] || {};
+  const maxRDSInst = (typeof m3Param.maxRDSInstantaneousOhm === 'number') ? m3Param.maxRDSInstantaneousOhm : null;
+  const exceedanceCount = (typeof m3Param.limitExceedanceCount === 'number') ? m3Param.limitExceedanceCount : 0;
+  const exceedanceFlag = m3Param.limitExceedanceFlag || (exceedanceCount > 0 ? 'FLAGGED' : 'NOT FLAGGED');
+  const evidenceTransId = m3Param.evidenceTransientId || null;
+  const evidenceTimeUs = (typeof m3Param.evidenceTimeUs === 'number') ? m3Param.evidenceTimeUs : null;
+  const m3Flag = m3Param.aiFlag || exceedanceFlag || 'NOT_EVALUATED';
+  const m3BadgeStyle = getAiBadgeStyle(m3Flag);
+  const hasModuleC = Boolean(moduleCObj && (maxRDSInst !== null || m3Param.status === 'ANALYZED'));
+
+  // --------------------------------------------------------------------------
   // SECTION 5: Combined Overall AI Status
   // --------------------------------------------------------------------------
   const overallAiStatus = getNormalizedAiStatus(component);
@@ -662,6 +677,62 @@ export default function ComponentDetailModal({
               </div>
             )}
           </section>
+
+          {/* ============================================================ */}
+          {/* SECTION 4.5: MODULE C • TRANSIENT PULSE ANALYSIS            */}
+          {/* ============================================================ */}
+          {hasModuleC && (
+            <section className="spad-modal-section" aria-labelledby="heading-m3-transient" style={{ background: 'rgba(15, 23, 42, 0.45)', border: '1px solid rgba(56, 189, 248, 0.15)', borderRadius: '8px', padding: '14px 16px' }}>
+              <div className="spad-section-header" style={{ marginBottom: '12px' }}>
+                <div className="spad-section-title-wrap">
+                  <span className="spad-section-pill ai-pill">MODULE C</span>
+                  <h3 id="heading-m3-transient" className="spad-section-title">
+                    MODULE C • TRANSIENT PULSE EXTRACTION &amp; EXCEEDANCE
+                  </h3>
+                </div>
+                <div
+                  style={{
+                    fontSize: '11px',
+                    fontWeight: '700',
+                    fontFamily: 'var(--font-mono)',
+                    padding: '2px 8px',
+                    borderRadius: '4px',
+                    background: m3BadgeStyle.bg,
+                    border: `1px solid ${m3BadgeStyle.border}`,
+                    color: m3BadgeStyle.text,
+                  }}
+                >
+                  AI FLAG: {m3Flag}
+                </div>
+              </div>
+
+              {/* Module C Evidence Metrics Grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px' }}>
+                <div className="spad-peer-stat-box">
+                  <span className="spad-peer-stat-label">Max Instantaneous RDS(on)</span>
+                  <span className="spad-peer-stat-value font-mono text-cyan">
+                    {maxRDSInst !== null ? `${maxRDSInst.toFixed(4)} Ω` : '—'}
+                  </span>
+                </div>
+                <div className="spad-peer-stat-box">
+                  <span className="spad-peer-stat-label">Limit Exceedance Count</span>
+                  <span className="spad-peer-stat-value" style={{ color: exceedanceCount > 0 ? 'var(--spad-red, #EF4444)' : 'var(--spad-green, #22C55E)' }}>
+                    {exceedanceCount} pulses
+                  </span>
+                </div>
+                <div className="spad-peer-stat-box">
+                  <span className="spad-peer-stat-label">Peak Transient ID / Run</span>
+                  <span className="spad-peer-stat-value text-slate">{evidenceTransId || '—'}</span>
+                </div>
+                <div className="spad-peer-stat-box">
+                  <span className="spad-peer-stat-label">Peak Timestamp (Time_us)</span>
+                  <span className="spad-peer-stat-value font-mono text-slate">
+                    {evidenceTimeUs !== null ? `${evidenceTimeUs.toFixed(2)} µs` : '—'}
+                  </span>
+                </div>
+              </div>
+            </section>
+          )}
 
           {/* ============================================================ */}
           {/* SECTION 5: COMBINED AI DIAGNOSTIC EVIDENCE                   */}
