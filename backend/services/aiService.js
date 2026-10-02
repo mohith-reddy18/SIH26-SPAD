@@ -603,7 +603,7 @@ async function runScreening(payload, explicitSignal = null) {
     const headers = {
       'Content-Type': `multipart/form-data; boundary=${boundary}`,
       'Content-Length': String(totalContentLength),
-      ...(process.env.AI_SERVICE_KEY ? { Authorization: `Bearer ${process.env.AI_SERVICE_KEY}` } : {}),
+      ...(process.env.SPAD_API_KEY ? { 'X-SPAD-API-Key': process.env.SPAD_API_KEY } : {}),
     };
 
     const response = await fetch(targetUrl, {
