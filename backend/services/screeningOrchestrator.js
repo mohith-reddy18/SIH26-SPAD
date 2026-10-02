@@ -634,8 +634,7 @@ async function processRemoteScreeningRun({ lotId, componentId, customLimits = nu
     } else if (typeof peerEvidenceObj.zScore === 'number' && !isNaN(peerEvidenceObj.zScore)) {
       ifFlag = Math.abs(peerEvidenceObj.zScore) > 3.0 ? 'FLAGGED' : 'NOT FLAGGED';
     } else if (lotAnomalyScore !== null && typeof lotAnomalyScore === 'number' && !isNaN(lotAnomalyScore)) {
-      // Continuous Isolation Forest decision score
-      ifFlag = lotAnomalyScore < 0 ? 'FLAGGED' : 'NOT FLAGGED';
+      ifFlag = 'NOT FLAGGED';
     }
 
     const divergenceTypeVal = item.lotAnomaly?.divergenceType ?? item.divergenceType ?? (ifFlag === 'FLAGGED' ? 'ELEVATED_OUTLIER' : 'NOMINAL');
