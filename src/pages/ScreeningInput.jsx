@@ -256,6 +256,7 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
         ...next[index],
         limitValue: value,
         source: 'USER_ENGINEERING_INPUT',
+        isAuthoritative: false,
       };
       return next;
     });

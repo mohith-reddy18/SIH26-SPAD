@@ -222,18 +222,18 @@ export function getParameterMeta(key, limit) {
 
 /**
  * Normalizes stage labels to project-defined format:
- * 0hr -> 0%, 24hr -> 33.3%, 96hr -> 66.7%, 168hr -> 100%
+ * 0% -> 0hr, 33.33% -> 24hr, 66.67% -> 96hr, 100% -> 168hr
  *
  * @param {string} stage
  * @returns {string}
  */
 export function formatStageLabel(stage) {
-  if (!stage) return '100%';
+  if (!stage) return '168hr';
   const s = String(stage).trim();
-  if (s === '0%' || s === '0h' || s === '0hr' || s === '0H') return '0%';
-  if (s === '33.33%' || s === '33%' || s === '33.3%' || s === '24h' || s === '24hr' || s === '24H') return '33.3%';
-  if (s === '66.67%' || s === '66%' || s === '66.7%' || s === '67%' || s === '96h' || s === '96hr' || s === '96H') return '66.7%';
-  if (s === '100%' || s === '168h' || s === '168hr' || s === '168H') return '100%';
+  if (s === '0%' || s === '0h' || s === '0hr' || s === '0H') return '0hr';
+  if (s === '33.33%' || s === '33%' || s === '33.3%' || s === '24h' || s === '24hr' || s === '24H') return '24hr';
+  if (s === '66.67%' || s === '66%' || s === '66.7%' || s === '67%' || s === '96h' || s === '96hr' || s === '96H') return '96hr';
+  if (s === '100%' || s === '168h' || s === '168hr' || s === '168H') return '168hr';
   return s;
 }
 

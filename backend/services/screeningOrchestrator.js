@@ -82,21 +82,13 @@ async function evaluateSingleComponent({ targetDoc, sameLotDocs = [], customLimi
     ? { ...targetDoc.engineeringLimits }
     : {};
 
-  // Merge custom / operator-supplied limits for parameters that do not have database catalog limits
+  // Apply custom / operator-supplied limits as authoritative for this run
   if (customLimits && typeof customLimits === 'object') {
     for (const [paramKey, limitVal] of Object.entries(customLimits)) {
-      const isCustomDbCatalog = typeof limitVal === 'object' && String(limitVal.source || '').toUpperCase() === 'DATABASE_CATALOG';
-      if (
-        !engineeringLimits[paramKey] ||
-        engineeringLimits[paramKey].source === 'SUPPLIED' ||
-        engineeringLimits[paramKey].source === 'USER_ENGINEERING_INPUT' ||
-        engineeringLimits[paramKey].source === 'AI_ESTIMATED_BOUNDARY' ||
-        engineeringLimits[paramKey].source === 'NONE_AVAILABLE' ||
-        isCustomDbCatalog
-      ) {
+      if (limitVal !== null && limitVal !== undefined) {
         engineeringLimits[paramKey] = typeof limitVal === 'object'
-          ? limitVal
-          : { limitValue: limitVal, direction: 'UPPER', source: 'SUPPLIED' };
+          ? { ...limitVal }
+          : { limitValue: limitVal, direction: 'UPPER', source: 'USER_ENGINEERING_INPUT' };
       }
     }
   }
@@ -467,25 +459,20 @@ async function processRemoteScreeningRun({ lotId, componentId, customLimits = nu
       }
     }
 
-    // Merge lot-level database catalog limits
+    // Merge lot-level database catalog limits as fallback for any missing parameters
     for (const [pKey, pLim] of Object.entries(dbCatalogLimits)) {
       if (!authoritativeLimits[pKey]) {
         authoritativeLimits[pKey] = { ...pLim };
       }
     }
 
-    // Merge request-level limits:
-    // DATABASE_CATALOG from request is applied if present.
-    // USER_ENGINEERING_INPUT or SUPPLIED is applied ONLY for parameters that DO NOT have a DATABASE_CATALOG limit.
+    // Request-level engineering limits submitted by the user in the frontend are FINAL and AUTHORITATIVE for this run
     if (customLimits && typeof customLimits === 'object') {
       for (const [paramKey, limitVal] of Object.entries(customLimits)) {
-        const isCustomDb = typeof limitVal === 'object' && String(limitVal.source || '').toUpperCase() === 'DATABASE_CATALOG';
-        const hasDbCatalog = authoritativeLimits[paramKey] && String(authoritativeLimits[paramKey].source || '').toUpperCase() === 'DATABASE_CATALOG';
-
-        if (isCustomDb || !hasDbCatalog) {
+        if (limitVal !== null && limitVal !== undefined) {
           authoritativeLimits[paramKey] = typeof limitVal === 'object'
             ? { ...limitVal }
-            : { limitValue: limitVal, direction: 'UPPER', source: 'SUPPLIED' };
+            : { limitValue: limitVal, direction: 'UPPER', source: 'USER_ENGINEERING_INPUT' };
         }
       }
     }
