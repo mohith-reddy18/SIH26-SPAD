@@ -571,6 +571,28 @@ async function processRemoteScreeningRun({ lotId, componentId, customLimits = nu
       ...(item.Module_A_Novelty_Percentiles ? { stagePercentiles: item.Module_A_Novelty_Percentiles } : {}),
     };
 
+    // 5.5 Extract & preserve complete Module C (Transient Pulse Analysis) from Python response
+    const rawModuleC = item.moduleC ?? item.Module_C ?? item.aiAssessment?.moduleC ?? item.transientAnalysis ?? null;
+    let moduleCObj = null;
+    if (rawModuleC && typeof rawModuleC === 'object') {
+      moduleCObj = { ...rawModuleC };
+    } else if (item.maxRDSInstantaneousOhm !== undefined || item.limitExceedanceCount !== undefined || item.evidenceTransientId !== undefined) {
+      moduleCObj = {
+        status: item.limitExceedanceFlag ? 'ANALYZED' : 'NOT_EVALUATED',
+        method: 'TRANSIENT_PULSE_EXTRACTION',
+        parameters: {
+          rdson: {
+            maxRDSInstantaneousOhm: item.maxRDSInstantaneousOhm ?? null,
+            limitExceedanceCount: item.limitExceedanceCount ?? 0,
+            limitExceedanceFlag: item.limitExceedanceFlag ?? 'NOT FLAGGED',
+            evidenceTransientId: item.evidenceTransientId ?? null,
+            evidenceTimeUs: item.evidenceTimeUs ?? null,
+            aiFlag: item.limitExceedanceFlag ?? 'NOT FLAGGED',
+          },
+        },
+      };
+    }
+
     // 6. Deterministic engineering & overall status
     const rawEngStatus = item.engineering?.engineeringStatus ?? item.engineering?.status ?? item.engineeringStatus ?? item.status;
     let calculatedEngineeringStatus;
@@ -639,6 +661,7 @@ async function processRemoteScreeningRun({ lotId, componentId, customLimits = nu
             },
           },
         },
+        ...(moduleCObj ? { moduleC: moduleCObj } : {}),
         explanation: item.explanation || item.modelExplanation || null,
       },
       status: calculatedEngineeringStatus,
