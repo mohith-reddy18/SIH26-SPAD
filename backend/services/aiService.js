@@ -366,7 +366,7 @@ async function callRemoteInference(endpointPath, payload) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        ...(process.env.AI_SERVICE_KEY ? { Authorization: `Bearer ${process.env.AI_SERVICE_KEY}` } : {}),
+        ...(process.env.SPAD_API_KEY ? { 'X-SPAD-API-Key': process.env.SPAD_API_KEY } : {}),
       },
       body: JSON.stringify(payload),
       signal: AbortSignal.timeout(timeoutMs),

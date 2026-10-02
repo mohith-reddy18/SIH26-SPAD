@@ -98,6 +98,10 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
           if (Object.keys(dbLimits).length > 0) {
             setParameterLimits((prev) => {
               return prev.map((param) => {
+                // If the user has customized or edited this limit, preserve the user-entered value
+                if (param.source === 'USER_ENGINEERING_INPUT' || param.isUserEdited) {
+                  return param;
+                }
                 const dbLim = dbLimits[param.key];
                 if (dbLim !== undefined && dbLim !== null) {
                   const limVal = typeof dbLim === 'number' ? dbLim : (dbLim?.limitValue ?? dbLim?.upper ?? dbLim?.max ?? param.limitValue);
@@ -257,6 +261,7 @@ export default function ScreeningInput({ onNavigate, onSelectLot, selectedLotId,
         limitValue: value,
         source: 'USER_ENGINEERING_INPUT',
         isAuthoritative: false,
+        isUserEdited: true,
       };
       return next;
     });
