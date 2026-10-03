@@ -101,6 +101,18 @@ export default function ModelPerformance({ selectedLotId }) {
   const ifRawScore = typeof anomParam.lotAnomalyScore === 'number' ? anomParam.lotAnomalyScore : (typeof anomParam.peerComparisonEvidence?.rawScore === 'number' ? anomParam.peerComparisonEvidence.rawScore : null);
   const noveltyPercentile = typeof anomParam.peerComparisonEvidence?.noveltyPercentile === 'number' ? anomParam.peerComparisonEvidence.noveltyPercentile : null;
 
+  const modAFlag = anomParam.aiFlag || (lotAnomaly?.status === 'ANALYZED' ? 'NOT FLAGGED' : (lotAnomaly?.status === 'NOT_EVALUATED' ? 'NOT_EVALUATED' : 'NOT_EVALUATED'));
+  const modAColor = modAFlag === 'FLAGGED' ? '#ef4444' : modAFlag === 'NOT FLAGGED' ? '#22C55E' : '#94a3b8';
+
+  const moduleCObj = activeRecord?.aiAssessment?.moduleC || activeRecord?.moduleC || null;
+  const m3Param = moduleCObj?.parameters?.rdson || Object.values(moduleCObj?.parameters || {})[0] || {};
+  const maxRDSInst = typeof m3Param.maxRDSInstantaneousOhm === 'number' ? m3Param.maxRDSInstantaneousOhm : null;
+  const exceedanceCount = typeof m3Param.limitExceedanceCount === 'number' ? m3Param.limitExceedanceCount : (moduleCObj ? 0 : null);
+  const evidenceTransId = m3Param.evidenceTransientId || null;
+  const evidenceTimeUs = typeof m3Param.evidenceTimeUs === 'number' ? m3Param.evidenceTimeUs : null;
+  const m3Flag = m3Param.aiFlag || (moduleCObj?.status === 'ANALYZED' ? (exceedanceCount > 0 ? 'FLAGGED' : 'NOT FLAGGED') : 'NOT_EVALUATED');
+  const modCColor = m3Flag === 'FLAGGED' ? '#ef4444' : m3Flag === 'NOT FLAGGED' ? '#22C55E' : '#94a3b8';
+
   return (
     <div className="spad-page-container">
       {/* 1. Page Header */}
@@ -208,8 +220,8 @@ export default function ModelPerformance({ selectedLotId }) {
                   Isolation Forest &amp; Intra-Lot Statistical Peer Analysis
                 </h2>
               </div>
-              <span className="spad-status-pill" style={{ backgroundColor: riskColor + '20', color: riskColor, borderColor: riskColor + '60' }}>
-                STATUS: {anomParam.aiFlag || aiStatus}
+              <span className="spad-status-pill" style={{ backgroundColor: modAColor + '20', color: modAColor, borderColor: modAColor + '60' }}>
+                STATUS: {modAFlag}
               </span>
             </div>
 
@@ -386,10 +398,10 @@ export default function ModelPerformance({ selectedLotId }) {
               <strong> Positive values (+)</strong> increased predicted risk, while <strong>negative values (-)</strong> reduced risk toward baseline.
             </p>
 
-            {/* Prediction Banner */}
+            {/* Risk Assessment Banner */}
             <div className="spad-shap-prediction-banner">
               <div className="spad-shap-pred-item">
-                <span className="spad-pred-label">AI PREDICTED 100% RISK:</span>
+                <span className="spad-pred-label">AI PREDICTED 100% RISK INDEX:</span>
                 <div className="spad-pred-val-wrap">
                   <span className="spad-pred-percent" style={{ color: riskColor }}>
                     {aiRisk}%
@@ -398,6 +410,7 @@ export default function ModelPerformance({ selectedLotId }) {
                     {riskCategory}
                   </span>
                 </div>
+                <span style={{ fontSize: '10px', color: '#94a3b8', marginTop: '2px' }}>From Random Forest drift projection</span>
               </div>
 
               <div className="spad-shap-pred-item">
@@ -405,6 +418,7 @@ export default function ModelPerformance({ selectedLotId }) {
                 <span className="spad-pred-base font-mono">
                   {explanation.baseValue !== null && typeof explanation.baseValue === 'number' ? `${(explanation.baseValue * 100).toFixed(1)}%` : '—'}
                 </span>
+                <span style={{ fontSize: '10px', color: '#94a3b8', marginTop: '2px' }}>Intra-lot reference prior</span>
               </div>
 
               <div className="spad-shap-pred-item spad-shap-pred-span">
@@ -425,8 +439,11 @@ export default function ModelPerformance({ selectedLotId }) {
 
               <div className="spad-shap-features-list">
                 {!hasRealShap ? (
-                  <div style={{ padding: '24px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>
-                    No feature attribution data available for this component.
+                  <div style={{ padding: '24px', textAlign: 'center', color: '#94a3b8', fontSize: '13px', background: 'rgba(15, 23, 42, 0.4)', borderRadius: '6px' }}>
+                    <p style={{ margin: '0 0 6px 0', fontWeight: '600', color: '#cbd5e1' }}>Feature attribution data unavailable</p>
+                    <span style={{ fontSize: '12px', color: '#64748b' }}>
+                      SHAP decomposition requires live TreeExplainer kernel attributions from the Python ML service. The overall risk index above is evaluated from physical drift forecasting and peer cohort novelty.
+                    </span>
                   </div>
                 ) : (
                   explanation.features.map((feat, idx) => {
@@ -477,15 +494,76 @@ export default function ModelPerformance({ selectedLotId }) {
                 )}
               </div>
 
-              <div className="spad-shap-scale-legend">
-                <span className="text-green">◀ Negative SHAP (Reduces Risk)</span>
-                <span className="spad-shap-scale-center font-mono">0.00 Base</span>
-                <span className="text-red">Positive SHAP (Increases Risk) ▶</span>
-              </div>
+              {hasRealShap && (
+                <div className="spad-shap-scale-legend">
+                  <span className="text-green">◀ Negative SHAP (Reduces Risk)</span>
+                  <span className="spad-shap-scale-center font-mono">0.00 Base</span>
+                  <span className="text-red">Positive SHAP (Increases Risk) ▶</span>
+                </div>
+              )}
             </div>
 
             <div className="spad-shap-disclaimer-note">
               <span className="font-bold text-cyan">Technical Boundary:</span> SHAP attributions describe the mathematical feature contributions to the Bayesian ML model's early-risk forecast. The deterministic screening disposition (NORMAL / SUSPECT / CRITICAL) is independently evaluated against MIL-STD engineering specification limits.
+            </div>
+          </section>
+
+          {/* ============================================================ */}
+          {/* SECTION 4: TRANSIENT PULSE EXTRACTION (MODULE C)             */}
+          {/* ============================================================ */}
+          <section className="spad-card" style={{ padding: '24px', marginBottom: '20px' }}>
+            <div className="spad-section-header" style={{ marginBottom: '14px' }}>
+              <div className="spad-section-title-wrap">
+                <span className="spad-section-pill ai-pill">SECTION 4 • TRANSIENT MONITORING</span>
+                <h2 className="spad-section-title">
+                  Module C • Transient Pulse Extraction &amp; Overstress Telemetry
+                </h2>
+              </div>
+              <span className="spad-status-pill" style={{ backgroundColor: modCColor + '20', color: modCColor, borderColor: modCColor + '60' }}>
+                STATUS: {m3Flag}
+              </span>
+            </div>
+
+            <p className="spad-card-desc" style={{ marginBottom: '16px' }}>
+              Sub-microsecond transient waveform analysis monitors instantaneous peak resistance (RDS) during pulse switching transitions to capture latent oxide rupture or bond-wire degradation before steady-state shift.
+            </p>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginBottom: '16px' }}>
+              <div className="spad-lot-metric-pill" style={{ background: 'var(--spad-inset, #101119)', padding: '12px 14px' }}>
+                <span className="spad-lot-metric-label">MAX INSTANTANEOUS RDS(ON)</span>
+                <span className="spad-lot-metric-val font-mono text-cyan" style={{ fontSize: '15px' }}>
+                  {maxRDSInst !== null ? `${maxRDSInst.toFixed(4)} Ω` : '—'}
+                </span>
+                <span style={{ fontSize: '10px', color: '#94a3b8', marginTop: '2px' }}>Peak switching resistance</span>
+              </div>
+
+              <div className="spad-lot-metric-pill" style={{ background: 'var(--spad-inset, #101119)', padding: '12px 14px' }}>
+                <span className="spad-lot-metric-label">LIMIT EXCEEDANCE COUNT</span>
+                <span className="spad-lot-metric-val font-mono" style={{ fontSize: '15px', color: exceedanceCount && exceedanceCount > 0 ? '#ef4444' : '#22C55E' }}>
+                  {exceedanceCount !== null ? `${exceedanceCount} pulses` : '—'}
+                </span>
+                <span style={{ fontSize: '10px', color: '#94a3b8', marginTop: '2px' }}>Threshold breach instances</span>
+              </div>
+
+              <div className="spad-lot-metric-pill" style={{ background: 'var(--spad-inset, #101119)', padding: '12px 14px' }}>
+                <span className="spad-lot-metric-label">PEAK TRANSIENT ID</span>
+                <span className="spad-lot-metric-val font-mono text-slate" style={{ fontSize: '14px' }}>
+                  {evidenceTransId || '—'}
+                </span>
+                <span style={{ fontSize: '10px', color: '#94a3b8', marginTop: '2px' }}>Waveform capture reference</span>
+              </div>
+
+              <div className="spad-lot-metric-pill" style={{ background: 'var(--spad-inset, #101119)', padding: '12px 14px' }}>
+                <span className="spad-lot-metric-label">PEAK TIMESTAMP (TIME_US)</span>
+                <span className="spad-lot-metric-val font-mono text-slate" style={{ fontSize: '14px' }}>
+                  {evidenceTimeUs !== null ? `${evidenceTimeUs.toFixed(2)} µs` : '—'}
+                </span>
+                <span style={{ fontSize: '10px', color: '#94a3b8', marginTop: '2px' }}>Transient pulse window offset</span>
+              </div>
+            </div>
+
+            <div className="spad-shap-disclaimer-note" style={{ borderLeftColor: '#38bdf8' }}>
+              <span className="font-bold text-cyan">Engineering Boundary:</span> Transient pulse monitoring detects localized thermal hot-spotting and gate dielectric micro-defects during pulse transitions that evade low-frequency static DC screening.
             </div>
           </section>
         </>

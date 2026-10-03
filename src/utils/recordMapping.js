@@ -350,9 +350,12 @@ export function mapScreeningRecord(record) {
       futureRiskPrediction: typeof rawAnomalies.futureRiskPrediction === 'string' ? rawAnomalies.futureRiskPrediction : null,
     };
   } else if (lotAnomalyObj && typeof lotAnomalyObj === 'object') {
+    const lotAiFlag = lotAnomalyObj.parameters?.rdson?.aiFlag ?? lotAnomalyObj.aiFlag;
+    const predAiFlag = aiAssessmentObj.prediction?.parameters?.rdson?.aiFlag ?? aiAssessmentObj.prediction?.aiFlag;
+
     anomalies = {
-      populationAbnormality: lotAnomalyObj.overallStatus === 'FLAGGED' ? true : lotAnomalyObj.status === 'ANALYZED' ? false : null,
-      trajectoryAbnormality: aiAssessmentObj.prediction?.status === 'PREDICTED' ? (aiStatus === 'FLAGGED') : null,
+      populationAbnormality: lotAiFlag === 'FLAGGED' ? true : lotAiFlag === 'NOT FLAGGED' ? false : (lotAnomalyObj.status === 'ANALYZED' ? false : null),
+      trajectoryAbnormality: predAiFlag === 'FLAGGED' ? true : predAiFlag === 'NOT FLAGGED' ? false : (aiAssessmentObj.prediction?.status === 'PREDICTED' ? false : null),
       futureRiskPrediction: typeof riskScore === 'number' ? `${aiRisk}% Risk` : null,
     };
   }
