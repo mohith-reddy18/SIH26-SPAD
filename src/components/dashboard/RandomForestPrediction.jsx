@@ -63,13 +63,13 @@ export default function RandomForestPrediction({ records = [] }) {
         </div>
         <div className="spad-card-badge-static">
           <TrendingUpIcon />
-          <span>0hr + 24hr EARLY MEASUREMENTS → 168hr FORECAST</span>
+          <span>0% + 33.3% EARLY MEASUREMENTS → 100% FORECAST</span>
         </div>
       </div>
 
       {/* 2. Model Description */}
       <p className="spad-card-desc">
-        <strong>Component-Level Prediction Workflow:</strong> Evaluates physical devices individually using <strong>0hr baseline + 24hr early measurements</strong> to predict future 168hr parameter values and trajectory degradation. Identifies projected limit breaches and abnormal drift before physical test completion.
+        <strong>Component-Level Prediction Workflow:</strong> Evaluates physical devices individually using <strong>0% baseline + 33.3% early measurements</strong> to predict future 100% parameter values and trajectory degradation. Identifies projected limit breaches and abnormal drift before physical test completion.
       </p>
 
       {/* 3. Workflow Steps Ribbon */}
@@ -86,18 +86,18 @@ export default function RandomForestPrediction({ records = [] }) {
         }}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-          <span style={{ fontSize: '10px', color: '#38bdf8', fontWeight: '700', letterSpacing: '0.05em' }}>STEP 1 • BASELINE (0hr)</span>
+          <span style={{ fontSize: '10px', color: '#38bdf8', fontWeight: '700', letterSpacing: '0.05em' }}>STEP 1 • BASELINE (0%)</span>
           <span style={{ fontSize: '12px', color: '#f8fafc', fontWeight: '600' }}>Initial Ingestion</span>
           <span style={{ fontSize: '10.5px', color: '#94a3b8' }}>Baseline RDS(on) value</span>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-          <span style={{ fontSize: '10px', color: '#38bdf8', fontWeight: '700', letterSpacing: '0.05em' }}>STEP 2 • EARLY GATE (24hr)</span>
+          <span style={{ fontSize: '10px', color: '#38bdf8', fontWeight: '700', letterSpacing: '0.05em' }}>STEP 2 • EARLY GATE (33.3%)</span>
           <span style={{ fontSize: '12px', color: '#f8fafc', fontWeight: '600' }}>Early Observation</span>
           <span style={{ fontSize: '10.5px', color: '#94a3b8' }}>Rate of change &amp; early drift</span>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
           <span style={{ fontSize: '10px', color: '#38bdf8', fontWeight: '700', letterSpacing: '0.05em' }}>STEP 3 • RANDOM FOREST</span>
-          <span style={{ fontSize: '12px', color: '#f8fafc', fontWeight: '600' }}>168hr Regressor</span>
+          <span style={{ fontSize: '12px', color: '#f8fafc', fontWeight: '600' }}>100% Regressor</span>
           <span style={{ fontSize: '10.5px', color: '#94a3b8' }}>LOOCV MAE 0.0528 Ω</span>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
@@ -126,7 +126,7 @@ export default function RandomForestPrediction({ records = [] }) {
         </div>
         <div className="spad-lot-metric-pill">
           <span className="spad-lot-metric-label">PREDICTION HORIZON</span>
-          <span className="spad-lot-metric-val font-mono text-cyan">168hr Forecast Horizon</span>
+          <span className="spad-lot-metric-val font-mono text-cyan">100% Forecast Horizon</span>
         </div>
         <div className="spad-lot-metric-pill">
           <span className="spad-lot-metric-label">RANDOM FOREST FLAGGED</span>
@@ -156,7 +156,7 @@ export default function RandomForestPrediction({ records = [] }) {
         </div>
         <div>
           <span style={{ color: '#64748b', display: 'block', fontSize: '10px' }}>INPUT FEATURE SPACE</span>
-          <span style={{ color: '#38bdf8', fontWeight: '600' }}>[RDS(0hr), RDS(24hr), ΔRDS/Δt]</span>
+          <span style={{ color: '#38bdf8', fontWeight: '600' }}>[RDS(0%), RDS(33.3%), ΔRDS/Δt]</span>
         </div>
         <div>
           <span style={{ color: '#64748b', display: 'block', fontSize: '10px' }}>VALIDATION ERROR</span>

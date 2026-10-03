@@ -148,7 +148,7 @@ export function evaluateComponentEngineeringDecision(
     limits.rdson !== undefined;
 
   if (hasRdsData) {
-    // 1. RDS(on) — 0h OBSERVED
+    // 1. RDS(on) — 0% OBSERVED
     const is0hViolated = hasRdsLimit && obs0h !== null && obs0h > rdsSpecLimit;
     if (hasRdsLimit && obs0h !== null) evaluatedLimitCount += 1;
     if (is0hViolated) violatingCount += 1;
@@ -156,8 +156,8 @@ export function evaluateComponentEngineeringDecision(
     paramResults.push({
       id: 'rdson_0h',
       key: 'rdson_0h',
-      name: 'RDS(on) — 0h OBSERVED',
-      shortName: 'RDS(0h)',
+      name: 'RDS(on) — 0% OBSERVED',
+      shortName: 'RDS(0%)',
       unit: 'Ω',
       limit: hasRdsLimit ? rdsSpecLimit : undefined,
       currentValue: obs0h,
@@ -165,7 +165,7 @@ export function evaluateComponentEngineeringDecision(
       status: !hasRdsLimit || obs0h === null ? 'NOT EVALUATED' : is0hViolated ? 'EXCEEDS LIMIT' : 'WITHIN LIMIT',
     });
 
-    // 2. RDS(on) — 24h OBSERVED
+    // 2. RDS(on) — 33.3% OBSERVED
     const is24hViolated = hasRdsLimit && obs24h !== null && obs24h > rdsSpecLimit;
     if (hasRdsLimit && obs24h !== null) evaluatedLimitCount += 1;
     if (is24hViolated) violatingCount += 1;
@@ -173,8 +173,8 @@ export function evaluateComponentEngineeringDecision(
     paramResults.push({
       id: 'rdson_24h',
       key: 'rdson_24h',
-      name: 'RDS(on) — 24h OBSERVED',
-      shortName: 'RDS(24h)',
+      name: 'RDS(on) — 33.3% OBSERVED',
+      shortName: 'RDS(33.3%)',
       unit: 'Ω',
       limit: hasRdsLimit ? rdsSpecLimit : undefined,
       currentValue: obs24h,
@@ -182,7 +182,7 @@ export function evaluateComponentEngineeringDecision(
       status: !hasRdsLimit || obs24h === null ? 'NOT EVALUATED' : is24hViolated ? 'EXCEEDS LIMIT' : 'WITHIN LIMIT',
     });
 
-    // 3. RDS(on) — 168h FORECAST (if predicted168h exists)
+    // 3. RDS(on) — 100% FORECAST (if predicted168h exists)
     if (pred168h !== null && typeof pred168h === 'number' && !isNaN(pred168h)) {
       const isPredViolated = hasRdsLimit && pred168h > rdsSpecLimit;
       if (hasRdsLimit) evaluatedLimitCount += 1;
@@ -191,8 +191,8 @@ export function evaluateComponentEngineeringDecision(
       paramResults.push({
         id: 'rdson_168h_forecast',
         key: 'rdson_168h_forecast',
-        name: 'RDS(on) — 168h FORECAST',
-        shortName: 'RDS(168h)',
+        name: 'RDS(on) — 100% FORECAST',
+        shortName: 'RDS(100%)',
         unit: 'Ω',
         limit: hasRdsLimit ? rdsSpecLimit : undefined,
         currentValue: pred168h,
@@ -356,7 +356,7 @@ export default function ComponentDetailModal({
 
   const compId = component.id || component.componentId || 'UNKNOWN';
   const lotId = component.lotId || 'NASA-MOSFET-199C';
-  const stage = component.stage || '24h';
+  const stage = component.stage || '33.3%';
 
   // 2. AI Assessment & Methods Extraction
   const aiAssessment = component.aiAssessment || {};
@@ -797,27 +797,27 @@ export default function ComponentDetailModal({
             {/* Timeline Progress Bar / Nodes */}
             <div style={{ display: 'grid', gridTemplateColumns: pred96h !== null ? 'repeat(4, 1fr)' : 'repeat(3, 1fr)', gap: '8px', marginBottom: '14px' }}>
               <div style={{ background: 'rgba(15, 23, 42, 0.6)', border: '1px solid rgba(56, 189, 248, 0.12)', borderRadius: '6px', padding: '8px 10px', textAlign: 'center' }}>
-                <div style={{ fontSize: '9.5px', color: '#94a3b8', fontWeight: '600', textTransform: 'uppercase' }}>0hr [OBSERVED]</div>
+                <div style={{ fontSize: '9.5px', color: '#94a3b8', fontWeight: '600', textTransform: 'uppercase' }}>0% [OBSERVED]</div>
                 <div style={{ fontSize: '13px', fontWeight: '700', color: '#38bdf8', fontFamily: 'var(--font-mono)', marginTop: '2px' }}>
                   {obs0h !== null ? `${obs0h.toFixed(3)} Ω` : '—'}
                 </div>
               </div>
               <div style={{ background: 'rgba(15, 23, 42, 0.6)', border: '1px solid rgba(56, 189, 248, 0.12)', borderRadius: '6px', padding: '8px 10px', textAlign: 'center' }}>
-                <div style={{ fontSize: '9.5px', color: '#94a3b8', fontWeight: '600', textTransform: 'uppercase' }}>24hr [OBSERVED]</div>
+                <div style={{ fontSize: '9.5px', color: '#94a3b8', fontWeight: '600', textTransform: 'uppercase' }}>33.3% [OBSERVED]</div>
                 <div style={{ fontSize: '13px', fontWeight: '700', color: '#38bdf8', fontFamily: 'var(--font-mono)', marginTop: '2px' }}>
                   {obs24h !== null ? `${obs24h.toFixed(3)} Ω` : '—'}
                 </div>
               </div>
               {pred96h !== null && (
                 <div style={{ background: 'rgba(15, 23, 42, 0.6)', border: '1px solid rgba(56, 189, 248, 0.12)', borderRadius: '6px', padding: '8px 10px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '9.5px', color: '#94a3b8', fontWeight: '600', textTransform: 'uppercase' }}>96hr [PREDICTED]</div>
+                  <div style={{ fontSize: '9.5px', color: '#94a3b8', fontWeight: '600', textTransform: 'uppercase' }}>66.7% [PREDICTED]</div>
                   <div style={{ fontSize: '13px', fontWeight: '700', color: '#f59e0b', fontFamily: 'var(--font-mono)', marginTop: '2px' }}>
                     {`${pred96h.toFixed(3)} Ω`}
                   </div>
                 </div>
               )}
               <div style={{ background: 'rgba(15, 23, 42, 0.6)', border: '1px solid rgba(56, 189, 248, 0.12)', borderRadius: '6px', padding: '8px 10px', textAlign: 'center' }}>
-                <div style={{ fontSize: '9.5px', color: '#94a3b8', fontWeight: '600', textTransform: 'uppercase' }}>168hr [FORECAST]</div>
+                <div style={{ fontSize: '9.5px', color: '#94a3b8', fontWeight: '600', textTransform: 'uppercase' }}>100% [FORECAST]</div>
                 <div style={{ fontSize: '13px', fontWeight: '700', color: 'var(--spad-green, #22C55E)', fontFamily: 'var(--font-mono)', marginTop: '2px' }}>
                   {pred168h !== null ? `${pred168h.toFixed(3)} Ω` : '—'}
                 </div>
@@ -831,7 +831,7 @@ export default function ComponentDetailModal({
                 <span className="spad-peer-stat-value text-slate">{m1Status}</span>
               </div>
               <div className="spad-peer-stat-box">
-                <span className="spad-peer-stat-label">Rate of Change (0hr &rarr; 24hr)</span>
+                <span className="spad-peer-stat-label">Rate of Change (0% &rarr; 33.3%)</span>
                 <span className="spad-peer-stat-value text-cyan">
                   {roc !== null ? `${roc > 0 ? '+' : ''}${roc.toFixed(6)} Ω/hr` : '—'}
                 </span>

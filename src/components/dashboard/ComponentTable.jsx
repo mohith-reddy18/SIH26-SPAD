@@ -19,20 +19,40 @@ export default function ComponentTable({ records = [], onSelectComponent }) {
 
   // Dynamically derive parameter columns from records telemetry
   const paramColumns = useMemo(() => {
+    const IGNORED_KEYS = new Set([
+      '0h', '24h', '96h', '168h', '0hr', '24hr', '96hr', '168hr',
+      '0H', '24H', '96H', '168H', '0%', '33%', '33.3%', '33.33%', '66%', '66.7%', '66.67%', '100%',
+      'RDS0', 'RDS33', 'RDS96', 'RDS168', 'rds0', 'rds33', 'rds96', 'rds168',
+      'rdson_0h', 'rdson_24h', 'rdson_96h', 'rdson_168h', 'rdson_168h_forecast', 'rdson_forecast',
+      'delta_rdson', 'delta-rdson', 'deltardson', 'delta_rds', 'Delta_RDS_0_33',
+      'Forecast_Residual', 'Absolute_Forecast_Error', 'Relative_Error_Percent',
+    ]);
     const keysSet = new Set();
     records.forEach((r) => {
       if (r.measurements && typeof r.measurements === 'object') {
-        Object.keys(r.measurements).forEach((k) => keysSet.add(k));
+        Object.keys(r.measurements).forEach((k) => {
+          if (!IGNORED_KEYS.has(k) && !k.toLowerCase().includes('delta_rds') && !k.toLowerCase().includes('deltardson')) {
+            keysSet.add(k);
+          }
+        });
       }
     });
     if (keysSet.size === 0) {
       return [
         getParameterMeta('rdson'),
-        getParameterMeta('delta_rdson'),
         getParameterMeta('temp'),
       ];
     }
-    return Array.from(keysSet).map((k) => getParameterMeta(k));
+    const seenNames = new Set();
+    const cols = [];
+    Array.from(keysSet).forEach((k) => {
+      const meta = getParameterMeta(k);
+      if (!seenNames.has(meta.name.toLowerCase())) {
+        seenNames.add(meta.name.toLowerCase());
+        cols.push(meta);
+      }
+    });
+    return cols;
   }, [records]);
 
   const filteredRecords = useMemo(() => {
@@ -222,12 +242,12 @@ export default function ComponentTable({ records = [], onSelectComponent }) {
                         </td>
                       );
                     })}
-                    {/* Method 1: RF — 168h Prediction */}
+                    {/* Method 1: RF — 100% Prediction */}
                     <td>
                       <div className="spad-rf-cell" style={{ display: 'flex', flexDirection: 'column', gap: '3px', fontFamily: 'var(--font-mono)' }}>
                         {pred168h !== null ? (
                           <span style={{ fontSize: '11px', color: '#94a3b8' }}>
-                            168h: <span className="text-cyan font-bold">{pred168h.toFixed(3)} Ω</span>
+                            100%: <span className="text-cyan font-bold">{pred168h.toFixed(3)} Ω</span>
                           </span>
                         ) : (
                           <span className="text-muted" style={{ fontSize: '11px' }}>—</span>

@@ -73,28 +73,71 @@ export default function ObservabilityStudy({ selectedLotId, onSelectLot }) {
   const engineeringLimits = activeRecord?.engineeringLimits || {};
   const lotAnomaly = activeRecord?.aiAssessment?.lotAnomaly || null;
 
-  // 3. Dynamic parameter keys extraction from backend measurements
+  // Set of keys to ignore from parameter tables (internal timepoints, suffixed keys, and early drift ΔRDS)
+  const IGNORED_OBS_KEYS = useMemo(() => new Set([
+    '0h', '24h', '96h', '168h', '0hr', '24hr', '96hr', '168hr',
+    '0H', '24H', '96H', '168H', '0%', '33%', '33.3%', '33.33%', '66%', '66.7%', '66.67%', '100%',
+    'RDS0', 'RDS33', 'RDS96', 'RDS168', 'rds0', 'rds33', 'rds96', 'rds168',
+    'rdson_0h', 'rdson_24h', 'rdson_96h', 'rdson_168h', 'rdson_168h_forecast', 'rdson_forecast',
+    'delta_rdson', 'delta-rdson', 'deltardson', 'delta_rds', 'Delta_RDS_0_33',
+    'Forecast_Residual', 'Absolute_Forecast_Error', 'Relative_Error_Percent',
+  ]), []);
+
+  // 3. Dynamic canonical parameter keys extraction from backend measurements
   const availableParamKeys = useMemo(() => {
-    const keys = Object.keys(measurements);
-    return keys.length > 0 ? keys : ['rdson', 'delta_rdson', 'temp'];
-  }, [measurements]);
+    const rawKeys = [
+      ...Object.keys(measurements || {}),
+      ...Object.keys(engineeringLimits || {}),
+    ];
+    const filtered = rawKeys.filter((k) => !IGNORED_OBS_KEYS.has(k) && !k.toLowerCase().includes('delta_rds') && !k.toLowerCase().includes('deltardson'));
+    const uniqueCanonical = Array.from(new Set(filtered));
+    return uniqueCanonical.length > 0 ? uniqueCanonical : ['rdson', 'temp'];
+  }, [measurements, engineeringLimits, IGNORED_OBS_KEYS]);
 
   // Map parameter keys to display information
   const parameterRows = useMemo(() => {
-    return availableParamKeys.map((key) => {
+    const rows = [];
+    const seenNames = new Set();
+
+    availableParamKeys.forEach((key) => {
       const rawLimit = engineeringLimits[key];
       const meta = getParameterMeta(key, rawLimit);
       const name = meta.name;
       const unit = meta.unit;
 
-      const series = measurements[key] || [];
-      const obs0h = Array.isArray(series) && series.length > 0 ? series[0] : (series['0h'] ?? null);
-      const obs24h = Array.isArray(series) && series.length > 1 ? series[1] : (series['24h'] ?? null);
-      const obs96h = Array.isArray(series) && series.length > 2 ? series[2] : (series['96h'] ?? null);
-      const obsFinal = Array.isArray(series) && series.length > 0 ? series[series.length - 1] : obs24h;
+      if (seenNames.has(name.toLowerCase())) return;
+      seenNames.add(name.toLowerCase());
+
+      const series = measurements[key];
+
+      let obs0h = null;
+      let obs24h = null;
+      let obs96h = null;
+
+      if (Array.isArray(series)) {
+        if (series.length > 0 && typeof series[0] === 'number') obs0h = series[0];
+        if (series.length > 1 && typeof series[1] === 'number') obs24h = series[1];
+        if (series.length > 2 && typeof series[2] === 'number') obs96h = series[2];
+      } else if (typeof series === 'object' && series !== null) {
+        obs0h = series['0h'] ?? series['0hr'] ?? series['0%'] ?? series['RDS0'] ?? series['0H'] ?? null;
+        obs24h = series['24h'] ?? series['24hr'] ?? series['33.3%'] ?? series['33%'] ?? series['RDS33'] ?? series['24H'] ?? null;
+        obs96h = series['96h'] ?? series['96hr'] ?? series['66.7%'] ?? series['66%'] ?? series['RDS96'] ?? series['96H'] ?? null;
+      } else if (typeof series === 'number') {
+        obs0h = series;
+      }
+
+      // Checkpoint resolution fallbacks from canonical measurements if still null for primary parameter (rdson)
+      if (key === 'rdson' || key === 'rdson_ohm' || key === 'rds_on') {
+        if (obs0h === null) obs0h = measurements.rdson_0h ?? measurements['0h'] ?? measurements['0hr'] ?? measurements['0%'] ?? measurements['RDS0'] ?? activeRecord?.aiAssessment?.prediction?.parameters?.rdson?.observed?.['0h'] ?? activeRecord?.aiAssessment?.prediction?.parameters?.rdson?.observed?.['0hr'] ?? null;
+        if (obs24h === null) obs24h = measurements.rdson_24h ?? measurements['24h'] ?? measurements['24hr'] ?? measurements['33.3%'] ?? measurements['RDS33'] ?? activeRecord?.aiAssessment?.prediction?.parameters?.rdson?.observed?.['24h'] ?? activeRecord?.aiAssessment?.prediction?.parameters?.rdson?.observed?.['24hr'] ?? null;
+        if (obs96h === null) obs96h = measurements.rdson_96h ?? measurements['96h'] ?? measurements['96hr'] ?? measurements['66.7%'] ?? measurements['RDS96'] ?? null;
+      }
 
       // Canonical prediction resolution
-      const pred168h = extractPredictedValue(activeRecord, key) ?? obsFinal;
+      let pred168h = extractPredictedValue(activeRecord, key);
+      if (pred168h === null && Array.isArray(series) && series.length > 3) {
+        pred168h = series[3];
+      }
 
       const limit = meta.specLimitMax;
 
@@ -105,21 +148,26 @@ export default function ObservabilityStudy({ selectedLotId, onSelectLot }) {
 
       const isBreached = typeof limit === 'number' && typeof pred168h === 'number' && pred168h > limit;
 
-      return {
-        key,
-        name,
-        unit,
-        series,
-        obs0h,
-        obs24h,
-        obs96h,
-        pred168h,
-        limit,
-        margin,
-        isBreached,
-      };
+      // Only push row if at least one actual checkpoint or limit exists
+      if (obs0h !== null || obs24h !== null || obs96h !== null || pred168h !== null || limit !== undefined) {
+        rows.push({
+          key,
+          name,
+          unit,
+          series,
+          obs0h,
+          obs24h,
+          obs96h,
+          pred168h,
+          limit,
+          margin,
+          isBreached,
+        });
+      }
     });
-  }, [availableParamKeys, measurements, predictions, engineeringLimits]);
+
+    return rows;
+  }, [availableParamKeys, measurements, predictions, engineeringLimits, activeRecord]);
 
   const filteredParameterRows = useMemo(() => {
     if (selectedParamKey === 'ALL') return parameterRows;
@@ -135,7 +183,7 @@ export default function ObservabilityStudy({ selectedLotId, onSelectLot }) {
           <span className="spad-page-tag">POPULATION &amp; TRAJECTORY DYNAMICS</span>
         </div>
         <p className="spad-page-description">
-          Observed burn-in degradation trajectories, parameter checkpoints (0hr &rarr; 24hr &rarr; 96hr), AI 168hr forecast projections, and engineering specification boundary margin analysis.
+          Observed burn-in degradation trajectories, parameter checkpoints (0% &rarr; 33.3% &rarr; 66.7% &rarr; 100%), AI 100% forecast projections, and engineering specification boundary margin analysis.
         </p>
       </header>
 
@@ -259,10 +307,10 @@ export default function ObservabilityStudy({ selectedLotId, onSelectLot }) {
             <thead>
               <tr>
                 <th>PARAMETER</th>
-                <th>0hr (BASELINE)</th>
-                <th>24hr (EARLY)</th>
-                <th>96hr (INTERMEDIATE)</th>
-                <th>168hr (AI FORECAST)</th>
+                <th>0% (BASELINE)</th>
+                <th>33.3% (EARLY)</th>
+                <th>66.7% (INTERMEDIATE)</th>
+                <th>100% (AI FORECAST)</th>
                 <th>ENGINEERING LIMIT</th>
                 <th>SAFETY MARGIN</th>
                 <th>STATUS</th>

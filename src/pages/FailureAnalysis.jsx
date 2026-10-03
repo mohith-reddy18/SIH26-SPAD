@@ -76,7 +76,7 @@ export default function FailureAnalysis({ selectedLotId, onSelectLot }) {
   const engineeringLimits = activeComponent?.engineeringLimits || {};
   const modelExplanation = activeComponent?.modelExplanation || {
     framework: 'SHAP (TreeExplainer)',
-    targetPrediction: 'Predicted 168h Limit Risk',
+    targetPrediction: 'Predicted 100% Limit Risk',
     baseValue: null,
     features: [],
     summaryText: 'No model explanation available for this record.',
@@ -231,35 +231,69 @@ export default function FailureAnalysis({ selectedLotId, onSelectLot }) {
                 </tr>
               </thead>
               <tbody>
-                {Object.keys(measurements).map((key) => {
-                  const limitRaw = engineeringLimits[key];
-                  const meta = getParameterMeta(key, limitRaw);
-                  const name = meta.name;
-                  const unit = meta.unit;
-                  const series = measurements[key] || [];
-                  const obsFormatted = Array.isArray(series)
-                    ? series.map((v) => `${v} ${unit}`).join(' → ')
-                    : (typeof series === 'object' ? Object.entries(series).map(([tp, val]) => `${tp}: ${val} ${unit}`).join(' → ') : `${series} ${unit}`);
-                  const predVal = extractPredictedValue(activeComponent, key) ?? (Array.isArray(series) ? series[series.length - 1] : null);
-                  const limitVal = meta.specLimitMax;
-                  const margin = typeof limitVal === 'number' && typeof predVal === 'number' ? (limitVal - predVal).toFixed(2) : '—';
-                  const isBreached = typeof limitVal === 'number' && typeof predVal === 'number' && predVal > limitVal;
-
-                  return (
-                    <tr key={key} className="spad-table-row">
-                      <td className="spad-td-mono font-bold text-cyan">{name}</td>
-                      <td className="spad-td-mono">{obsFormatted}</td>
-                      <td className="spad-td-mono font-bold" style={{ color: '#38bdf8' }}>{predVal !== undefined && predVal !== null ? `${typeof predVal === 'number' ? predVal.toFixed(2) : predVal} ${unit}` : '—'}</td>
-                      <td className="spad-td-mono" style={{ color: '#f87171', fontWeight: '700' }}>{limitVal !== undefined && limitVal !== null ? `${typeof limitVal === 'number' ? limitVal.toFixed(2) : limitVal} ${unit}` : '—'}</td>
-                      <td className="spad-td-mono" style={{ color: isBreached ? '#ef4444' : 'var(--spad-green, #22C55E)' }}>{margin !== '—' ? `+${margin} ${unit}` : '—'}</td>
-                      <td>
-                        <span className={`spad-status-pill ${isBreached ? 'badge-status-critical' : 'badge-status-normal'}`}>
-                          {isBreached ? 'EXCEEDS LIMIT' : 'WITHIN LIMIT'}
-                        </span>
-                      </td>
-                    </tr>
+                {(() => {
+                  const IGNORED_KEYS = new Set([
+                    '0h', '24h', '96h', '168h', '0hr', '24hr', '96hr', '168hr',
+                    '0H', '24H', '96H', '168H', '0%', '33%', '33.3%', '33.33%', '66%', '66.7%', '66.67%', '100%',
+                    'RDS0', 'RDS33', 'RDS96', 'RDS168', 'rds0', 'rds33', 'rds96', 'rds168',
+                    'rdson_0h', 'rdson_24h', 'rdson_96h', 'rdson_168h', 'rdson_168h_forecast', 'rdson_forecast',
+                    'delta_rdson', 'delta-rdson', 'deltardson', 'delta_rds', 'Delta_RDS_0_33',
+                    'Forecast_Residual', 'Absolute_Forecast_Error', 'Relative_Error_Percent',
+                  ]);
+                  const seenNames = new Set();
+                  const filteredKeys = Object.keys(measurements).filter(
+                    (k) => !IGNORED_KEYS.has(k) && !k.toLowerCase().includes('delta_rds') && !k.toLowerCase().includes('deltardson')
                   );
-                })}
+                  const validKeys = filteredKeys.length > 0 ? filteredKeys : (measurements.rdson !== undefined ? ['rdson'] : []);
+
+                  return validKeys.map((key) => {
+                    const limitRaw = engineeringLimits[key];
+                    const meta = getParameterMeta(key, limitRaw);
+                    const name = meta.name;
+                    const unit = meta.unit;
+
+                    if (seenNames.has(name.toLowerCase())) return null;
+                    seenNames.add(name.toLowerCase());
+
+                    const series = measurements[key] || [];
+                    let obsFormatted = '—';
+                    if (Array.isArray(series)) {
+                      obsFormatted = series.map((v) => `${v} ${unit}`).join(' → ');
+                    } else if (typeof series === 'object' && series !== null) {
+                      const obs0 = series['0h'] ?? series['0hr'] ?? series['0%'] ?? series['RDS0'] ?? null;
+                      const obs24 = series['24h'] ?? series['24hr'] ?? series['33.3%'] ?? series['RDS33'] ?? null;
+                      const obs96 = series['96h'] ?? series['96hr'] ?? series['66.7%'] ?? series['RDS96'] ?? null;
+                      const validObs = [
+                        obs0 !== null ? `0%: ${obs0} ${unit}` : null,
+                        obs24 !== null ? `33.3%: ${obs24} ${unit}` : null,
+                        obs96 !== null ? `66.7%: ${obs96} ${unit}` : null,
+                      ].filter(Boolean);
+                      obsFormatted = validObs.length > 0 ? validObs.join(' → ') : '—';
+                    } else if (typeof series === 'number') {
+                      obsFormatted = `${series} ${unit}`;
+                    }
+
+                    const predVal = extractPredictedValue(activeComponent, key) ?? (Array.isArray(series) ? series[series.length - 1] : null);
+                    const limitVal = meta.specLimitMax;
+                    const margin = typeof limitVal === 'number' && typeof predVal === 'number' ? (limitVal - predVal).toFixed(2) : '—';
+                    const isBreached = typeof limitVal === 'number' && typeof predVal === 'number' && predVal > limitVal;
+
+                    return (
+                      <tr key={key} className="spad-table-row">
+                        <td className="spad-td-mono font-bold text-cyan">{name}</td>
+                        <td className="spad-td-mono">{obsFormatted}</td>
+                        <td className="spad-td-mono font-bold" style={{ color: '#38bdf8' }}>{predVal !== undefined && predVal !== null ? `${typeof predVal === 'number' ? predVal.toFixed(2) : predVal} ${unit}` : '—'}</td>
+                        <td className="spad-td-mono" style={{ color: '#f87171', fontWeight: '700' }}>{limitVal !== undefined && limitVal !== null ? `${typeof limitVal === 'number' ? limitVal.toFixed(2) : limitVal} ${unit}` : '—'}</td>
+                        <td className="spad-td-mono" style={{ color: isBreached ? '#ef4444' : 'var(--spad-green, #22C55E)' }}>{margin !== '—' ? `+${margin} ${unit}` : '—'}</td>
+                        <td>
+                          <span className={`spad-status-pill ${isBreached ? 'badge-status-critical' : 'badge-status-normal'}`}>
+                            {isBreached ? 'EXCEEDS LIMIT' : 'WITHIN LIMIT'}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  });
+                })()}
               </tbody>
             </table>
           </div>

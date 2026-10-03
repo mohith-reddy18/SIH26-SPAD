@@ -69,7 +69,7 @@ export default function ModelPerformance({ selectedLotId }) {
 
   const explanation = activeRecord?.modelExplanation || activeRecord?.aiAssessment?.explanation || {
     framework: 'SHAP (TreeExplainer)',
-    targetPrediction: 'Predicted 168h Limit Risk',
+    targetPrediction: 'Predicted 100% Limit Risk',
     baseValue: null,
     features: [],
     summaryText: 'No model explanation available for this record.',
@@ -110,7 +110,7 @@ export default function ModelPerformance({ selectedLotId }) {
           <span className="spad-page-tag">NASA V1 VALIDATED BENCHMARKS</span>
         </div>
         <p className="spad-page-description">
-          Verified model validation error benchmarks, dynamic 168hr drift regression, multi-method anomaly evidence, and SHAP explainability attribution.
+          Verified model validation error benchmarks, dynamic 100% drift regression, multi-method anomaly evidence, and SHAP explainability attribution.
         </p>
       </header>
 
@@ -263,7 +263,7 @@ export default function ModelPerformance({ selectedLotId }) {
               <div className="spad-section-title-wrap">
                 <span className="spad-section-pill ai-pill">SECTION 2 • DRIFT PREDICTION</span>
                 <h2 className="spad-section-title">
-                  Random Forest 168hr Degradation Forecast &amp; Validation Benchmarks
+                  Random Forest 100% Degradation Forecast &amp; Validation Benchmarks
                 </h2>
               </div>
               <span className="spad-status-pill badge-status-normal">
@@ -319,7 +319,7 @@ export default function ModelPerformance({ selectedLotId }) {
               <div style={{ marginTop: '12px', fontSize: '11px', color: '#94a3b8', lineHeight: 1.5, fontFamily: 'var(--font-ui, Outfit, sans-serif)' }}>
                 <strong>Validation Context:</strong> Leave-One-Device-Out Cross-Validation on N = 13 normal physical MOSFETs.<br />
                 <strong>Model Architecture:</strong> <code>RandomForestRegressor (300 trees, max_depth 3, min_samples_leaf 2, random_state 42)</code>.<br />
-                <strong>Inputs:</strong> <code>RDS0 + RDS33</code> (0hr and 24hr normalized observed checkpoints) &rarr; <strong>Target:</strong> <code>RDS100</code> (168hr equivalent forecast endpoint).
+                <strong>Inputs:</strong> <code>RDS0 + RDS33</code> (0% and 33.3% normalized observed checkpoints) &rarr; <strong>Target:</strong> <code>RDS100</code> (100% equivalent forecast endpoint).
               </div>
             </div>
 
@@ -331,21 +331,21 @@ export default function ModelPerformance({ selectedLotId }) {
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px' }}>
                 <div style={{ padding: '10px 12px', background: 'rgba(15, 23, 42, 0.6)', borderRadius: '4px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
-                  <span style={{ fontSize: '10px', color: '#94a3b8', textTransform: 'uppercase', display: 'block' }}>0hr Physical Observed</span>
+                  <span style={{ fontSize: '10px', color: '#94a3b8', textTransform: 'uppercase', display: 'block' }}>0% Physical Observed</span>
                   <span style={{ fontSize: '14px', fontWeight: '700', color: '#38bdf8', fontFamily: 'var(--font-mono)' }}>
                     {obs0h !== null ? `${obs0h.toFixed(3)} Ω` : '—'}
                   </span>
                 </div>
 
                 <div style={{ padding: '10px 12px', background: 'rgba(15, 23, 42, 0.6)', borderRadius: '4px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
-                  <span style={{ fontSize: '10px', color: '#94a3b8', textTransform: 'uppercase', display: 'block' }}>24hr Physical Observed</span>
+                  <span style={{ fontSize: '10px', color: '#94a3b8', textTransform: 'uppercase', display: 'block' }}>33.3% Physical Observed</span>
                   <span style={{ fontSize: '14px', fontWeight: '700', color: '#38bdf8', fontFamily: 'var(--font-mono)' }}>
                     {obs24h !== null ? `${obs24h.toFixed(3)} Ω` : '—'}
                   </span>
                 </div>
 
                 <div style={{ padding: '10px 12px', background: 'rgba(15, 23, 42, 0.6)', borderRadius: '4px', border: '1px solid rgba(56, 189, 248, 0.2)' }}>
-                  <span style={{ fontSize: '10px', color: '#38bdf8', fontWeight: '700', textTransform: 'uppercase', display: 'block' }}>Predicted 168hr Endpoint</span>
+                  <span style={{ fontSize: '10px', color: '#38bdf8', fontWeight: '700', textTransform: 'uppercase', display: 'block' }}>Predicted 100% Endpoint</span>
                   <span style={{ fontSize: '14px', fontWeight: '800', color: '#22C55E', fontFamily: 'var(--font-mono)' }}>
                     {predicted168h !== null ? `${predicted168h.toFixed(3)} Ω` : '—'}
                   </span>
@@ -360,7 +360,7 @@ export default function ModelPerformance({ selectedLotId }) {
               </div>
 
               <div style={{ marginTop: '10px', fontSize: '10.5px', color: '#94a3b8', fontStyle: 'italic' }}>
-                Note: Above metrics represent the model's forward projection for unit {componentId}. Prediction error is not calculated for individual in-flight units where physical 168hr completion is still pending.
+                Note: Above metrics represent the model's forward projection for unit {componentId}. Prediction error is not calculated for individual in-flight units where physical 100% completion is still pending.
               </div>
             </div>
           </section>
@@ -382,14 +382,14 @@ export default function ModelPerformance({ selectedLotId }) {
             </div>
 
             <p className="spad-shap-intro-desc">
-              SHAP attribution identifies how individual measurement features mathematically contributed to the AI model's predicted 168hr failure risk.
+              SHAP attribution identifies how individual measurement features mathematically contributed to the AI model's predicted 100% failure risk.
               <strong> Positive values (+)</strong> increased predicted risk, while <strong>negative values (-)</strong> reduced risk toward baseline.
             </p>
 
             {/* Prediction Banner */}
             <div className="spad-shap-prediction-banner">
               <div className="spad-shap-pred-item">
-                <span className="spad-pred-label">AI PREDICTED 168hr RISK:</span>
+                <span className="spad-pred-label">AI PREDICTED 100% RISK:</span>
                 <div className="spad-pred-val-wrap">
                   <span className="spad-pred-percent" style={{ color: riskColor }}>
                     {aiRisk}%

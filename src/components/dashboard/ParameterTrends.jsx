@@ -125,7 +125,7 @@ export default function ParameterTrends({
         ...liveComponentData,
         id: liveComponentData.componentId || liveComponentData.id || fallback.id || selectedComponentId,
         lotId: liveComponentData.lotId || fallback.lotId || 'NASA-MOSFET-199C',
-        stage: liveComponentData.stage || fallback.stage || '168hr',
+        stage: liveComponentData.stage || fallback.stage || '100%',
         measurements: liveComponentData.measurements || fallback.measurements || {},
         predictions: liveComponentData.predictions || fallback.predictions || {},
         engineeringLimits: liveComponentData.engineeringLimits || fallback.engineeringLimits || {},
@@ -322,14 +322,14 @@ export default function ParameterTrends({
     minVal = 0;
   }
 
-  // Dynamic checkpoints: 0hr [OBSERVED], 24hr [OBSERVED], 96hr [PREDICTED], 168hr [FORECAST]
+  // Dynamic checkpoints: 0% [OBSERVED], 33.3% [OBSERVED], 66.7% [PREDICTED], 100% [FORECAST]
   // Authoritative NASA V1 mapping: 0% -> 0hr, 33.3% -> 24hr, 66.7% -> 96hr, 100% -> 168hr
   const checkpoints = useMemo(
     () => [
-      { key: '0hr', label: '0hr', isPredicted: false, annotation: '[OBSERVED]' },
-      { key: '24hr', label: '24hr', isPredicted: false, annotation: '[OBSERVED]' },
-      { key: '96hr', label: '96hr', isPredicted: true, annotation: '[PREDICTED]' },
-      { key: '168hr', label: '168hr', isPredicted: true, annotation: '[FORECAST]' },
+      { key: '0hr', label: '0%', isPredicted: false, annotation: '[OBSERVED]' },
+      { key: '24hr', label: '33.3%', isPredicted: false, annotation: '[OBSERVED]' },
+      { key: '96hr', label: '66.7%', isPredicted: true, annotation: '[PREDICTED]' },
+      { key: '168hr', label: '100%', isPredicted: true, annotation: '[FORECAST]' },
     ],
     []
   );

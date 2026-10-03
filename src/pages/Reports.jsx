@@ -100,7 +100,7 @@ export default function Reports({ selectedLotId, onSelectLot }) {
   const aiAssessment = activeComponent?.aiAssessment || {};
   const modelExplanation = activeComponent?.modelExplanation || {
     framework: 'SHAP (TreeExplainer)',
-    targetPrediction: 'Predicted 168h Limit Risk',
+    targetPrediction: 'Predicted 100% Limit Risk',
     baseValue: null,
     features: [],
     summaryText: 'No model explanation available for this record.',
@@ -338,47 +338,74 @@ export default function Reports({ selectedLotId, onSelectLot }) {
                 <thead>
                   <tr>
                     <th>PARAMETER NAME</th>
-                    <th>0hr (BASELINE)</th>
-                    <th>24hr (EARLY)</th>
-                    <th>96hr (INTERMEDIATE)</th>
-                    <th>168hr (AI FORECAST)</th>
+                    <th>0% (BASELINE)</th>
+                    <th>33.3% (EARLY)</th>
+                    <th>66.7% (INTERMEDIATE)</th>
+                    <th>100% (AI FORECAST)</th>
                     <th>SPEC LIMIT (MAX)</th>
                     <th>SAFETY MARGIN</th>
                     <th>STATUS</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {Object.keys(measurements).map((key) => {
-                    const limitRaw = engineeringLimits[key];
-                    const meta = getParameterMeta(key, limitRaw);
-                    const name = meta.name;
-                    const unit = meta.unit;
-                    const series = measurements[key] || [];
-                    const obs0h = Array.isArray(series) ? series[0] : (series['0h'] ?? null);
-                    const obs24h = Array.isArray(series) ? series[1] : (series['24h'] ?? null);
-                    const obs96h = Array.isArray(series) ? series[2] : (series['96h'] ?? null);
-                    const predVal = extractPredictedValue(activeComponent, key) ?? (Array.isArray(series) ? series[series.length - 1] : null);
-                    const limitVal = meta.specLimitMax;
-                    const margin = typeof limitVal === 'number' && typeof predVal === 'number' ? (limitVal - predVal).toFixed(2) : '—';
-                    const isBreached = typeof limitVal === 'number' && typeof predVal === 'number' && predVal > limitVal;
-
-                    return (
-                      <tr key={key} className="spad-table-row">
-                        <td className="spad-td-mono font-bold text-cyan">{name}</td>
-                        <td className="spad-td-mono">{obs0h !== undefined && obs0h !== null ? `${typeof obs0h === 'number' ? obs0h.toFixed(2) : obs0h} ${unit}` : '—'}</td>
-                        <td className="spad-td-mono">{obs24h !== undefined && obs24h !== null ? `${typeof obs24h === 'number' ? obs24h.toFixed(2) : obs24h} ${unit}` : '—'}</td>
-                        <td className="spad-td-mono">{obs96h !== undefined && obs96h !== null ? `${typeof obs96h === 'number' ? obs96h.toFixed(2) : obs96h} ${unit}` : '—'}</td>
-                        <td className="spad-td-mono font-bold" style={{ color: '#38bdf8' }}>{predVal !== undefined && predVal !== null ? `${typeof predVal === 'number' ? predVal.toFixed(2) : predVal} ${unit}` : '—'}</td>
-                        <td className="spad-td-mono" style={{ color: '#f87171', fontWeight: '700' }}>{limitVal !== undefined && limitVal !== null ? `${typeof limitVal === 'number' ? limitVal.toFixed(2) : limitVal} ${unit}` : '—'}</td>
-                        <td className="spad-td-mono" style={{ color: isBreached ? '#ef4444' : 'var(--spad-green, #22C55E)' }}>{margin !== '—' ? `+${margin} ${unit}` : '—'}</td>
-                        <td>
-                          <span className={`spad-status-pill ${isBreached ? 'badge-status-critical' : 'badge-status-normal'}`}>
-                            {isBreached ? 'EXCEEDS LIMIT' : 'WITHIN LIMIT'}
-                          </span>
-                        </td>
-                      </tr>
+                  {(() => {
+                    const IGNORED_KEYS = new Set([
+                      '0h', '24h', '96h', '168h', '0hr', '24hr', '96hr', '168hr',
+                      '0H', '24H', '96H', '168H', '0%', '33%', '33.3%', '33.33%', '66%', '66.7%', '66.67%', '100%',
+                      'RDS0', 'RDS33', 'RDS96', 'RDS168', 'rds0', 'rds33', 'rds96', 'rds168',
+                      'rdson_0h', 'rdson_24h', 'rdson_96h', 'rdson_168h', 'rdson_168h_forecast', 'rdson_forecast',
+                      'delta_rdson', 'delta-rdson', 'deltardson', 'delta_rds', 'Delta_RDS_0_33',
+                      'Forecast_Residual', 'Absolute_Forecast_Error', 'Relative_Error_Percent',
+                    ]);
+                    const seenNames = new Set();
+                    const filteredKeys = Object.keys(measurements).filter(
+                      (k) => !IGNORED_KEYS.has(k) && !k.toLowerCase().includes('delta_rds') && !k.toLowerCase().includes('deltardson')
                     );
-                  })}
+                    const validKeys = filteredKeys.length > 0 ? filteredKeys : (measurements.rdson !== undefined ? ['rdson'] : []);
+
+                    return validKeys.map((key) => {
+                      const limitRaw = engineeringLimits[key];
+                      const meta = getParameterMeta(key, limitRaw);
+                      const name = meta.name;
+                      const unit = meta.unit;
+
+                      if (seenNames.has(name.toLowerCase())) return null;
+                      seenNames.add(name.toLowerCase());
+
+                      const series = measurements[key] || [];
+                      let obs0h = Array.isArray(series) && series.length > 0 ? series[0] : (typeof series === 'object' && series !== null ? (series['0h'] ?? series['0hr'] ?? series['0%'] ?? series['RDS0'] ?? null) : null);
+                      let obs24h = Array.isArray(series) && series.length > 1 ? series[1] : (typeof series === 'object' && series !== null ? (series['24h'] ?? series['24hr'] ?? series['33.3%'] ?? series['RDS33'] ?? null) : null);
+                      let obs96h = Array.isArray(series) && series.length > 2 ? series[2] : (typeof series === 'object' && series !== null ? (series['96h'] ?? series['96hr'] ?? series['66.7%'] ?? series['RDS96'] ?? null) : null);
+
+                      if (key === 'rdson' || key === 'rdson_ohm' || key === 'rds_on') {
+                        if (obs0h === null) obs0h = measurements.rdson_0h ?? measurements['0h'] ?? measurements['0hr'] ?? null;
+                        if (obs24h === null) obs24h = measurements.rdson_24h ?? measurements['24h'] ?? measurements['24hr'] ?? null;
+                        if (obs96h === null) obs96h = measurements.rdson_96h ?? measurements['96h'] ?? measurements['96hr'] ?? null;
+                      }
+
+                      const predVal = extractPredictedValue(activeComponent, key) ?? (Array.isArray(series) && series.length > 3 ? series[3] : null);
+                      const limitVal = meta.specLimitMax;
+                      const margin = typeof limitVal === 'number' && typeof predVal === 'number' ? (limitVal - predVal).toFixed(2) : '—';
+                      const isBreached = typeof limitVal === 'number' && typeof predVal === 'number' && predVal > limitVal;
+
+                      return (
+                        <tr key={key} className="spad-table-row">
+                          <td className="spad-td-mono font-bold text-cyan">{name}</td>
+                          <td className="spad-td-mono">{obs0h !== undefined && obs0h !== null ? `${typeof obs0h === 'number' ? obs0h.toFixed(2) : obs0h} ${unit}` : '—'}</td>
+                          <td className="spad-td-mono">{obs24h !== undefined && obs24h !== null ? `${typeof obs24h === 'number' ? obs24h.toFixed(2) : obs24h} ${unit}` : '—'}</td>
+                          <td className="spad-td-mono">{obs96h !== undefined && obs96h !== null ? `${typeof obs96h === 'number' ? obs96h.toFixed(2) : obs96h} ${unit}` : '—'}</td>
+                          <td className="spad-td-mono font-bold" style={{ color: '#38bdf8' }}>{predVal !== undefined && predVal !== null ? `${typeof predVal === 'number' ? predVal.toFixed(2) : predVal} ${unit}` : '—'}</td>
+                          <td className="spad-td-mono" style={{ color: '#f87171', fontWeight: '700' }}>{limitVal !== undefined && limitVal !== null ? `${typeof limitVal === 'number' ? limitVal.toFixed(2) : limitVal} ${unit}` : '—'}</td>
+                          <td className="spad-td-mono" style={{ color: isBreached ? '#ef4444' : 'var(--spad-green, #22C55E)' }}>{margin !== '—' ? `+${margin} ${unit}` : '—'}</td>
+                          <td>
+                            <span className={`spad-status-pill ${isBreached ? 'badge-status-critical' : 'badge-status-normal'}`}>
+                              {isBreached ? 'EXCEEDS LIMIT' : 'WITHIN LIMIT'}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    });
+                  })()}
                 </tbody>
               </table>
             </div>
@@ -494,9 +521,9 @@ export default function Reports({ selectedLotId, onSelectLot }) {
                   <tr>
                     <th>COMPONENT ID</th>
                     <th>STAGE</th>
-                    <th>RDS(on) 0hr</th>
-                    <th>RDS(on) 24hr</th>
-                    <th>RDS(on) 168hr</th>
+                    <th>RDS(on) 0%</th>
+                    <th>RDS(on) 33.3%</th>
+                    <th>RDS(on) 100%</th>
                     <th>AI RISK</th>
                     <th>EVIDENCE</th>
                     <th>ENGINEERING STATUS</th>

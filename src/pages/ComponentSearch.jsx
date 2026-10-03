@@ -153,20 +153,40 @@ export default function ComponentSearch({ onNavigateToComponent, initialComponen
 
   // Dynamically derive parameter columns from records telemetry
   const paramColumns = useMemo(() => {
+    const IGNORED_KEYS = new Set([
+      '0h', '24h', '96h', '168h', '0hr', '24hr', '96hr', '168hr',
+      '0H', '24H', '96H', '168H', '0%', '33%', '33.3%', '33.33%', '66%', '66.7%', '66.67%', '100%',
+      'RDS0', 'RDS33', 'RDS96', 'RDS168', 'rds0', 'rds33', 'rds96', 'rds168',
+      'rdson_0h', 'rdson_24h', 'rdson_96h', 'rdson_168h', 'rdson_168h_forecast', 'rdson_forecast',
+      'delta_rdson', 'delta-rdson', 'deltardson', 'delta_rds', 'Delta_RDS_0_33',
+      'Forecast_Residual', 'Absolute_Forecast_Error', 'Relative_Error_Percent',
+    ]);
     const keysSet = new Set();
     components.forEach((r) => {
       if (r.measurements && typeof r.measurements === 'object') {
-        Object.keys(r.measurements).forEach((k) => keysSet.add(k));
+        Object.keys(r.measurements).forEach((k) => {
+          if (!IGNORED_KEYS.has(k) && !k.toLowerCase().includes('delta_rds') && !k.toLowerCase().includes('deltardson')) {
+            keysSet.add(k);
+          }
+        });
       }
     });
     if (keysSet.size === 0) {
       return [
         getParameterMeta('rdson'),
-        getParameterMeta('delta_rdson'),
         getParameterMeta('temp'),
       ];
     }
-    return Array.from(keysSet).map((k) => getParameterMeta(k));
+    const seenNames = new Set();
+    const cols = [];
+    Array.from(keysSet).forEach((k) => {
+      const meta = getParameterMeta(k);
+      if (!seenNames.has(meta.name.toLowerCase())) {
+        seenNames.add(meta.name.toLowerCase());
+        cols.push(meta);
+      }
+    });
+    return cols;
   }, [components]);
 
   const totalCols = 6 + paramColumns.length;

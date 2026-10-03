@@ -127,10 +127,10 @@ export const PARAMETER_DISPLAY_MAP = {
   rdson: { name: 'On-Resistance (RDS(on))', shortName: 'RDS(on)', unit: 'Ω', defaultRef: [0.513, 0.545, 0.569, 0.612] },
   rdson_ohm: { name: 'On-Resistance (RDS(on))', shortName: 'RDS(on)', unit: 'Ω', defaultRef: [0.513, 0.545, 0.569, 0.612] },
   rds_on: { name: 'On-Resistance (RDS(on))', shortName: 'RDS(on)', unit: 'Ω', defaultRef: [0.513, 0.545, 0.569, 0.612] },
-  rdson_0h: { name: 'RDS(on) — 0h OBSERVED', shortName: 'RDS(0h)', unit: 'Ω', defaultRef: [0.513, 0.513, 0.513, 0.513] },
-  rdson_24h: { name: 'RDS(on) — 24h OBSERVED', shortName: 'RDS(24h)', unit: 'Ω', defaultRef: [0.519, 0.519, 0.519, 0.519] },
-  rdson_168h: { name: 'RDS(on) — 168h FORECAST', shortName: 'RDS(168h)', unit: 'Ω', defaultRef: [0.648, 0.648, 0.648, 0.648] },
-  rdson_168h_forecast: { name: 'RDS(on) — 168h FORECAST', shortName: 'RDS(168h)', unit: 'Ω', defaultRef: [0.648, 0.648, 0.648, 0.648] },
+  rdson_0h: { name: 'RDS(on) — 0% OBSERVED', shortName: 'RDS(0%)', unit: 'Ω', defaultRef: [0.513, 0.513, 0.513, 0.513] },
+  rdson_24h: { name: 'RDS(on) — 33.3% OBSERVED', shortName: 'RDS(33.3%)', unit: 'Ω', defaultRef: [0.519, 0.519, 0.519, 0.519] },
+  rdson_168h: { name: 'RDS(on) — 100% FORECAST', shortName: 'RDS(100%)', unit: 'Ω', defaultRef: [0.648, 0.648, 0.648, 0.648] },
+  rdson_168h_forecast: { name: 'RDS(on) — 100% FORECAST', shortName: 'RDS(100%)', unit: 'Ω', defaultRef: [0.648, 0.648, 0.648, 0.648] },
   delta_rdson: { name: 'ΔRDS — Early Drift', shortName: 'ΔRDS', unit: 'Ω', defaultRef: [0.0, 0.031, 0.055, 0.080] },
   temp: { name: 'Chamber Temperature (T_j)', shortName: 'T_j', unit: '°C', defaultRef: [199.5, 200.0, 199.8, 200.2] },
   vgs: { name: 'Gate Voltage (V_GS)', shortName: 'V_GS', unit: 'V', defaultRef: [10.0, 10.0, 10.0, 10.0] },
@@ -225,20 +225,20 @@ export function getParameterMeta(key, limit) {
 }
 
 /**
- * Normalizes stage labels to project-defined format:
- * 0% -> 0hr, 33.33% -> 24hr, 66.67% -> 96hr, 100% -> 168hr
+ * Normalizes stage labels to percentage display format:
+ * 0% (0hr), 33.3% (24hr), 66.7% (96hr), 100% (168hr)
  *
  * @param {string} stage
  * @returns {string}
  */
 export function formatStageLabel(stage) {
-  if (!stage) return '168hr';
-  const s = String(stage).trim();
-  if (s === '0%' || s === '0h' || s === '0hr' || s === '0H') return '0hr';
-  if (s === '33.33%' || s === '33%' || s === '33.3%' || s === '24h' || s === '24hr' || s === '24H') return '24hr';
-  if (s === '66.67%' || s === '66%' || s === '66.7%' || s === '67%' || s === '96h' || s === '96hr' || s === '96H') return '96hr';
-  if (s === '100%' || s === '168h' || s === '168hr' || s === '168H') return '168hr';
-  return s;
+  if (!stage) return '100%';
+  const s = String(stage).trim().toLowerCase().replace(/[\s_-]+/g, '');
+  if (s === '0%' || s === '0h' || s === '0hr' || s === '0hrs' || s === '0hour' || s === '0hours' || s === 'stage0h' || s === 'stage0hr' || s === '0') return '0%';
+  if (s === '33.33%' || s === '33%' || s === '33.3%' || s === '24h' || s === '24hr' || s === '24hrs' || s === '24hour' || s === '24hours' || s === 'stage24h' || s === 'stage24hr' || s === '24') return '33.3%';
+  if (s === '66.67%' || s === '66%' || s === '66.7%' || s === '67%' || s === '96h' || s === '96hr' || s === '96hrs' || s === '96hour' || s === '96hours' || s === 'stage96h' || s === 'stage96hr' || s === '96') return '66.7%';
+  if (s === '100%' || s === '168h' || s === '168hr' || s === '168hrs' || s === '168hour' || s === '168hours' || s === 'stage168h' || s === 'stage168hr' || s === '168') return '100%';
+  return String(stage).trim();
 }
 
 /**
@@ -321,14 +321,14 @@ export function mapScreeningRecord(record) {
   const modelExplanation = typeof rawExplanation === 'object' && rawExplanation !== null
     ? {
         framework: rawExplanation.framework || 'SHAP (TreeExplainer)',
-        targetPrediction: rawExplanation.targetPrediction || 'Predicted 168h Limit Risk',
+        targetPrediction: rawExplanation.targetPrediction || 'Predicted 100% Limit Risk',
         baseValue: typeof rawExplanation.baseValue === 'number' ? rawExplanation.baseValue : null,
         features: Array.isArray(rawExplanation.features) ? rawExplanation.features : [],
         summaryText: rawExplanation.summaryText || 'Model explanation data synchronized with screening telemetry.',
       }
     : {
         framework: 'SHAP (TreeExplainer)',
-        targetPrediction: 'Predicted 168h Limit Risk',
+        targetPrediction: 'Predicted 100% Limit Risk',
         baseValue: null,
         features: [],
         summaryText: 'No model explanation available for this record.',
