@@ -58,14 +58,18 @@ export default function ComponentSearch({ onNavigateToComponent, initialComponen
   }, [selectedLotId, selectedModalComponent]);
 
   // 2. Fetch individual component detail on click or deep link
-  const fetchComponentDetail = async (compItem) => {
+  const fetchComponentDetail = async (compItem, requestedLotId) => {
     if (!compItem) return;
     const targetId = typeof compItem === 'string' ? compItem : compItem.id || compItem.componentId;
     if (!targetId) return;
 
-    // Check currently loaded records first
+    const specifiedLot = (typeof compItem === 'object' && compItem.lotId)
+      ? compItem.lotId
+      : (requestedLotId || (selectedLot !== 'ALL' ? selectedLot : selectedLotId !== 'ALL' ? selectedLotId : ''));
+
+    // Check currently loaded records first matching BOTH componentId and lotId
     const existing = components.find(
-      (c) => (c.id || c.componentId) === targetId
+      (c) => (c.id || c.componentId) === targetId && (!specifiedLot || c.lotId === specifiedLot)
     );
 
     if (existing) {
@@ -73,7 +77,7 @@ export default function ComponentSearch({ onNavigateToComponent, initialComponen
       setIsModalOpen(true);
     }
 
-    const targetLotId = existing?.lotId || (selectedLot !== 'ALL' ? selectedLot : '');
+    const targetLotId = specifiedLot || existing?.lotId || '';
 
     setIsLoadingDetail(true);
     setFetchError(null);
@@ -92,7 +96,7 @@ export default function ComponentSearch({ onNavigateToComponent, initialComponen
         }
       } else if (response.status === 404) {
         if (!existing) {
-          setFetchError(`Component "${targetId}" not found in database.`);
+          setFetchError(`Component "${targetId}"${targetLotId ? ` in lot "${targetLotId}"` : ''} not found in database.`);
         }
       } else {
         setFetchError(`Backend returned status ${response.status}`);

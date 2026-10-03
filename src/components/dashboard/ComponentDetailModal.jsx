@@ -534,24 +534,27 @@ export default function ComponentDetailModal({
     component.evidence ||
     null;
 
-  const divergenceType = m2Param.divergenceType || component.divergenceType || 'NOMINAL';
+  let m2Flag = 'NOT_EVALUATED';
+  const rawM2Flag = m2Param.aiFlag ?? lotAnomalyObj?.aiFlag ?? component.anomalies?.aiFlag;
+  if (rawM2Flag !== undefined && rawM2Flag !== null) {
+    const s = String(rawM2Flag).toUpperCase().trim();
+    if (s === 'FLAGGED' || s === '1' || s === 'TRUE' || s === 'ANOMALY') m2Flag = 'FLAGGED';
+    else if (s === 'NOT FLAGGED' || s === 'NOT_FLAGGED' || s === '0' || s === 'FALSE' || s === 'NOMINAL' || s === 'NORMAL' || s === 'PASS') m2Flag = 'NOT FLAGGED';
+    else if (s === 'NOT_EVALUATED') m2Flag = 'NOT_EVALUATED';
+  } else if (typeof noveltyPercentile === 'number' && !isNaN(noveltyPercentile)) {
+    m2Flag = noveltyPercentile >= 90.0 ? 'FLAGGED' : 'NOT FLAGGED';
+  } else if (typeof peerZScore === 'number' && !isNaN(peerZScore)) {
+    m2Flag = Math.abs(peerZScore) > 3.0 ? 'FLAGGED' : 'NOT FLAGGED';
+  }
+  const m2BadgeStyle = getAiBadgeStyle(m2Flag);
+
+  const divergenceType = m2Param.divergenceType || component.divergenceType || (m2Flag === 'FLAGGED' ? 'ELEVATED_OUTLIER' : m2Flag === 'NOT FLAGGED' ? 'NOMINAL' : 'Unavailable for this record');
 
   const sameLotPeersCount = lotAnomalyObj?.eligiblePeersCount ??
     Math.max(0, components.filter((c) => (c.lotId || lotId) === lotId).length - 1);
 
   const cohortQuality = lotAnomalyObj?.cohortQuality ||
     (sameLotPeersCount >= 2 ? 'SUFFICIENT' : 'INSUFFICIENT');
-
-  let m2Flag = 'NOT_EVALUATED';
-  const rawM2Flag = m2Param.aiFlag || component.anomalies?.aiFlag;
-  if (rawM2Flag) {
-    const s = String(rawM2Flag).toUpperCase().trim();
-    if (s === 'FLAGGED') m2Flag = 'FLAGGED';
-    else if (s === 'NOT FLAGGED' || s === 'NOT_FLAGGED' || s === 'ANALYZED' || s === 'NOMINAL' || s === 'NORMAL' || s === 'PASS') m2Flag = 'NOT FLAGGED';
-  } else if (lotAnomalyObj?.status === 'ANALYZED') {
-    m2Flag = 'NOT FLAGGED';
-  }
-  const m2BadgeStyle = getAiBadgeStyle(m2Flag);
 
   // --------------------------------------------------------------------------
   // METHOD 3: Module C — Transient Pulse Extraction & Exceedance Evidence
@@ -560,18 +563,42 @@ export default function ComponentDetailModal({
   const m3Params = moduleCObj?.parameters || {};
   const m3Param = m3Params.rdson || Object.values(m3Params)[0] || {};
   const maxRDSInst = (typeof m3Param.maxRDSInstantaneousOhm === 'number') ? m3Param.maxRDSInstantaneousOhm : null;
-  const exceedanceCount = (typeof m3Param.limitExceedanceCount === 'number') ? m3Param.limitExceedanceCount : 0;
-  const exceedanceFlag = m3Param.limitExceedanceFlag || (exceedanceCount > 0 ? 'FLAGGED' : 'NOT FLAGGED');
+  const rawExcCount = m3Param.limitExceedanceCount;
+  const exceedanceCount = (typeof rawExcCount === 'number') ? rawExcCount : null;
   const evidenceTransId = m3Param.evidenceTransientId || null;
   const evidenceTimeUs = (typeof m3Param.evidenceTimeUs === 'number') ? m3Param.evidenceTimeUs : null;
-  const m3Flag = m3Param.aiFlag || exceedanceFlag || 'NOT_EVALUATED';
+
+  const hasModuleC = Boolean(
+    maxRDSInst !== null ||
+    (exceedanceCount !== null && exceedanceCount !== undefined) ||
+    evidenceTransId !== null ||
+    evidenceTimeUs !== null
+  );
+
+  let m3Flag = 'NOT_EVALUATED';
+  if (hasModuleC) {
+    if (m3Param.aiFlag) {
+      const s = String(m3Param.aiFlag).trim().toUpperCase();
+      if (s === 'FLAGGED' || s === '1' || s === 'TRUE') m3Flag = 'FLAGGED';
+      else if (s === 'NOT FLAGGED' || s === 'NOT_FLAGGED' || s === '0' || s === 'FALSE' || s === 'PASS' || s === 'NOMINAL' || s === 'NORMAL') m3Flag = 'NOT FLAGGED';
+    } else if (hasRdsLimit && maxRDSInst !== null) {
+      m3Flag = (maxRDSInst > rdsSpecLimit || (exceedanceCount !== null && exceedanceCount > 0)) ? 'FLAGGED' : 'NOT FLAGGED';
+    } else if (exceedanceCount !== null) {
+      m3Flag = exceedanceCount > 0 ? 'FLAGGED' : 'NOT FLAGGED';
+    }
+  }
   const m3BadgeStyle = getAiBadgeStyle(m3Flag);
-  const hasModuleC = Boolean(moduleCObj && (maxRDSInst !== null || m3Param.status === 'ANALYZED'));
 
   // --------------------------------------------------------------------------
-  // SECTION 5: Combined Overall AI Status
+  // SECTION 5: Combined Overall AI Status (Derived strictly from this record's evaluated modules)
   // --------------------------------------------------------------------------
-  const overallAiStatus = getNormalizedAiStatus(component);
+  const evaluatedFlags = [m1Flag, m2Flag, m3Flag].filter((f) => f === 'FLAGGED' || f === 'NOT FLAGGED');
+  let overallAiStatus = 'NOT_EVALUATED';
+  if (evaluatedFlags.includes('FLAGGED')) {
+    overallAiStatus = 'FLAGGED';
+  } else if (evaluatedFlags.length > 0 && evaluatedFlags.every((f) => f === 'NOT FLAGGED')) {
+    overallAiStatus = 'NOT FLAGGED';
+  }
   const overallAiBadgeStyle = getAiBadgeStyle(overallAiStatus);
 
   // --------------------------------------------------------------------------
@@ -622,25 +649,27 @@ export default function ComponentDetailModal({
                   className="spad-comp-select-input"
                   value={compId}
                   onChange={(e) => {
-                    const target = components.find((c) => (c.id || c.componentId) === e.target.value);
+                    const target = components.find((c) => (c.id || c.componentId) === e.target.value && (!lotId || (c.lotId || lotId) === lotId));
                     if (target) onSelectComponent(target);
                   }}
                 >
-                  {components.map((c) => {
-                    const cId = c.id || c.componentId;
-                    const evalRes = evaluateComponentEngineeringDecision(
-                      c.measurements,
-                      c.engineeringLimits,
-                      c.engineeringStatus || c.status,
-                      extractPredictedValue(c, 'rdson'),
-                      c
-                    );
-                    return (
-                      <option key={cId} value={cId}>
-                        {cId} ({evalRes.decision})
-                      </option>
-                    );
-                  })}
+                  {components
+                    .filter((c) => !lotId || (c.lotId || lotId) === lotId)
+                    .map((c) => {
+                      const cId = c.id || c.componentId;
+                      const evalRes = evaluateComponentEngineeringDecision(
+                        c.measurements,
+                        c.engineeringLimits,
+                        c.engineeringStatus || c.status,
+                        extractPredictedValue(c, 'rdson'),
+                        c
+                      );
+                      return (
+                        <option key={cId} value={cId}>
+                          {cId} ({evalRes.decision})
+                        </option>
+                      );
+                    })}
                 </select>
               </div>
             )}
@@ -985,36 +1014,42 @@ export default function ComponentDetailModal({
             </div>
 
             {/* Module C Evidence Metrics Grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '10px' }}>
-              <div className="spad-peer-stat-box">
-                <span className="spad-peer-stat-label">Max Instantaneous RDS(on)</span>
-                <span className="spad-peer-stat-value font-mono text-cyan">
-                  {maxRDSInst !== null ? `${maxRDSInst.toFixed(4)} Ω` : '—'}
-                </span>
+            {!hasModuleC ? (
+              <div style={{ padding: '12px 14px', background: 'rgba(15, 23, 42, 0.6)', borderRadius: '6px', fontSize: '11.5px', color: '#94a3b8', borderLeft: '3px solid #64748b' }}>
+                <strong style={{ color: '#e2e8f0' }}>Transient Evidence Status:</strong> Transient evidence unavailable for this screening record. No persisted transient telemetry is available for this record. No transient result is inferred.
               </div>
-              <div className="spad-peer-stat-box">
-                <span className="spad-peer-stat-label">Limit Exceedance Count</span>
-                <span className="spad-peer-stat-value" style={{ color: exceedanceCount > 0 ? 'var(--spad-red, #EF4444)' : 'var(--spad-green, #22C55E)' }}>
-                  {hasModuleC ? `${exceedanceCount} pulses` : '—'}
-                </span>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '10px' }}>
+                <div className="spad-peer-stat-box">
+                  <span className="spad-peer-stat-label">Max Instantaneous RDS(on)</span>
+                  <span className="spad-peer-stat-value font-mono text-cyan">
+                    {maxRDSInst !== null ? `${maxRDSInst.toFixed(4)} Ω` : '—'}
+                  </span>
+                </div>
+                <div className="spad-peer-stat-box">
+                  <span className="spad-peer-stat-label">Limit Exceedance Count</span>
+                  <span className="spad-peer-stat-value" style={{ color: exceedanceCount > 0 ? 'var(--spad-red, #EF4444)' : 'var(--spad-green, #22C55E)' }}>
+                    {typeof exceedanceCount === 'number' ? `${exceedanceCount} pulses` : '—'}
+                  </span>
+                </div>
+                <div className="spad-peer-stat-box">
+                  <span className="spad-peer-stat-label">Peak Transient ID / Run</span>
+                  <span className="spad-peer-stat-value text-slate">{evidenceTransId || '—'}</span>
+                </div>
+                <div className="spad-peer-stat-box">
+                  <span className="spad-peer-stat-label">Peak Timestamp (Time_us)</span>
+                  <span className="spad-peer-stat-value font-mono text-slate">
+                    {evidenceTimeUs !== null ? `${evidenceTimeUs.toFixed(2)} µs` : '—'}
+                  </span>
+                </div>
+                <div className="spad-peer-stat-box">
+                  <span className="spad-peer-stat-label">Configured RDS(on) Limit</span>
+                  <span className="spad-peer-stat-value font-mono text-slate">
+                    {hasRdsLimit ? `${rdsSpecLimit.toFixed(3)} Ω` : '—'}
+                  </span>
+                </div>
               </div>
-              <div className="spad-peer-stat-box">
-                <span className="spad-peer-stat-label">Peak Transient ID / Run</span>
-                <span className="spad-peer-stat-value text-slate">{evidenceTransId || '—'}</span>
-              </div>
-              <div className="spad-peer-stat-box">
-                <span className="spad-peer-stat-label">Peak Timestamp (Time_us)</span>
-                <span className="spad-peer-stat-value font-mono text-slate">
-                  {evidenceTimeUs !== null ? `${evidenceTimeUs.toFixed(2)} µs` : '—'}
-                </span>
-              </div>
-              <div className="spad-peer-stat-box">
-                <span className="spad-peer-stat-label">Configured RDS(on) Limit</span>
-                <span className="spad-peer-stat-value font-mono text-slate">
-                  {hasRdsLimit ? `${rdsSpecLimit.toFixed(3)} Ω` : '—'}
-                </span>
-              </div>
-            </div>
+            )}
           </section>
 
           {/* ============================================================ */}

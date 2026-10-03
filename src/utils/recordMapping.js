@@ -32,22 +32,42 @@ export function getNormalizedEngineeringStatus(recordOrStatus) {
 export function getNormalizedAiStatus(recordOrAi) {
   if (!recordOrAi) return 'NOT_EVALUATED';
 
-  let raw = '';
+  // 1. If explicit string provided
   if (typeof recordOrAi === 'string') {
-    raw = recordOrAi;
-  } else if (recordOrAi.aiAssessment) {
-    raw = typeof recordOrAi.aiAssessment === 'object'
-      ? (recordOrAi.aiAssessment.overallStatus || recordOrAi.aiAssessment.status)
-      : recordOrAi.aiAssessment;
-  } else if (recordOrAi.overallStatus) {
-    raw = recordOrAi.overallStatus;
-  } else if (recordOrAi.aiStatus) {
-    raw = recordOrAi.aiStatus;
+    const s = recordOrAi.trim().toUpperCase();
+    if (s === 'FLAGGED') return 'FLAGGED';
+    if (s === 'NOT FLAGGED' || s === 'NOT_FLAGGED' || s === 'NOMINAL' || s === 'NORMAL' || s === 'PASS') return 'NOT FLAGGED';
+    return 'NOT_EVALUATED';
   }
 
-  const s = String(raw || '').trim().toUpperCase();
-  if (s === 'FLAGGED') return 'FLAGGED';
-  if (s === 'NOT FLAGGED' || s === 'NOT_FLAGGED' || s === 'NOMINAL' || s === 'NORMAL' || s === 'PASS') return 'NOT FLAGGED';
+  const aiAssessment = recordOrAi.aiAssessment || recordOrAi;
+
+  // 2. Check submodule flags if aiAssessment is an object
+  if (typeof aiAssessment === 'object' && aiAssessment !== null) {
+    const m1Flag = aiAssessment.prediction?.parameters?.rdson?.aiFlag ?? aiAssessment.prediction?.aiFlag;
+    const m2Flag = aiAssessment.lotAnomaly?.parameters?.rdson?.aiFlag ?? aiAssessment.lotAnomaly?.aiFlag;
+    const m3Flag = aiAssessment.moduleC?.parameters?.rdson?.aiFlag ?? aiAssessment.moduleC?.aiFlag;
+
+    const evalFlags = [];
+    [m1Flag, m2Flag, m3Flag].forEach((f) => {
+      if (f) {
+        const s = String(f).trim().toUpperCase();
+        if (s === 'FLAGGED' || s === '1' || s === 'TRUE' || s === 'ANOMALY') evalFlags.push('FLAGGED');
+        else if (s === 'NOT FLAGGED' || s === 'NOT_FLAGGED' || s === '0' || s === 'FALSE' || s === 'PASS' || s === 'NOMINAL' || s === 'NORMAL') evalFlags.push('NOT FLAGGED');
+      }
+    });
+
+    if (evalFlags.includes('FLAGGED')) return 'FLAGGED';
+    if (evalFlags.length > 0 && evalFlags.every((f) => f === 'NOT FLAGGED')) return 'NOT FLAGGED';
+
+    const raw = aiAssessment.overallStatus || aiAssessment.status || recordOrAi.overallStatus || recordOrAi.aiStatus;
+    if (raw) {
+      const s = String(raw).trim().toUpperCase();
+      if (s === 'FLAGGED') return 'FLAGGED';
+      if (s === 'NOT FLAGGED' || s === 'NOT_FLAGGED' || s === 'NOMINAL' || s === 'NORMAL' || s === 'PASS') return 'NOT FLAGGED';
+    }
+  }
+
   return 'NOT_EVALUATED';
 }
 

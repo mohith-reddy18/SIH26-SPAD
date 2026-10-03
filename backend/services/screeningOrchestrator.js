@@ -656,7 +656,7 @@ async function processRemoteScreeningRun({ lotId, componentId, customLimits = nu
       ifFlag = Math.abs(peerEvidenceObj.zScore) > 3.0 ? 'FLAGGED' : 'NOT FLAGGED';
     }
 
-    const divergenceTypeVal = item.lotAnomaly?.divergenceType ?? item.divergenceType ?? (ifFlag === 'FLAGGED' ? 'ELEVATED_OUTLIER' : 'NOMINAL');
+    const divergenceTypeVal = item.lotAnomaly?.divergenceType ?? item.divergenceType ?? (ifFlag === 'FLAGGED' ? 'ELEVATED_OUTLIER' : ifFlag === 'NOT FLAGGED' ? 'NOMINAL' : null);
 
     // 5.5 Extract & preserve complete Module C (Transient Pulse Analysis) from Python or dataset evidence
     const rawModuleC = item.moduleC ?? item.Module_C ?? item.aiAssessment?.moduleC ?? item.transientAnalysis ?? datasetTransientMap.get(compId) ?? null;
@@ -664,17 +664,21 @@ async function processRemoteScreeningRun({ lotId, componentId, customLimits = nu
     if (rawModuleC && typeof rawModuleC === 'object') {
       moduleCObj = { ...rawModuleC };
     } else if (item.maxRDSInstantaneousOhm !== undefined || item.limitExceedanceCount !== undefined || item.evidenceTransientId !== undefined) {
+      const maxInst = typeof item.maxRDSInstantaneousOhm === 'number' ? item.maxRDSInstantaneousOhm : null;
+      const excCount = typeof item.limitExceedanceCount === 'number' ? item.limitExceedanceCount : (maxInst !== null ? 0 : null);
+      const excFlag = item.limitExceedanceFlag || (maxInst !== null ? ((rdsonLim?.limitValue && maxInst > rdsonLim.limitValue) || (excCount && excCount > 0) ? 'FLAGGED' : 'NOT FLAGGED') : 'NOT_EVALUATED');
+
       moduleCObj = {
-        status: item.limitExceedanceFlag ? 'ANALYZED' : 'NOT_EVALUATED',
+        status: maxInst !== null ? 'ANALYZED' : 'NOT_EVALUATED',
         method: 'TRANSIENT_PULSE_EXTRACTION',
         parameters: {
           rdson: {
-            maxRDSInstantaneousOhm: item.maxRDSInstantaneousOhm ?? null,
-            limitExceedanceCount: item.limitExceedanceCount ?? 0,
-            limitExceedanceFlag: item.limitExceedanceFlag ?? 'NOT FLAGGED',
+            maxRDSInstantaneousOhm: maxInst,
+            limitExceedanceCount: excCount,
+            limitExceedanceFlag: excFlag,
             evidenceTransientId: item.evidenceTransientId ?? null,
             evidenceTimeUs: item.evidenceTimeUs ?? null,
-            aiFlag: item.limitExceedanceFlag ?? 'NOT FLAGGED',
+            aiFlag: excFlag,
           },
         },
       };
@@ -684,20 +688,28 @@ async function processRemoteScreeningRun({ lotId, componentId, customLimits = nu
     if (moduleCObj && moduleCObj.parameters && moduleCObj.parameters.rdson) {
       const mC = moduleCObj.parameters.rdson;
       const maxInst = typeof mC.maxRDSInstantaneousOhm === 'number' ? mC.maxRDSInstantaneousOhm : null;
-      const excCount = typeof mC.limitExceedanceCount === 'number' ? mC.limitExceedanceCount : 0;
+      const excCount = typeof mC.limitExceedanceCount === 'number' ? mC.limitExceedanceCount : null;
       const rdLimit = rdsonLim && typeof rdsonLim.limitValue === 'number' ? rdsonLim.limitValue : null;
 
       if (maxInst !== null) {
         let isFlagged = false;
         if (rdLimit !== null) {
-          isFlagged = maxInst > rdLimit || excCount > 0;
+          isFlagged = maxInst > rdLimit || (excCount !== null && excCount > 0);
         } else {
-          isFlagged = excCount > 0;
+          isFlagged = excCount !== null && excCount > 0;
         }
         const flag = isFlagged ? 'FLAGGED' : 'NOT FLAGGED';
         mC.limitExceedanceFlag = flag;
         mC.aiFlag = flag;
         moduleCObj.status = 'ANALYZED';
+      } else if (excCount !== null) {
+        const flag = excCount > 0 ? 'FLAGGED' : 'NOT FLAGGED';
+        mC.limitExceedanceFlag = flag;
+        mC.aiFlag = flag;
+        moduleCObj.status = 'ANALYZED';
+      } else if (!mC.aiFlag) {
+        mC.aiFlag = 'NOT_EVALUATED';
+        moduleCObj.status = 'NOT_EVALUATED';
       }
     }
 

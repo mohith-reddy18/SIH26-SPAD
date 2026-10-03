@@ -73,9 +73,9 @@ export default function Dashboard({
         const result = await compRes.json();
         if (result.success && Array.isArray(result.data)) {
           const mapped = result.data.map(mapScreeningRecord);
-          // Lot filter
+          // Strict Lot filter: never mix records from other lots
           const filtered = effectiveLotId 
-            ? mapped.filter((r) => !r.lotId || r.lotId === effectiveLotId)
+            ? mapped.filter((r) => r.lotId === effectiveLotId)
             : mapped;
           setComponentRecords(filtered);
           setDataSource(filtered.length > 0 ? 'api' : 'empty');
@@ -255,8 +255,19 @@ export default function Dashboard({
     if (componentRecords.length > 0) {
       const params = new URLSearchParams(window.location.search);
       const urlCompId = params.get('component');
+      const urlLotId = params.get('lot');
       if (urlCompId) {
-        const found = componentRecords.find((c) => (c.id || c.componentId) === urlCompId);
+        const found = componentRecords.find((c) => {
+          const idMatch = (c.id || c.componentId) === urlCompId;
+          if (!idMatch) return false;
+          if (urlLotId && urlLotId !== 'ALL') {
+            return (c.lotId || '') === urlLotId;
+          }
+          if (effectiveLotId) {
+            return (c.lotId || '') === effectiveLotId;
+          }
+          return true;
+        });
         if (found) {
           setSelectedModalComponent(found);
         } else {
@@ -264,15 +275,26 @@ export default function Dashboard({
         }
       }
     }
-  }, [componentRecords]);
+  }, [componentRecords, effectiveLotId]);
 
   // 4. Handle browser Back / Forward history transitions
   useEffect(() => {
     const handlePopState = () => {
       const params = new URLSearchParams(window.location.search);
       const urlCompId = params.get('component');
+      const urlLotId = params.get('lot');
       if (urlCompId && componentRecords.length > 0) {
-        const found = componentRecords.find((c) => (c.id || c.componentId) === urlCompId);
+        const found = componentRecords.find((c) => {
+          const idMatch = (c.id || c.componentId) === urlCompId;
+          if (!idMatch) return false;
+          if (urlLotId && urlLotId !== 'ALL') {
+            return (c.lotId || '') === urlLotId;
+          }
+          if (effectiveLotId) {
+            return (c.lotId || '') === effectiveLotId;
+          }
+          return true;
+        });
         if (found) {
           setSelectedModalComponent(found);
         } else {
@@ -285,7 +307,7 @@ export default function Dashboard({
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [componentRecords]);
+  }, [componentRecords, effectiveLotId]);
 
   const handleSelectComponent = (component) => {
     if (!component) {
@@ -293,15 +315,24 @@ export default function Dashboard({
       return;
     }
     const targetComp = typeof component === 'string'
-      ? componentRecords.find((c) => (c.id || c.componentId) === component)
+      ? componentRecords.find((c) => {
+          const idMatch = (c.id || c.componentId) === component;
+          if (!idMatch) return false;
+          if (effectiveLotId) return (c.lotId || '') === effectiveLotId;
+          return true;
+        })
       : component;
 
     if (targetComp) {
       setSelectedModalComponent(targetComp);
       const compId = targetComp.id || targetComp.componentId;
+      const compLot = targetComp.lotId;
       const params = new URLSearchParams(window.location.search);
-      if (params.get('component') !== compId) {
+      if (params.get('component') !== compId || (compLot && params.get('lot') !== compLot)) {
         params.set('component', compId);
+        if (compLot && !params.get('lot')) {
+          params.set('lot', compLot);
+        }
         const newQuery = params.toString();
         const newUrl = `${window.location.pathname}${newQuery ? `?${newQuery}` : ''}`;
         window.history.pushState({}, '', newUrl);
@@ -322,7 +353,13 @@ export default function Dashboard({
 
   const handleAlertClick = (alert) => {
     if (alert.type === 'component') {
-      const target = componentRecords.find((c) => (c.id || c.componentId) === alert.targetId);
+      const target = componentRecords.find((c) => {
+        const idMatch = (c.id || c.componentId) === alert.targetId;
+        if (!idMatch) return false;
+        if (alert.lotId) return (c.lotId || '') === alert.lotId;
+        if (effectiveLotId) return (c.lotId || '') === effectiveLotId;
+        return true;
+      });
       if (target) {
         handleSelectComponent(target);
       } else if (onNavigateToComponent) {
