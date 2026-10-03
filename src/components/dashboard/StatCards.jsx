@@ -50,8 +50,16 @@ function LayersIcon() {
   );
 }
 
-export default function StatCards({ summaryStats }) {
-  const { totalComponents, normal, suspect, critical, passed, hold, rejected, lotsProcessed } = summaryStats;
+export default function StatCards({ summaryStats = {} }) {
+  const stats = summaryStats || {};
+  const totalComponents = stats.totalComponents ?? stats.total ?? 0;
+  const normal = stats.normal;
+  const suspect = stats.suspect;
+  const critical = stats.critical;
+  const passed = stats.passed;
+  const hold = stats.hold;
+  const rejected = stats.rejected;
+  const lotsProcessed = stats.lotsProcessed ?? stats.lots ?? 0;
 
   const normalCount = normal !== undefined ? normal : (passed || 0);
   const suspectCount = suspect !== undefined ? suspect : (hold || 0);

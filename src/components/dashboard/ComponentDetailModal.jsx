@@ -392,6 +392,33 @@ export default function ComponentDetailModal({
     ...(m1Param.engineeringLimit ? { rdson: m1Param.engineeringLimit } : {}),
   };
 
+  let rdsSpecLimit = undefined;
+  const rawRdsLimit =
+    compLimits.rdson ??
+    compLimits.rds ??
+    compLimits.rdsohm ??
+    component.engineeringLimits?.rdson ??
+    component.engineeringLimits?.rds ??
+    component.engineeringLimit ??
+    m1Param.engineeringLimit ??
+    component.aiAssessment?.prediction?.parameters?.rdson?.engineeringLimit;
+
+  if (rawRdsLimit !== undefined && rawRdsLimit !== null) {
+    if (typeof rawRdsLimit === 'number' && !isNaN(rawRdsLimit)) {
+      rdsSpecLimit = rawRdsLimit;
+    } else if (typeof rawRdsLimit.limitValue === 'number' && !isNaN(rawRdsLimit.limitValue)) {
+      rdsSpecLimit = rawRdsLimit.limitValue;
+    } else if (typeof rawRdsLimit.upper === 'number' && !isNaN(rawRdsLimit.upper)) {
+      rdsSpecLimit = rawRdsLimit.upper;
+    } else if (typeof rawRdsLimit.max === 'number' && !isNaN(rawRdsLimit.max)) {
+      rdsSpecLimit = rawRdsLimit.max;
+    } else if (typeof rawRdsLimit.value === 'number' && !isNaN(rawRdsLimit.value)) {
+      rdsSpecLimit = rawRdsLimit.value;
+    }
+  }
+
+  const hasRdsLimit = typeof rdsSpecLimit === 'number' && !isNaN(rdsSpecLimit);
+
   const engineeringResult = evaluateComponentEngineeringDecision(
     component.measurements,
     compLimits,
