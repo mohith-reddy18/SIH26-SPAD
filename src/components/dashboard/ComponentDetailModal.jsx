@@ -182,7 +182,20 @@ export function evaluateComponentEngineeringDecision(
       status: !hasRdsLimit || obs24h === null ? 'NOT EVALUATED' : is24hViolated ? 'EXCEEDS LIMIT' : 'WITHIN LIMIT',
     });
 
-    // 3. RDS(on) — 168h FORECAST (if predicted168h exists)
+    // 3. ΔRDS — Early Drift (DO NOT apply the RDS(on) engineering limit)
+    paramResults.push({
+      id: 'delta_rdson',
+      key: 'delta_rdson',
+      name: 'ΔRDS — Early Drift',
+      shortName: 'ΔRDS',
+      unit: 'Ω',
+      limit: undefined,
+      currentValue: deltaVal,
+      isViolated: false,
+      status: '—',
+    });
+
+    // 4. RDS(on) — 168h FORECAST (if predicted168h exists)
     if (pred168h !== null && typeof pred168h === 'number' && !isNaN(pred168h)) {
       const isPredViolated = hasRdsLimit && pred168h > rdsSpecLimit;
       if (hasRdsLimit) evaluatedLimitCount += 1;
@@ -203,26 +216,12 @@ export function evaluateComponentEngineeringDecision(
   }
 
   // Handle other parameters (temp, vgs, vds, freq, dutyCycle, v_th, iddq, leakage, etc.)
-  const isDriftOrRdsKey = (k) => {
-    const s = String(k || '').toLowerCase().replace(/[\s_\-()]/g, '');
-    return (
-      s.includes('rdson') ||
-      s.includes('rdsohm') ||
-      s.includes('rds') ||
-      s.includes('drift') ||
-      s.includes('delta') ||
-      s === '0h' ||
-      s === '24h' ||
-      s === '96h' ||
-      s === '168h' ||
-      s === '0hr' ||
-      s === '24hr' ||
-      s === '96hr' ||
-      s === '168hr'
-    );
-  };
+  const rdsKeys = new Set([
+    'rdson', 'rdson_ohm', 'rds_on', 'rdson_0h', 'rdson_24h', 'rdson_168h', 'rds0', 'rds33',
+    '0h', '24h', '96h', '168h', 'delta_rdson', 'deltardson', 'delta_rds', 'deltards', 'delta'
+  ]);
 
-  const otherKeys = Object.keys({ ...meas, ...limits }).filter((k) => !isDriftOrRdsKey(k));
+  const otherKeys = Object.keys({ ...meas, ...limits }).filter((k) => !rdsKeys.has(String(k).toLowerCase()));
 
   otherKeys.forEach((key) => {
     const rawLimit = limits[key];
@@ -272,27 +271,7 @@ export function evaluateComponentEngineeringDecision(
     });
   });
 
-  // Ensure absolutely no Early Drift or Delta row is in the parameter table
-  const finalParams = paramResults.filter((p) => {
-    const nameStr = String(p.name || '').toLowerCase();
-    const shortStr = String(p.shortName || '').toLowerCase();
-    const keyStr = String(p.key || '').toLowerCase();
-    const idStr = String(p.id || '').toLowerCase();
-    return (
-      !nameStr.includes('drift') &&
-      !nameStr.includes('δrds') &&
-      !nameStr.includes('delta') &&
-      !shortStr.includes('drift') &&
-      !shortStr.includes('δrds') &&
-      !shortStr.includes('delta') &&
-      !keyStr.includes('drift') &&
-      !keyStr.includes('delta') &&
-      !idStr.includes('drift') &&
-      !idStr.includes('delta')
-    );
-  });
-
-  if (finalParams.length === 0) {
+  if (paramResults.length === 0) {
     return {
       decision: explicitStatus ? getNormalizedEngineeringStatus(explicitStatus) : 'NOT_EVALUATED',
       violatingParametersCount: 0,
@@ -316,21 +295,21 @@ export function evaluateComponentEngineeringDecision(
   if (evaluatedLimitCount === 0) {
     reasonText = 'No authoritative engineering specification limits configured for these parameters.';
   } else if (violatingCount === 0) {
-    reasonText = `0 of ${finalParams.length} parameters exceed the engineering limit.`;
+    reasonText = `0 of ${paramResults.length} parameters exceed the engineering limit.`;
   } else if (violatingCount === 1) {
-    const violatedParam = finalParams.find((p) => p.isViolated);
-    reasonText = `1 of ${finalParams.length} parameters (${violatedParam ? violatedParam.shortName : 'parameter'}) exceeds the engineering limit.`;
+    const violatedParam = paramResults.find((p) => p.isViolated);
+    reasonText = `1 of ${paramResults.length} parameters (${violatedParam ? violatedParam.shortName : 'parameter'}) exceeds the engineering limit.`;
   } else {
-    reasonText = `${violatingCount} of ${finalParams.length} parameters exceed their engineering limits.`;
+    reasonText = `${violatingCount} of ${paramResults.length} parameters exceed their engineering limits.`;
   }
 
   return {
     decision,
     violatingParametersCount: violatingCount,
-    totalParametersCount: finalParams.length,
+    totalParametersCount: paramResults.length,
     evaluatedLimitCount,
     reasonText,
-    parameters: finalParams,
+    parameters: paramResults,
   };
 }
 
@@ -373,18 +352,18 @@ export default function ComponentDetailModal({
   const pred168h = (typeof m1Param.predicted168h === 'number')
     ? m1Param.predicted168h
     : (typeof m1Param === 'number')
-    ? m1Param
-    : (typeof component.predictions?.rdson === 'number')
-    ? component.predictions.rdson
-    : (typeof component.predictions?.rdson?.predicted168h === 'number')
-    ? component.predictions.rdson.predicted168h
-    : (typeof component.predictions?.['rdson_168h'] === 'number')
-    ? component.predictions['rdson_168h']
-    : (typeof component.predicted168h === 'number')
-    ? component.predicted168h
-    : (typeof component.Predicted_RDS100 === 'number')
-    ? component.Predicted_RDS100
-    : null;
+      ? m1Param
+      : (typeof component.predictions?.rdson === 'number')
+        ? component.predictions.rdson
+        : (typeof component.predictions?.rdson?.predicted168h === 'number')
+          ? component.predictions.rdson.predicted168h
+          : (typeof component.predictions?.['rdson_168h'] === 'number')
+            ? component.predictions['rdson_168h']
+            : (typeof component.predicted168h === 'number')
+              ? component.predicted168h
+              : (typeof component.Predicted_RDS100 === 'number')
+                ? component.Predicted_RDS100
+                : null;
 
   // 1. Engineering Screening Evaluation (Resolving active limits with precedence)
   const compLimits = {
@@ -402,22 +381,22 @@ export default function ComponentDetailModal({
   const engBadgeStyle = getEngineeringBadgeStyle(engineeringResult.decision);
 
   const obs0h = component.measurements?.rdson?.['0h'] ??
-                component.measurements?.rdson?.[0] ??
-                (Array.isArray(component.measurements?.rdson) ? component.measurements?.rdson[0] : null) ??
-                m1Param.observed?.['0h'] ??
-                component.measurements?.['0h'] ??
-                component.measurements?.RDS0 ??
-                component.RDS0 ??
-                null;
+    component.measurements?.rdson?.[0] ??
+    (Array.isArray(component.measurements?.rdson) ? component.measurements?.rdson[0] : null) ??
+    m1Param.observed?.['0h'] ??
+    component.measurements?.['0h'] ??
+    component.measurements?.RDS0 ??
+    component.RDS0 ??
+    null;
 
   const obs24h = component.measurements?.rdson?.['24h'] ??
-                 component.measurements?.rdson?.[1] ??
-                 (Array.isArray(component.measurements?.rdson) ? component.measurements?.rdson[1] : null) ??
-                 m1Param.observed?.['24h'] ??
-                 component.measurements?.['24h'] ??
-                 component.measurements?.RDS33 ??
-                 component.RDS33 ??
-                 null;
+    component.measurements?.rdson?.[1] ??
+    (Array.isArray(component.measurements?.rdson) ? component.measurements?.rdson[1] : null) ??
+    m1Param.observed?.['24h'] ??
+    component.measurements?.['24h'] ??
+    component.measurements?.RDS33 ??
+    component.RDS33 ??
+    null;
 
   const m1Status = (pred168h !== null || m1Param.status === 'PREDICTED')
     ? 'PREDICTED'
@@ -425,14 +404,14 @@ export default function ComponentDetailModal({
 
   let m1Flag = 'NOT_EVALUATED';
   const rawM1Flag = m1Param.aiFlag ??
-                    predictionObj?.aiFlag ??
-                    component.prediction?.aiFlag ??
-                    component.predictions?.rdson?.aiFlag ??
-                    component.predictions?.aiFlag ??
-                    component.prediction?.Module_B_Flag ??
-                    component.prediction?.Module_B_Anomaly ??
-                    component.Module_B_Flag ??
-                    component.Module_B_Anomaly;
+    predictionObj?.aiFlag ??
+    component.prediction?.aiFlag ??
+    component.predictions?.rdson?.aiFlag ??
+    component.predictions?.aiFlag ??
+    component.prediction?.Module_B_Flag ??
+    component.prediction?.Module_B_Anomaly ??
+    component.Module_B_Flag ??
+    component.Module_B_Anomaly;
 
   if (rawM1Flag !== undefined && rawM1Flag !== null) {
     const s = String(rawM1Flag).trim().toUpperCase();
@@ -451,26 +430,26 @@ export default function ComponentDetailModal({
   const roc = (typeof m1Param.rateOfChangePerHour === 'number')
     ? m1Param.rateOfChangePerHour
     : (obs0h !== null && obs24h !== null)
-    ? Number(((obs24h - obs0h) / 24).toFixed(6))
-    : null;
+      ? Number(((obs24h - obs0h) / 24).toFixed(6))
+      : null;
 
   const projMargin = (typeof m1Param.projectedMargin === 'number') ? m1Param.projectedMargin : null;
   const modelEvidence = m1Param.modelEvidence || {};
   const forecastResidual = (typeof modelEvidence.forecastResidual === 'number')
     ? modelEvidence.forecastResidual
     : (typeof component.forecastResidual === 'number')
-    ? component.forecastResidual
-    : null;
+      ? component.forecastResidual
+      : null;
   const absForecastError = (typeof modelEvidence.absoluteForecastError === 'number')
     ? modelEvidence.absoluteForecastError
     : (typeof component.absoluteForecastError === 'number')
-    ? component.absoluteForecastError
-    : null;
+      ? component.absoluteForecastError
+      : null;
   const forecastErrorRatio = (typeof modelEvidence.forecastErrorRatio === 'number')
     ? modelEvidence.forecastErrorRatio
     : (typeof component.forecastErrorRatio === 'number')
-    ? component.forecastErrorRatio
-    : null;
+      ? component.forecastErrorRatio
+      : null;
   const futureRiskScore = (typeof m1Param.futureRiskScore === 'number') ? m1Param.futureRiskScore : null;
 
   // --------------------------------------------------------------------------
@@ -493,27 +472,27 @@ export default function ComponentDetailModal({
   const noveltyPercentile = (typeof m2Param.peerComparisonEvidence?.noveltyPercentile === 'number')
     ? m2Param.peerComparisonEvidence.noveltyPercentile
     : (typeof component.noveltyPercentile === 'number')
-    ? component.noveltyPercentile
-    : null;
+      ? component.noveltyPercentile
+      : null;
 
   const peerZScore = (typeof m2Param.peerComparisonEvidence?.zScore === 'number')
     ? m2Param.peerComparisonEvidence.zScore
     : (typeof component.zScore === 'number')
-    ? component.zScore
-    : null;
+      ? component.zScore
+      : null;
 
   const peerReason = m2Param.peerComparisonEvidence?.reason ||
-                     m2Param.peerComparisonEvidence?.summaryText ||
-                     component.evidence ||
-                     null;
+    m2Param.peerComparisonEvidence?.summaryText ||
+    component.evidence ||
+    null;
 
   const divergenceType = m2Param.divergenceType || component.divergenceType || 'NOMINAL';
 
   const sameLotPeersCount = lotAnomalyObj?.eligiblePeersCount ??
-                            Math.max(0, components.filter((c) => (c.lotId || lotId) === lotId).length - 1);
+    Math.max(0, components.filter((c) => (c.lotId || lotId) === lotId).length - 1);
 
   const cohortQuality = lotAnomalyObj?.cohortQuality ||
-                        (sameLotPeersCount >= 2 ? 'SUFFICIENT' : 'INSUFFICIENT');
+    (sameLotPeersCount >= 2 ? 'SUFFICIENT' : 'INSUFFICIENT');
 
   let m2Flag = 'NOT_EVALUATED';
   const rawM2Flag = m2Param.aiFlag || lotAnomalyObj?.overallStatus || component.anomalies?.aiFlag;
@@ -633,7 +612,7 @@ export default function ComponentDetailModal({
 
         {/* Modal Body Scroll Area */}
         <div className="spad-modal-body" style={{ overflowY: 'auto', flex: 1, padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          
+
           {/* ============================================================ */}
           {/* SECTION 1: COMPONENT SUMMARY                                 */}
           {/* ============================================================ */}
