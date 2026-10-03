@@ -182,20 +182,7 @@ export function evaluateComponentEngineeringDecision(
       status: !hasRdsLimit || obs24h === null ? 'NOT EVALUATED' : is24hViolated ? 'EXCEEDS LIMIT' : 'WITHIN LIMIT',
     });
 
-    // 3. ΔRDS — Early Drift (DO NOT apply the RDS(on) engineering limit)
-    paramResults.push({
-      id: 'delta_rdson',
-      key: 'delta_rdson',
-      name: 'ΔRDS — Early Drift',
-      shortName: 'ΔRDS',
-      unit: 'Ω',
-      limit: undefined,
-      currentValue: deltaVal,
-      isViolated: false,
-      status: '—',
-    });
-
-    // 4. RDS(on) — 168h FORECAST (if predicted168h exists)
+    // 3. RDS(on) — 168h FORECAST (if predicted168h exists)
     if (pred168h !== null && typeof pred168h === 'number' && !isNaN(pred168h)) {
       const isPredViolated = hasRdsLimit && pred168h > rdsSpecLimit;
       if (hasRdsLimit) evaluatedLimitCount += 1;
@@ -216,12 +203,26 @@ export function evaluateComponentEngineeringDecision(
   }
 
   // Handle other parameters (temp, vgs, vds, freq, dutyCycle, v_th, iddq, leakage, etc.)
-  const rdsKeys = new Set([
-    'rdson', 'rdson_ohm', 'rds_on', 'rdson_0h', 'rdson_24h', 'rdson_168h', 'rds0', 'rds33',
-    '0h', '24h', '96h', '168h', 'delta_rdson', 'deltardson', 'delta_rds', 'deltards', 'delta'
-  ]);
+  const isDriftOrRdsKey = (k) => {
+    const s = String(k || '').toLowerCase().replace(/[\s_\-()]/g, '');
+    return (
+      s.includes('rdson') ||
+      s.includes('rdsohm') ||
+      s.includes('rds') ||
+      s.includes('drift') ||
+      s.includes('delta') ||
+      s === '0h' ||
+      s === '24h' ||
+      s === '96h' ||
+      s === '168h' ||
+      s === '0hr' ||
+      s === '24hr' ||
+      s === '96hr' ||
+      s === '168hr'
+    );
+  };
 
-  const otherKeys = Object.keys({ ...meas, ...limits }).filter((k) => !rdsKeys.has(String(k).toLowerCase()));
+  const otherKeys = Object.keys({ ...meas, ...limits }).filter((k) => !isDriftOrRdsKey(k));
 
   otherKeys.forEach((key) => {
     const rawLimit = limits[key];
@@ -271,7 +272,27 @@ export function evaluateComponentEngineeringDecision(
     });
   });
 
-  if (paramResults.length === 0) {
+  // Ensure absolutely no Early Drift or Delta row is in the parameter table
+  const finalParams = paramResults.filter((p) => {
+    const nameStr = String(p.name || '').toLowerCase();
+    const shortStr = String(p.shortName || '').toLowerCase();
+    const keyStr = String(p.key || '').toLowerCase();
+    const idStr = String(p.id || '').toLowerCase();
+    return (
+      !nameStr.includes('drift') &&
+      !nameStr.includes('δrds') &&
+      !nameStr.includes('delta') &&
+      !shortStr.includes('drift') &&
+      !shortStr.includes('δrds') &&
+      !shortStr.includes('delta') &&
+      !keyStr.includes('drift') &&
+      !keyStr.includes('delta') &&
+      !idStr.includes('drift') &&
+      !idStr.includes('delta')
+    );
+  });
+
+  if (finalParams.length === 0) {
     return {
       decision: explicitStatus ? getNormalizedEngineeringStatus(explicitStatus) : 'NOT_EVALUATED',
       violatingParametersCount: 0,
@@ -295,21 +316,21 @@ export function evaluateComponentEngineeringDecision(
   if (evaluatedLimitCount === 0) {
     reasonText = 'No authoritative engineering specification limits configured for these parameters.';
   } else if (violatingCount === 0) {
-    reasonText = `0 of ${paramResults.length} parameters exceed the engineering limit.`;
+    reasonText = `0 of ${finalParams.length} parameters exceed the engineering limit.`;
   } else if (violatingCount === 1) {
-    const violatedParam = paramResults.find((p) => p.isViolated);
-    reasonText = `1 of ${paramResults.length} parameters (${violatedParam ? violatedParam.shortName : 'parameter'}) exceeds the engineering limit.`;
+    const violatedParam = finalParams.find((p) => p.isViolated);
+    reasonText = `1 of ${finalParams.length} parameters (${violatedParam ? violatedParam.shortName : 'parameter'}) exceeds the engineering limit.`;
   } else {
-    reasonText = `${violatingCount} of ${paramResults.length} parameters exceed their engineering limits.`;
+    reasonText = `${violatingCount} of ${finalParams.length} parameters exceed their engineering limits.`;
   }
 
   return {
     decision,
     violatingParametersCount: violatingCount,
-    totalParametersCount: paramResults.length,
+    totalParametersCount: finalParams.length,
     evaluatedLimitCount,
     reasonText,
-    parameters: paramResults,
+    parameters: finalParams,
   };
 }
 
