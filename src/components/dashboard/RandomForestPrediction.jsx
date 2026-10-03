@@ -29,8 +29,8 @@ export default function RandomForestPrediction({ records = [] }) {
         predicted168h = rec.predictions.rdson;
       }
 
-      let aiFlag = targetParam.aiFlag || (predObj.status === 'PREDICTED' ? rec.aiStatus : 'NOT_EVALUATED') || 'NOT_EVALUATED';
-      aiFlag = aiFlag.toUpperCase();
+      let aiFlag = targetParam.aiFlag || (predObj.status === 'PREDICTED' ? (predicted168h !== null && targetParam.engineeringLimit?.limitValue && predicted168h > targetParam.engineeringLimit.limitValue ? 'FLAGGED' : 'NOT FLAGGED') : 'NOT_EVALUATED');
+      aiFlag = String(aiFlag).toUpperCase();
       if (aiFlag === 'NOT_FLAGGED' || aiFlag === 'NOMINAL' || aiFlag === 'PASS') aiFlag = 'NOT FLAGGED';
 
       return {

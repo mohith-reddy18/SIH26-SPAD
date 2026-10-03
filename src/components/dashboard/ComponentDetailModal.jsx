@@ -516,15 +516,13 @@ export default function ComponentDetailModal({
     (sameLotPeersCount >= 2 ? 'SUFFICIENT' : 'INSUFFICIENT');
 
   let m2Flag = 'NOT_EVALUATED';
-  const rawM2Flag = m2Param.aiFlag || lotAnomalyObj?.overallStatus || component.anomalies?.aiFlag;
+  const rawM2Flag = m2Param.aiFlag || component.anomalies?.aiFlag;
   if (rawM2Flag) {
     const s = String(rawM2Flag).toUpperCase().trim();
     if (s === 'FLAGGED') m2Flag = 'FLAGGED';
     else if (s === 'NOT FLAGGED' || s === 'NOT_FLAGGED' || s === 'ANALYZED' || s === 'NOMINAL' || s === 'NORMAL' || s === 'PASS') m2Flag = 'NOT FLAGGED';
-  } else if (component.aiStatus) {
-    const s = String(component.aiStatus).toUpperCase().trim();
-    if (s === 'FLAGGED') m2Flag = 'FLAGGED';
-    else if (s === 'NOT FLAGGED' || s === 'NOT_FLAGGED') m2Flag = 'NOT FLAGGED';
+  } else if (lotAnomalyObj?.status === 'ANALYZED') {
+    m2Flag = 'NOT FLAGGED';
   }
   const m2BadgeStyle = getAiBadgeStyle(m2Flag);
 

@@ -240,8 +240,8 @@ export default function ModelPerformance({ selectedLotId }) {
 
               <div className="spad-lot-metric-pill" style={{ background: 'var(--spad-inset, #101119)', padding: '12px 14px' }}>
                 <span className="spad-lot-metric-label">NOVELTY PERCENTILE</span>
-                <span className="spad-lot-metric-val font-mono text-cyan" style={{ fontSize: '15px' }}>
-                  {noveltyPercentile !== null ? `${noveltyPercentile.toFixed(1)}%` : '—'}
+                <span className="spad-lot-metric-val font-mono text-cyan" style={{ fontSize: noveltyPercentile !== null ? '15px' : '12px' }}>
+                  {noveltyPercentile !== null ? `${noveltyPercentile.toFixed(1)}%` : 'Unavailable for this record'}
                 </span>
                 <span style={{ fontSize: '10px', color: '#94a3b8', marginTop: '2px' }}>Relative to peer lot baseline</span>
               </div>
@@ -287,7 +287,7 @@ export default function ModelPerformance({ selectedLotId }) {
             <div style={{ background: 'rgba(15, 23, 42, 0.65)', border: '1px solid rgba(56, 189, 248, 0.25)', borderRadius: '8px', padding: '16px 18px', marginBottom: '18px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
                 <span style={{ fontSize: '11px', fontWeight: '700', letterSpacing: '0.06em', color: '#38bdf8', textTransform: 'uppercase', fontFamily: 'var(--font-mono)' }}>
-                  ★ AUTHORITATIVE MODEL VALIDATION BENCHMARKS (Leave-One-Device-Out CV • N = 13)
+                  ★ MODEL VALIDATION — NASA V1 (Leave-One-Device-Out CV • N = 13 normal physical MOSFETs)
                 </span>
                 <span style={{ fontSize: '10.5px', color: '#94a3b8', fontFamily: 'var(--font-mono)' }}>
                   Dataset: NASA MOSFET Thermal Overstress (199–200°C)
@@ -331,7 +331,7 @@ export default function ModelPerformance({ selectedLotId }) {
               <div style={{ marginTop: '12px', fontSize: '11px', color: '#94a3b8', lineHeight: 1.5, fontFamily: 'var(--font-ui, Outfit, sans-serif)' }}>
                 <strong>Validation Context:</strong> Leave-One-Device-Out Cross-Validation on N = 13 normal physical MOSFETs.<br />
                 <strong>Model Architecture:</strong> <code>RandomForestRegressor (300 trees, max_depth 3, min_samples_leaf 2, random_state 42)</code>.<br />
-                <strong>Inputs:</strong> <code>RDS0 + RDS33</code> (0% and 33.3% normalized observed checkpoints) &rarr; <strong>Target:</strong> <code>RDS100</code> (100% equivalent forecast endpoint).
+                <strong>Inputs:</strong> <code>RDS0 + RDS33</code> (0% and 33.3% observed checkpoints) &rarr; <strong>Target:</strong> <code>RDS100</code> (100% equivalent forecast endpoint).
               </div>
             </div>
 
@@ -440,9 +440,9 @@ export default function ModelPerformance({ selectedLotId }) {
               <div className="spad-shap-features-list">
                 {!hasRealShap ? (
                   <div style={{ padding: '24px', textAlign: 'center', color: '#94a3b8', fontSize: '13px', background: 'rgba(15, 23, 42, 0.4)', borderRadius: '6px' }}>
-                    <p style={{ margin: '0 0 6px 0', fontWeight: '600', color: '#cbd5e1' }}>Feature attribution data unavailable</p>
+                    <p style={{ margin: '0 0 6px 0', fontWeight: '600', color: '#cbd5e1' }}>SHAP attribution unavailable for this screening record.</p>
                     <span style={{ fontSize: '12px', color: '#64748b' }}>
-                      SHAP decomposition requires live TreeExplainer kernel attributions from the Python ML service. The overall risk index above is evaluated from physical drift forecasting and peer cohort novelty.
+                      The deployed screening response did not return TreeExplainer feature attributions. No attribution values are fabricated.
                     </span>
                   </div>
                 ) : (
@@ -528,39 +528,48 @@ export default function ModelPerformance({ selectedLotId }) {
               Sub-microsecond transient waveform analysis monitors instantaneous peak resistance (RDS) during pulse switching transitions to capture latent oxide rupture or bond-wire degradation before steady-state shift.
             </p>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginBottom: '16px' }}>
-              <div className="spad-lot-metric-pill" style={{ background: 'var(--spad-inset, #101119)', padding: '12px 14px' }}>
-                <span className="spad-lot-metric-label">MAX INSTANTANEOUS RDS(ON)</span>
-                <span className="spad-lot-metric-val font-mono text-cyan" style={{ fontSize: '15px' }}>
-                  {maxRDSInst !== null ? `${maxRDSInst.toFixed(4)} Ω` : '—'}
+            {maxRDSInst === null && evidenceTransId === null ? (
+              <div style={{ padding: '20px', textAlign: 'center', color: '#94a3b8', fontSize: '13px', background: 'rgba(15, 23, 42, 0.4)', borderRadius: '6px', marginBottom: '16px' }}>
+                <p style={{ margin: '0 0 6px 0', fontWeight: '600', color: '#cbd5e1' }}>Transient evidence unavailable for this screening record.</p>
+                <span style={{ fontSize: '12px', color: '#64748b' }}>
+                  No persisted transient telemetry is available for this record. No transient result is inferred.
                 </span>
-                <span style={{ fontSize: '10px', color: '#94a3b8', marginTop: '2px' }}>Peak switching resistance</span>
               </div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginBottom: '16px' }}>
+                <div className="spad-lot-metric-pill" style={{ background: 'var(--spad-inset, #101119)', padding: '12px 14px' }}>
+                  <span className="spad-lot-metric-label">MAX INSTANTANEOUS RDS(ON)</span>
+                  <span className="spad-lot-metric-val font-mono text-cyan" style={{ fontSize: '15px' }}>
+                    {maxRDSInst !== null ? `${maxRDSInst.toFixed(4)} Ω` : '—'}
+                  </span>
+                  <span style={{ fontSize: '10px', color: '#94a3b8', marginTop: '2px' }}>Peak switching resistance</span>
+                </div>
 
-              <div className="spad-lot-metric-pill" style={{ background: 'var(--spad-inset, #101119)', padding: '12px 14px' }}>
-                <span className="spad-lot-metric-label">LIMIT EXCEEDANCE COUNT</span>
-                <span className="spad-lot-metric-val font-mono" style={{ fontSize: '15px', color: exceedanceCount && exceedanceCount > 0 ? '#ef4444' : '#22C55E' }}>
-                  {exceedanceCount !== null ? `${exceedanceCount} pulses` : '—'}
-                </span>
-                <span style={{ fontSize: '10px', color: '#94a3b8', marginTop: '2px' }}>Threshold breach instances</span>
-              </div>
+                <div className="spad-lot-metric-pill" style={{ background: 'var(--spad-inset, #101119)', padding: '12px 14px' }}>
+                  <span className="spad-lot-metric-label">LIMIT EXCEEDANCE COUNT</span>
+                  <span className="spad-lot-metric-val font-mono" style={{ fontSize: '15px', color: exceedanceCount && exceedanceCount > 0 ? '#ef4444' : '#22C55E' }}>
+                    {exceedanceCount !== null ? `${exceedanceCount} pulses` : '—'}
+                  </span>
+                  <span style={{ fontSize: '10px', color: '#94a3b8', marginTop: '2px' }}>Threshold breach instances</span>
+                </div>
 
-              <div className="spad-lot-metric-pill" style={{ background: 'var(--spad-inset, #101119)', padding: '12px 14px' }}>
-                <span className="spad-lot-metric-label">PEAK TRANSIENT ID</span>
-                <span className="spad-lot-metric-val font-mono text-slate" style={{ fontSize: '14px' }}>
-                  {evidenceTransId || '—'}
-                </span>
-                <span style={{ fontSize: '10px', color: '#94a3b8', marginTop: '2px' }}>Waveform capture reference</span>
-              </div>
+                <div className="spad-lot-metric-pill" style={{ background: 'var(--spad-inset, #101119)', padding: '12px 14px' }}>
+                  <span className="spad-lot-metric-label">PEAK TRANSIENT ID</span>
+                  <span className="spad-lot-metric-val font-mono text-slate" style={{ fontSize: '14px' }}>
+                    {evidenceTransId || '—'}
+                  </span>
+                  <span style={{ fontSize: '10px', color: '#94a3b8', marginTop: '2px' }}>Waveform capture reference</span>
+                </div>
 
-              <div className="spad-lot-metric-pill" style={{ background: 'var(--spad-inset, #101119)', padding: '12px 14px' }}>
-                <span className="spad-lot-metric-label">PEAK TIMESTAMP (TIME_US)</span>
-                <span className="spad-lot-metric-val font-mono text-slate" style={{ fontSize: '14px' }}>
-                  {evidenceTimeUs !== null ? `${evidenceTimeUs.toFixed(2)} µs` : '—'}
-                </span>
-                <span style={{ fontSize: '10px', color: '#94a3b8', marginTop: '2px' }}>Transient pulse window offset</span>
+                <div className="spad-lot-metric-pill" style={{ background: 'var(--spad-inset, #101119)', padding: '12px 14px' }}>
+                  <span className="spad-lot-metric-label">PEAK TIMESTAMP (TIME_US)</span>
+                  <span className="spad-lot-metric-val font-mono text-slate" style={{ fontSize: '14px' }}>
+                    {evidenceTimeUs !== null ? `${evidenceTimeUs.toFixed(2)} µs` : '—'}
+                  </span>
+                  <span style={{ fontSize: '10px', color: '#94a3b8', marginTop: '2px' }}>Transient pulse window offset</span>
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="spad-shap-disclaimer-note" style={{ borderLeftColor: '#38bdf8' }}>
               <span className="font-bold text-cyan">Engineering Boundary:</span> Transient pulse monitoring detects localized thermal hot-spotting and gate dielectric micro-defects during pulse transitions that evade low-frequency static DC screening.

@@ -591,41 +591,42 @@ async function processRemoteScreeningRun({ lotId, componentId, customLimits = nu
 
     // 5. Isolation Forest Method 2 Lot Anomaly
     const lotAnomalyScore =
-      item.lotAnomaly?.lotAnomalyScore ??
-      item.lotAnomaly?.score ??
+      item.Module_A_IF_Score_33 ??
+      item.lotAnomaly?.Module_A_IF_Score_33 ??
       item.lotAnomaly?.Module_A_IF_Score ??
       item.Module_A_IF_Score ??
-      item.Module_A_IF_Score_33 ??
-      item.Module_A_IF_Score_0 ??
+      item.lotAnomaly?.lotAnomalyScore ??
+      item.lotAnomaly?.score ??
       item.lotAnomalyScore ??
-      item.lotAnomaly?.Module_A_IF_Score_33 ??
+      item.Module_A_IF_Score_0 ??
       (item.aiAssessment?.lotAnomaly?.parameters?.rdson?.lotAnomalyScore ?? null);
     
     const rawIfFlag =
-      item.lotAnomaly?.aiFlag ??
-      item.lotAnomaly?.Module_A_Anomaly ??
-      item.lotAnomaly?.module_a_anomaly ??
-      item.lotAnomaly?.Module_A_Flag ??
-      item.lotAnomaly?.Module_A_Flag_33 ??
-      item.lotAnomaly?.module_a_flag ??
-      item.Module_A_Anomaly ??
-      item.module_a_anomaly ??
-      item.Module_A_Flag ??
       item.Module_A_Flag_33 ??
+      item.lotAnomaly?.Module_A_Flag_33 ??
+      item.Module_A_Flag ??
+      item.lotAnomaly?.Module_A_Flag ??
+      item.Module_A_Anomaly ??
+      item.lotAnomaly?.Module_A_Anomaly ??
+      item.module_a_anomaly ??
+      item.lotAnomaly?.module_a_anomaly ??
       item.module_a_flag ??
+      item.lotAnomaly?.module_a_flag ??
+      item.lotAnomaly?.aiFlag ??
       item.lotAnomaly?.ai_flag ??
       item.aiAssessment?.lotAnomaly?.parameters?.rdson?.aiFlag;
 
     const rawPercentile =
+      item.Module_A_Novelty_Percentile_33 ??
+      item.lotAnomaly?.Module_A_Novelty_Percentile_33 ??
+      (item.Module_A_Novelty_Percentiles ? (item.Module_A_Novelty_Percentiles['33.3%'] ?? item.Module_A_Novelty_Percentiles['33.33%'] ?? item.Module_A_Novelty_Percentiles['24hr'] ?? Object.values(item.Module_A_Novelty_Percentiles)[0]) : null) ??
+      item.Module_A_Novelty_Percentile ??
       item.lotAnomaly?.peerComparisonEvidence?.noveltyPercentile ??
       item.lotAnomaly?.noveltyPercentile ??
       item.lotAnomaly?.novelty_percentile ??
-      item.Module_A_Novelty_Percentile ??
-      item.Module_A_Novelty_Percentile_33 ??
-      item.Module_A_Novelty_Percentile_0 ??
       item.noveltyPercentile ??
       item.novelty_percentile ??
-      (item.Module_A_Novelty_Percentiles ? (item.Module_A_Novelty_Percentiles['33.3%'] ?? item.Module_A_Novelty_Percentiles['33.33%'] ?? item.Module_A_Novelty_Percentiles['24hr'] ?? Object.values(item.Module_A_Novelty_Percentiles)[0]) : null) ??
+      item.Module_A_Novelty_Percentile_0 ??
       (item.aiAssessment?.lotAnomaly?.parameters?.rdson?.peerComparisonEvidence?.noveltyPercentile ?? null);
     const noveltyPercentileVal = (rawPercentile !== undefined && rawPercentile !== null && !isNaN(Number(rawPercentile))) ? Number(rawPercentile) : null;
 

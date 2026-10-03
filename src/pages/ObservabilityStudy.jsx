@@ -309,7 +309,6 @@ export default function ObservabilityStudy({ selectedLotId, onSelectLot }) {
                 <th>PARAMETER</th>
                 <th>0% (BASELINE)</th>
                 <th>33.3% (EARLY)</th>
-                <th>66.7% (INTERMEDIATE)</th>
                 <th>100% (AI FORECAST)</th>
                 <th>ENGINEERING LIMIT</th>
                 <th>SAFETY MARGIN</th>
@@ -319,7 +318,7 @@ export default function ObservabilityStudy({ selectedLotId, onSelectLot }) {
             <tbody>
               {filteredParameterRows.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="spad-table-empty">
+                  <td colSpan="7" className="spad-table-empty">
                     No parameter measurements available for this component.
                   </td>
                 </tr>
@@ -335,9 +334,6 @@ export default function ObservabilityStudy({ selectedLotId, onSelectLot }) {
                       </td>
                       <td className="spad-td-mono">
                         {row.obs24h !== null ? `${typeof row.obs24h === 'number' ? row.obs24h.toFixed(2) : row.obs24h} ${row.unit}` : '—'}
-                      </td>
-                      <td className="spad-td-mono">
-                        {row.obs96h !== null ? `${typeof row.obs96h === 'number' ? row.obs96h.toFixed(2) : row.obs96h} ${row.unit}` : '—'}
                       </td>
                       <td className="spad-td-mono font-bold" style={{ color: '#38bdf8' }}>
                         {row.pred168h !== null ? `${typeof row.pred168h === 'number' ? row.pred168h.toFixed(2) : row.pred168h} ${row.unit}` : '—'}

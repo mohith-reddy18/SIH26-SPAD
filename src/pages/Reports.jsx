@@ -340,7 +340,6 @@ export default function Reports({ selectedLotId, onSelectLot }) {
                     <th>PARAMETER NAME</th>
                     <th>0% (BASELINE)</th>
                     <th>33.3% (EARLY)</th>
-                    <th>66.7% (INTERMEDIATE)</th>
                     <th>100% (AI FORECAST)</th>
                     <th>SPEC LIMIT (MAX)</th>
                     <th>SAFETY MARGIN</th>
@@ -375,12 +374,10 @@ export default function Reports({ selectedLotId, onSelectLot }) {
                       const series = measurements[key] || [];
                       let obs0h = Array.isArray(series) && series.length > 0 ? series[0] : (typeof series === 'object' && series !== null ? (series['0h'] ?? series['0hr'] ?? series['0%'] ?? series['RDS0'] ?? null) : null);
                       let obs24h = Array.isArray(series) && series.length > 1 ? series[1] : (typeof series === 'object' && series !== null ? (series['24h'] ?? series['24hr'] ?? series['33.3%'] ?? series['RDS33'] ?? null) : null);
-                      let obs96h = Array.isArray(series) && series.length > 2 ? series[2] : (typeof series === 'object' && series !== null ? (series['96h'] ?? series['96hr'] ?? series['66.7%'] ?? series['RDS96'] ?? null) : null);
 
                       if (key === 'rdson' || key === 'rdson_ohm' || key === 'rds_on') {
                         if (obs0h === null) obs0h = measurements.rdson_0h ?? measurements['0h'] ?? measurements['0hr'] ?? null;
                         if (obs24h === null) obs24h = measurements.rdson_24h ?? measurements['24h'] ?? measurements['24hr'] ?? null;
-                        if (obs96h === null) obs96h = measurements.rdson_96h ?? measurements['96h'] ?? measurements['96hr'] ?? null;
                       }
 
                       const predVal = extractPredictedValue(activeComponent, key) ?? (Array.isArray(series) && series.length > 3 ? series[3] : null);
@@ -393,7 +390,6 @@ export default function Reports({ selectedLotId, onSelectLot }) {
                           <td className="spad-td-mono font-bold text-cyan">{name}</td>
                           <td className="spad-td-mono">{obs0h !== undefined && obs0h !== null ? `${typeof obs0h === 'number' ? obs0h.toFixed(2) : obs0h} ${unit}` : '—'}</td>
                           <td className="spad-td-mono">{obs24h !== undefined && obs24h !== null ? `${typeof obs24h === 'number' ? obs24h.toFixed(2) : obs24h} ${unit}` : '—'}</td>
-                          <td className="spad-td-mono">{obs96h !== undefined && obs96h !== null ? `${typeof obs96h === 'number' ? obs96h.toFixed(2) : obs96h} ${unit}` : '—'}</td>
                           <td className="spad-td-mono font-bold" style={{ color: '#38bdf8' }}>{predVal !== undefined && predVal !== null ? `${typeof predVal === 'number' ? predVal.toFixed(2) : predVal} ${unit}` : '—'}</td>
                           <td className="spad-td-mono" style={{ color: '#f87171', fontWeight: '700' }}>{limitVal !== undefined && limitVal !== null ? `${typeof limitVal === 'number' ? limitVal.toFixed(2) : limitVal} ${unit}` : '—'}</td>
                           <td className="spad-td-mono" style={{ color: isBreached ? '#ef4444' : 'var(--spad-green, #22C55E)' }}>{margin !== '—' ? `+${margin} ${unit}` : '—'}</td>
@@ -411,62 +407,102 @@ export default function Reports({ selectedLotId, onSelectLot }) {
             </div>
           </div>
 
-          {/* AI Explainability & Anomaly Evidence Audit Box */}
-          <div className="spad-two-col-grid">
-            <div className="spad-card" style={{ padding: '20px' }}>
-              <div className="spad-card-header">
-                <div className="spad-card-title-group">
-                  <span className="spad-card-section-label">AI REASONING AUDIT</span>
-                  <h3 className="spad-card-title">Early Anomaly Flagging</h3>
-                </div>
+          {/* AI Evidence Multi-Module Audit */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px' }}>
+            {/* MODULE A — LOT ANOMALY */}
+            <div className="spad-card" style={{ padding: '18px' }}>
+              <div className="spad-card-header" style={{ marginBottom: '10px' }}>
+                <span className="spad-section-pill ai-pill">MODULE A</span>
+                <span className="font-mono text-cyan" style={{ fontSize: '11px', fontWeight: '700' }}>STATUS: {aiAssessment.lotAnomaly?.parameters?.rdson?.aiFlag || (aiAssessment.lotAnomaly?.status === 'ANALYZED' ? 'NOT FLAGGED' : 'NOT_EVALUATED')}</span>
               </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '12px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(56, 189, 248, 0.04)', borderRadius: '4px' }}>
-                  <span style={{ fontSize: '13px', color: '#94a3b8' }}>Population Abnormality:</span>
-                  <span className="font-mono" style={{ color: anomalies.populationAbnormality === true ? '#f59e0b' : anomalies.populationAbnormality === false ? 'var(--spad-green, #22C55E)' : '#94a3b8', fontWeight: '700' }}>
-                    {anomalies.populationAbnormality === true ? 'FLAGGED (Outlier)' : anomalies.populationAbnormality === false ? 'NOMINAL (Within Bounds)' : 'NOT_EVALUATED'}
-                  </span>
+              <h4 style={{ fontSize: '13px', fontWeight: '700', color: '#f8fafc', margin: '0 0 10px 0' }}>Intra-Lot Anomaly Detection (Isolation Forest)</h4>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#94a3b8' }}>
+                  <span>IF Continuous Score:</span>
+                  <span className="font-mono text-cyan">{typeof aiAssessment.lotAnomaly?.parameters?.rdson?.lotAnomalyScore === 'number' ? aiAssessment.lotAnomaly.parameters.rdson.lotAnomalyScore.toFixed(4) : '—'}</span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(56, 189, 248, 0.04)', borderRadius: '4px' }}>
-                  <span style={{ fontSize: '13px', color: '#94a3b8' }}>Trajectory Abnormality:</span>
-                  <span className="font-mono" style={{ color: anomalies.trajectoryAbnormality === true ? '#f59e0b' : anomalies.trajectoryAbnormality === false ? 'var(--spad-green, #22C55E)' : '#94a3b8', fontWeight: '700' }}>
-                    {anomalies.trajectoryAbnormality === true ? 'FLAGGED (Drift)' : anomalies.trajectoryAbnormality === false ? 'NOMINAL (Linear)' : 'NOT_EVALUATED'}
-                  </span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#94a3b8' }}>
+                  <span>Novelty Percentile:</span>
+                  <span className="font-mono">{typeof aiAssessment.lotAnomaly?.parameters?.rdson?.peerComparisonEvidence?.noveltyPercentile === 'number' ? `${aiAssessment.lotAnomaly.parameters.rdson.peerComparisonEvidence.noveltyPercentile.toFixed(1)}%` : 'Unavailable for this record'}</span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(56, 189, 248, 0.04)', borderRadius: '4px' }}>
-                  <span style={{ fontSize: '13px', color: '#94a3b8' }}>Future-Risk Projection:</span>
-                  <span className="font-mono" style={{ color: '#38bdf8', fontWeight: '700' }}>
-                    {anomalies.futureRiskPrediction || (typeof activeComponent?.riskScore === 'number' ? `${aiRisk}% Risk` : 'NOT_EVALUATED')}
-                  </span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#94a3b8' }}>
+                  <span>Eligible Peers Evaluated:</span>
+                  <span className="font-mono text-slate">{aiAssessment.lotAnomaly?.eligiblePeersCount ?? (screeningRecords.length > 0 ? screeningRecords.length - 1 : 0)} units</span>
                 </div>
               </div>
             </div>
 
-            <div className="spad-card" style={{ padding: '20px' }}>
-              <div className="spad-card-header">
-                <div className="spad-card-title-group">
-                  <span className="spad-card-section-label">SHAP ATTRIBUTION LOG</span>
-                  <h3 className="spad-card-title">Top Risk Feature Contributions</h3>
+            {/* MODULE B — FUTURE DRIFT */}
+            <div className="spad-card" style={{ padding: '18px' }}>
+              <div className="spad-card-header" style={{ marginBottom: '10px' }}>
+                <span className="spad-section-pill ai-pill">MODULE B</span>
+                <span className="font-mono text-cyan" style={{ fontSize: '11px', fontWeight: '700' }}>STATUS: {aiAssessment.prediction?.parameters?.rdson?.aiFlag || (aiAssessment.prediction?.status === 'PREDICTED' ? 'NOT FLAGGED' : 'NOT_EVALUATED')}</span>
+              </div>
+              <h4 style={{ fontSize: '13px', fontWeight: '700', color: '#f8fafc', margin: '0 0 10px 0' }}>Time-Series Drift Prediction (Random Forest)</h4>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#94a3b8' }}>
+                  <span>0% Observed RDS:</span>
+                  <span className="font-mono">{typeof aiAssessment.prediction?.parameters?.rdson?.observed?.['0h'] === 'number' ? `${aiAssessment.prediction.parameters.rdson.observed['0h'].toFixed(3)} Ω` : '—'}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#94a3b8' }}>
+                  <span>33.3% Observed RDS:</span>
+                  <span className="font-mono">{typeof aiAssessment.prediction?.parameters?.rdson?.observed?.['24h'] === 'number' ? `${aiAssessment.prediction.parameters.rdson.observed['24h'].toFixed(3)} Ω` : '—'}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#94a3b8' }}>
+                  <span>100% Forecast Endpoint:</span>
+                  <span className="font-mono text-cyan font-bold">{typeof aiAssessment.prediction?.parameters?.rdson?.predicted168h === 'number' ? `${aiAssessment.prediction.parameters.rdson.predicted168h.toFixed(3)} Ω` : (typeof predictions.rdson === 'number' ? `${predictions.rdson.toFixed(3)} Ω` : '—')}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#94a3b8' }}>
+                  <span>Projected Spec Margin:</span>
+                  <span className="font-mono">{typeof aiAssessment.prediction?.parameters?.rdson?.projectedMargin === 'number' ? `${aiAssessment.prediction.parameters.rdson.projectedMargin.toFixed(3)} Ω` : '—'}</span>
                 </div>
               </div>
+            </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px' }}>
+            {/* MODULE C — TRANSIENT MONITORING */}
+            <div className="spad-card" style={{ padding: '18px' }}>
+              <div className="spad-card-header" style={{ marginBottom: '10px' }}>
+                <span className="spad-section-pill ai-pill">MODULE C</span>
+                <span className="font-mono text-cyan" style={{ fontSize: '11px', fontWeight: '700' }}>STATUS: {aiAssessment.moduleC?.parameters?.rdson?.aiFlag || (aiAssessment.moduleC?.status === 'ANALYZED' ? 'NOT FLAGGED' : 'NOT_EVALUATED')}</span>
+              </div>
+              <h4 style={{ fontSize: '13px', fontWeight: '700', color: '#f8fafc', margin: '0 0 10px 0' }}>Transient Pulse Extraction &amp; Exceedance</h4>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#94a3b8' }}>
+                  <span>Max Instantaneous RDS:</span>
+                  <span className="font-mono text-cyan">{typeof aiAssessment.moduleC?.parameters?.rdson?.maxRDSInstantaneousOhm === 'number' ? `${aiAssessment.moduleC.parameters.rdson.maxRDSInstantaneousOhm.toFixed(4)} Ω` : 'Unavailable for this record'}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#94a3b8' }}>
+                  <span>Limit Exceedance Count:</span>
+                  <span className="font-mono">{typeof aiAssessment.moduleC?.parameters?.rdson?.limitExceedanceCount === 'number' ? `${aiAssessment.moduleC.parameters.rdson.limitExceedanceCount} pulses` : 'Unavailable for this record'}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#94a3b8' }}>
+                  <span>Peak Transient Reference:</span>
+                  <span className="font-mono text-slate">{aiAssessment.moduleC?.parameters?.rdson?.evidenceTransientId || 'Unavailable for this record'}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* EXPLAINABILITY — SHAP ATTRIBUTION */}
+            <div className="spad-card" style={{ padding: '18px' }}>
+              <div className="spad-card-header" style={{ marginBottom: '10px' }}>
+                <span className="spad-section-pill ai-pill">EXPLAINABILITY</span>
+                <span className="font-mono text-cyan" style={{ fontSize: '11px', fontWeight: '700' }}>SHAP (TreeExplainer)</span>
+              </div>
+              <h4 style={{ fontSize: '13px', fontWeight: '700', color: '#f8fafc', margin: '0 0 10px 0' }}>Feature Attribution Decomposition</h4>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '12px' }}>
                 {(!modelExplanation.features || modelExplanation.features.length === 0) ? (
-                  <span style={{ fontSize: '12px', color: '#64748b' }}>No SHAP feature attribution data available.</span>
+                  <div style={{ color: '#64748b', fontSize: '11px', lineHeight: '1.4' }}>
+                    <p style={{ margin: '0 0 4px 0', color: '#94a3b8' }}>SHAP attribution unavailable for this screening record.</p>
+                    <span>The deployed screening response did not return TreeExplainer feature attributions. No attribution values are fabricated.</span>
+                  </div>
                 ) : (
-                  (modelExplanation.features || []).slice(0, 4).map((f, i) => (
-                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 10px', background: 'rgba(255, 255, 255, 0.02)', borderRadius: '4px', fontSize: '12px' }}>
+                  (modelExplanation.features || []).slice(0, 3).map((f, i) => (
+                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 8px', background: 'rgba(255, 255, 255, 0.02)', borderRadius: '4px' }}>
                       <span style={{ color: '#f8fafc' }}>{f.name}</span>
-                      <span className="font-mono" style={{ color: f.shapValue >= 0 ? '#f87171' : 'var(--spad-green, #22C55E)', fontWeight: '700' }}>
-                        {f.shapValue >= 0 ? `+${f.shapValue.toFixed(2)}` : f.shapValue.toFixed(2)}
-                      </span>
+                      <span className="font-mono font-bold" style={{ color: f.shapValue >= 0 ? '#f87171' : 'var(--spad-green, #22C55E)' }}>{f.shapValue >= 0 ? `+${f.shapValue.toFixed(2)}` : f.shapValue.toFixed(2)}</span>
                     </div>
                   ))
                 )}
-                <p style={{ fontSize: '11px', color: '#64748b', margin: '4px 0 0 0', lineHeight: '1.4' }}>
-                  {modelExplanation.summaryText}
-                </p>
               </div>
             </div>
           </div>

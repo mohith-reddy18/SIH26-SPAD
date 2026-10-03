@@ -100,7 +100,7 @@ export default function LotAnomalyDetection({ records = [] }) {
         peerEvidence = rec.evidence;
       }
 
-      let rawFlag = targetParam?.aiFlag || la?.overallStatus || la?.status;
+      let rawFlag = targetParam?.aiFlag || la?.status;
       let aiFlag = 'NOT_EVALUATED';
       if (rawFlag) {
         const s = String(rawFlag).toUpperCase().trim();
@@ -111,10 +111,6 @@ export default function LotAnomalyDetection({ records = [] }) {
         } else if (s === 'INSUFFICIENT_COHORT' || s === 'NOT_EVALUATED') {
           aiFlag = 'NOT_EVALUATED';
         }
-      } else if (rec.aiStatus) {
-        const s = String(rec.aiStatus).toUpperCase().trim();
-        if (s === 'FLAGGED') aiFlag = 'FLAGGED';
-        else if (s === 'NOT FLAGGED' || s === 'NOT_FLAGGED') aiFlag = 'NOT FLAGGED';
       }
 
       if (records.length < 3 && aiFlag !== 'FLAGGED') {

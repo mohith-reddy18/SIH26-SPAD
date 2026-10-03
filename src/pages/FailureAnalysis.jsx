@@ -223,8 +223,9 @@ export default function FailureAnalysis({ selectedLotId, onSelectLot }) {
               <thead>
                 <tr>
                   <th>PARAMETER</th>
-                  <th>OBSERVED VALUES (0% &rarr; 66.7%)</th>
-                  <th>100% FORECAST PREDICTION</th>
+                  <th>0% (BASELINE)</th>
+                  <th>33.3% (EARLY)</th>
+                  <th>100% (AI FORECAST)</th>
                   <th>ENGINEERING LIMIT</th>
                   <th>SAFETY MARGIN</th>
                   <th>STATUS</th>
@@ -256,24 +257,15 @@ export default function FailureAnalysis({ selectedLotId, onSelectLot }) {
                     seenNames.add(name.toLowerCase());
 
                     const series = measurements[key] || [];
-                    let obsFormatted = '—';
-                    if (Array.isArray(series)) {
-                      obsFormatted = series.map((v) => `${v} ${unit}`).join(' → ');
-                    } else if (typeof series === 'object' && series !== null) {
-                      const obs0 = series['0h'] ?? series['0hr'] ?? series['0%'] ?? series['RDS0'] ?? null;
-                      const obs24 = series['24h'] ?? series['24hr'] ?? series['33.3%'] ?? series['RDS33'] ?? null;
-                      const obs96 = series['96h'] ?? series['96hr'] ?? series['66.7%'] ?? series['RDS96'] ?? null;
-                      const validObs = [
-                        obs0 !== null ? `0%: ${obs0} ${unit}` : null,
-                        obs24 !== null ? `33.3%: ${obs24} ${unit}` : null,
-                        obs96 !== null ? `66.7%: ${obs96} ${unit}` : null,
-                      ].filter(Boolean);
-                      obsFormatted = validObs.length > 0 ? validObs.join(' → ') : '—';
-                    } else if (typeof series === 'number') {
-                      obsFormatted = `${series} ${unit}`;
+                    let obs0h = Array.isArray(series) && series.length > 0 ? series[0] : (typeof series === 'object' && series !== null ? (series['0h'] ?? series['0hr'] ?? series['0%'] ?? series['RDS0'] ?? null) : null);
+                    let obs24h = Array.isArray(series) && series.length > 1 ? series[1] : (typeof series === 'object' && series !== null ? (series['24h'] ?? series['24hr'] ?? series['33.3%'] ?? series['RDS33'] ?? null) : null);
+
+                    if (key === 'rdson' || key === 'rdson_ohm' || key === 'rds_on') {
+                      if (obs0h === null) obs0h = measurements.rdson_0h ?? measurements['0h'] ?? measurements['0hr'] ?? null;
+                      if (obs24h === null) obs24h = measurements.rdson_24h ?? measurements['24h'] ?? measurements['24hr'] ?? null;
                     }
 
-                    const predVal = extractPredictedValue(activeComponent, key) ?? (Array.isArray(series) ? series[series.length - 1] : null);
+                    const predVal = extractPredictedValue(activeComponent, key) ?? (Array.isArray(series) && series.length > 3 ? series[3] : null);
                     const limitVal = meta.specLimitMax;
                     const margin = typeof limitVal === 'number' && typeof predVal === 'number' ? (limitVal - predVal).toFixed(2) : '—';
                     const isBreached = typeof limitVal === 'number' && typeof predVal === 'number' && predVal > limitVal;
@@ -281,7 +273,8 @@ export default function FailureAnalysis({ selectedLotId, onSelectLot }) {
                     return (
                       <tr key={key} className="spad-table-row">
                         <td className="spad-td-mono font-bold text-cyan">{name}</td>
-                        <td className="spad-td-mono">{obsFormatted}</td>
+                        <td className="spad-td-mono">{obs0h !== undefined && obs0h !== null ? `${typeof obs0h === 'number' ? obs0h.toFixed(2) : obs0h} ${unit}` : '—'}</td>
+                        <td className="spad-td-mono">{obs24h !== undefined && obs24h !== null ? `${typeof obs24h === 'number' ? obs24h.toFixed(2) : obs24h} ${unit}` : '—'}</td>
                         <td className="spad-td-mono font-bold" style={{ color: '#38bdf8' }}>{predVal !== undefined && predVal !== null ? `${typeof predVal === 'number' ? predVal.toFixed(2) : predVal} ${unit}` : '—'}</td>
                         <td className="spad-td-mono" style={{ color: '#f87171', fontWeight: '700' }}>{limitVal !== undefined && limitVal !== null ? `${typeof limitVal === 'number' ? limitVal.toFixed(2) : limitVal} ${unit}` : '—'}</td>
                         <td className="spad-td-mono" style={{ color: isBreached ? '#ef4444' : 'var(--spad-green, #22C55E)' }}>{margin !== '—' ? `+${margin} ${unit}` : '—'}</td>
@@ -311,19 +304,19 @@ export default function FailureAnalysis({ selectedLotId, onSelectLot }) {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '12px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(56, 189, 248, 0.04)', borderRadius: '4px' }}>
-                <span style={{ fontSize: '13px', color: '#94a3b8' }}>Population Abnormality:</span>
+                <span style={{ fontSize: '13px', color: '#94a3b8' }}>Module A (Lot Anomaly):</span>
                 <span className="font-mono" style={{ color: anomalies.populationAbnormality === true ? '#f59e0b' : anomalies.populationAbnormality === false ? 'var(--spad-green, #22C55E)' : '#94a3b8', fontWeight: '700' }}>
-                  {anomalies.populationAbnormality === true ? 'FLAGGED (Outlier)' : anomalies.populationAbnormality === false ? 'NOMINAL (Normal Distribution)' : 'NOT_EVALUATED'}
+                  {anomalies.populationAbnormality === true ? 'FLAGGED (Outlier)' : anomalies.populationAbnormality === false ? 'NOMINAL (Within Bounds)' : 'NOT_EVALUATED'}
                 </span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(56, 189, 248, 0.04)', borderRadius: '4px' }}>
-                <span style={{ fontSize: '13px', color: '#94a3b8' }}>Trajectory Abnormality:</span>
+                <span style={{ fontSize: '13px', color: '#94a3b8' }}>Module B (Drift Forecast):</span>
                 <span className="font-mono" style={{ color: anomalies.trajectoryAbnormality === true ? '#f59e0b' : anomalies.trajectoryAbnormality === false ? 'var(--spad-green, #22C55E)' : '#94a3b8', fontWeight: '700' }}>
-                  {anomalies.trajectoryAbnormality === true ? 'FLAGGED (Non-Linear Drift)' : anomalies.trajectoryAbnormality === false ? 'NOMINAL (Stable)' : 'NOT_EVALUATED'}
+                  {anomalies.trajectoryAbnormality === true ? 'FLAGGED (Drift Non-Linear)' : anomalies.trajectoryAbnormality === false ? 'NOMINAL (Normal Tracking)' : 'NOT_EVALUATED'}
                 </span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(56, 189, 248, 0.04)', borderRadius: '4px' }}>
-                <span style={{ fontSize: '13px', color: '#94a3b8' }}>AI Risk Forecast:</span>
+                <span style={{ fontSize: '13px', color: '#94a3b8' }}>Forecast Risk Index:</span>
                 <span className="font-mono" style={{ color: '#38bdf8', fontWeight: '700' }}>
                   {anomalies.futureRiskPrediction || (typeof activeComponent?.riskScore === 'number' ? `${aiRisk}% Risk Index` : 'NOT_EVALUATED')}
                 </span>
@@ -341,7 +334,10 @@ export default function FailureAnalysis({ selectedLotId, onSelectLot }) {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px' }}>
               {(!modelExplanation.features || modelExplanation.features.length === 0) ? (
-                <span style={{ fontSize: '12px', color: '#64748b' }}>No SHAP feature attribution data available.</span>
+                <div style={{ color: '#64748b', fontSize: '12px', lineHeight: '1.4' }}>
+                  <p style={{ margin: '0 0 4px 0', color: '#94a3b8' }}>SHAP attribution unavailable for this screening record.</p>
+                  <span>The deployed screening response did not return TreeExplainer feature attributions. No attribution values are fabricated.</span>
+                </div>
               ) : (
                 (modelExplanation.features || []).slice(0, 4).map((f, i) => (
                   <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 10px', background: 'rgba(255, 255, 255, 0.02)', borderRadius: '4px', fontSize: '12px' }}>
@@ -364,29 +360,21 @@ export default function FailureAnalysis({ selectedLotId, onSelectLot }) {
           <div className="spad-card-header">
             <div className="spad-card-title-group">
               <span className="spad-card-section-label">TIER 3: PHYSICAL FAILURE ANALYSIS (FA) LAB LOGS</span>
-              <h3 className="spad-card-title">Destructive &amp; Non-Destructive Lab Outcomes</h3>
+              <h3 className="spad-card-title">Laboratory Inspection &amp; Physical Test Confirmation</h3>
             </div>
           </div>
 
-          {!isAnomalous ? (
-            <div style={{ padding: '16px 20px', background: 'rgba(16, 185, 129, 0.05)', border: '1px solid rgba(16, 185, 129, 0.2)', borderRadius: '4px' }}>
-              <div style={{ color: 'var(--spad-green, #22C55E)', fontWeight: '700', fontSize: '14px' }}>
-                ✓ Non-Destructive Screening Status: NOMINAL QUALIFICATION
-              </div>
-              <p style={{ fontSize: '13px', color: '#94a3b8', margin: '6px 0 0 0', lineHeight: '1.5' }}>
-                Component <strong>{componentId}</strong> has completed screening checkpoints with all parameters comfortably within MIL-STD engineering specification limits. No physical failure mechanisms, decapsulation, or SEM/TEM destructive failure analyses are indicated.
-              </p>
+          <div style={{ padding: '16px 20px', background: 'rgba(15, 23, 42, 0.45)', border: '1px solid rgba(56, 189, 248, 0.15)', borderRadius: '4px' }}>
+            <div style={{ color: '#cbd5e1', fontWeight: '700', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span className="font-mono text-cyan">ℹ PHYSICAL FAILURE ANALYSIS:</span> No laboratory confirmation available.
             </div>
-          ) : (
-            <div style={{ padding: '16px 20px', background: 'rgba(245, 158, 11, 0.05)', border: '1px solid rgba(245, 158, 11, 0.2)', borderRadius: '4px' }}>
-              <div style={{ color: '#fbbf24', fontWeight: '700', fontSize: '14px' }}>
-                ⚠ Anomaly Quarantine: Physical Post-Mortem Lab Action Required
-              </div>
-              <p style={{ fontSize: '13px', color: '#94a3b8', margin: '6px 0 0 0', lineHeight: '1.5' }}>
-                Component <strong>{componentId}</strong> exhibited abnormal degradation telemetry. Confirmed physical root-cause investigations (Scanning Electron Microscopy, Acoustic Microscopy, or Decapsulation) are pending laboratory physical testing logs.
-              </p>
-            </div>
-          )}
+            <p style={{ fontSize: '13px', color: '#94a3b8', margin: '8px 0 0 0', lineHeight: '1.5' }}>
+              AI screening evidence does not constitute physical failure confirmation. Laboratory confirmation requires independent physical test results (e.g. Decapsulation, Scanning Electron Microscopy, or Acoustic Micro-imaging).
+            </p>
+            <p style={{ fontSize: '12px', color: '#64748b', margin: '6px 0 0 0', lineHeight: '1.4' }}>
+              Unit <strong>{componentId}</strong> is evaluated non-destructively under multi-axis statistical screening. No destructive post-mortem findings are inferred without verified physical test logs.
+            </p>
+          </div>
         </div>
       </div>
       )}
