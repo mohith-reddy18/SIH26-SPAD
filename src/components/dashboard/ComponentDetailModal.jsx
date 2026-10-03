@@ -548,7 +548,7 @@ export default function ComponentDetailModal({
   }
   const m2BadgeStyle = getAiBadgeStyle(m2Flag);
 
-  const divergenceType = m2Param.divergenceType || component.divergenceType || (m2Flag === 'FLAGGED' ? 'ELEVATED_OUTLIER' : m2Flag === 'NOT FLAGGED' ? 'NOMINAL' : 'Unavailable for this record');
+  const divergenceType = m2Param.divergenceType || component.divergenceType || 'Unavailable for this record';
 
   const sameLotPeersCount = lotAnomalyObj?.eligiblePeersCount ??
     Math.max(0, components.filter((c) => (c.lotId || lotId) === lotId).length - 1);

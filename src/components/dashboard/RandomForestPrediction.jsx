@@ -29,9 +29,18 @@ export default function RandomForestPrediction({ records = [] }) {
         predicted168h = rec.predictions.rdson;
       }
 
-      let aiFlag = targetParam.aiFlag || (predObj.status === 'PREDICTED' ? (predicted168h !== null && targetParam.engineeringLimit?.limitValue && predicted168h > targetParam.engineeringLimit.limitValue ? 'FLAGGED' : 'NOT FLAGGED') : 'NOT_EVALUATED');
-      aiFlag = String(aiFlag).toUpperCase();
-      if (aiFlag === 'NOT_FLAGGED' || aiFlag === 'NOMINAL' || aiFlag === 'PASS') aiFlag = 'NOT FLAGGED';
+      let rawFlag = targetParam.aiFlag ?? predObj.aiFlag;
+      let aiFlag = 'NOT_EVALUATED';
+      if (rawFlag === 'FLAGGED' || rawFlag === '1' || rawFlag === 'TRUE') {
+        aiFlag = 'FLAGGED';
+      } else if (rawFlag === 'NOT FLAGGED' || rawFlag === 'NOT_FLAGGED' || rawFlag === '0' || rawFlag === 'FALSE' || rawFlag === 'NOMINAL' || rawFlag === 'PASS' || rawFlag === 'NORMAL') {
+        aiFlag = 'NOT FLAGGED';
+      } else if (predicted168h !== null) {
+        const limit = targetParam.engineeringLimit?.limitValue ?? (typeof rec.engineeringLimits?.rdson === 'number' ? rec.engineeringLimits.rdson : null);
+        if (typeof limit === 'number') {
+          aiFlag = predicted168h > limit ? 'FLAGGED' : 'NOT FLAGGED';
+        }
+      }
 
       return {
         ...rec,

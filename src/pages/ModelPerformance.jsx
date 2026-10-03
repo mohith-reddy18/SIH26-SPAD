@@ -101,16 +101,46 @@ export default function ModelPerformance({ selectedLotId }) {
   const ifRawScore = typeof anomParam.lotAnomalyScore === 'number' ? anomParam.lotAnomalyScore : (typeof anomParam.peerComparisonEvidence?.rawScore === 'number' ? anomParam.peerComparisonEvidence.rawScore : null);
   const noveltyPercentile = typeof anomParam.peerComparisonEvidence?.noveltyPercentile === 'number' ? anomParam.peerComparisonEvidence.noveltyPercentile : null;
 
-  const modAFlag = anomParam.aiFlag || (lotAnomaly?.status === 'ANALYZED' ? 'NOT FLAGGED' : (lotAnomaly?.status === 'NOT_EVALUATED' ? 'NOT_EVALUATED' : 'NOT_EVALUATED'));
+  const rawModA = anomParam.aiFlag ?? lotAnomaly?.aiFlag;
+  const robustZ = typeof anomParam.peerComparisonEvidence?.robustZScore === 'number'
+    ? anomParam.peerComparisonEvidence.robustZScore
+    : (typeof anomParam.peerComparisonEvidence?.zScore === 'number' ? anomParam.peerComparisonEvidence.zScore : null);
+
+  let modAFlag = 'NOT_EVALUATED';
+  if (rawModA === 'FLAGGED' || rawModA === '1' || rawModA === 'TRUE') {
+    modAFlag = 'FLAGGED';
+  } else if (rawModA === 'NOT FLAGGED' || rawModA === 'NOT_FLAGGED' || rawModA === '0' || rawModA === 'FALSE' || rawModA === 'NOMINAL' || rawModA === 'NORMAL' || rawModA === 'PASS') {
+    modAFlag = 'NOT FLAGGED';
+  } else if (typeof noveltyPercentile === 'number' && !isNaN(noveltyPercentile)) {
+    modAFlag = noveltyPercentile >= 90.0 ? 'FLAGGED' : 'NOT FLAGGED';
+  } else if (typeof robustZ === 'number' && !isNaN(robustZ)) {
+    modAFlag = Math.abs(robustZ) > 3.0 ? 'FLAGGED' : 'NOT FLAGGED';
+  }
   const modAColor = modAFlag === 'FLAGGED' ? '#ef4444' : modAFlag === 'NOT FLAGGED' ? '#22C55E' : '#94a3b8';
 
   const moduleCObj = activeRecord?.aiAssessment?.moduleC || activeRecord?.moduleC || null;
   const m3Param = moduleCObj?.parameters?.rdson || Object.values(moduleCObj?.parameters || {})[0] || {};
   const maxRDSInst = typeof m3Param.maxRDSInstantaneousOhm === 'number' ? m3Param.maxRDSInstantaneousOhm : null;
-  const exceedanceCount = typeof m3Param.limitExceedanceCount === 'number' ? m3Param.limitExceedanceCount : (moduleCObj ? 0 : null);
+  const exceedanceCount = typeof m3Param.limitExceedanceCount === 'number' ? m3Param.limitExceedanceCount : null;
   const evidenceTransId = m3Param.evidenceTransientId || null;
   const evidenceTimeUs = typeof m3Param.evidenceTimeUs === 'number' ? m3Param.evidenceTimeUs : null;
-  const m3Flag = m3Param.aiFlag || (moduleCObj?.status === 'ANALYZED' ? (exceedanceCount > 0 ? 'FLAGGED' : 'NOT FLAGGED') : 'NOT_EVALUATED');
+
+  const rawModC = m3Param.aiFlag ?? moduleCObj?.aiFlag;
+  let m3Flag = 'NOT_EVALUATED';
+  if (rawModC === 'FLAGGED' || rawModC === '1' || rawModC === 'TRUE') {
+    m3Flag = 'FLAGGED';
+  } else if (rawModC === 'NOT FLAGGED' || rawModC === 'NOT_FLAGGED' || rawModC === '0' || rawModC === 'FALSE' || rawModC === 'NOMINAL' || rawModC === 'NORMAL' || rawModC === 'PASS') {
+    m3Flag = 'NOT FLAGGED';
+  } else if (maxRDSInst !== null || exceedanceCount !== null || evidenceTransId !== null) {
+    const rdLimit = typeof activeRecord?.engineeringLimits?.rdson?.limitValue === 'number'
+      ? activeRecord.engineeringLimits.rdson.limitValue
+      : (typeof activeRecord?.engineeringLimits?.rdson === 'number' ? activeRecord.engineeringLimits.rdson : null);
+    if ((exceedanceCount !== null && exceedanceCount > 0) || (maxRDSInst !== null && rdLimit !== null && maxRDSInst > rdLimit)) {
+      m3Flag = 'FLAGGED';
+    } else {
+      m3Flag = 'NOT FLAGGED';
+    }
+  }
   const modCColor = m3Flag === 'FLAGGED' ? '#ef4444' : m3Flag === 'NOT FLAGGED' ? '#22C55E' : '#94a3b8';
 
   return (
@@ -256,8 +286,8 @@ export default function ModelPerformance({ selectedLotId }) {
 
               <div className="spad-lot-metric-pill" style={{ background: 'var(--spad-inset, #101119)', padding: '12px 14px' }}>
                 <span className="spad-lot-metric-label">POPULATION ABNORMALITY</span>
-                <span className={`spad-ai-status-tag ${anomalies.populationAbnormality === true ? 'tag-warning' : anomalies.populationAbnormality === false ? 'tag-nominal' : ''}`} style={{ marginTop: '4px' }}>
-                  {anomalies.populationAbnormality === true ? 'FLAGGED' : anomalies.populationAbnormality === false ? 'NOMINAL' : 'NOT_EVALUATED'}
+                <span className={`spad-ai-status-tag ${modAFlag === 'FLAGGED' ? 'tag-warning' : modAFlag === 'NOT FLAGGED' ? 'tag-nominal' : ''}`} style={{ marginTop: '4px' }}>
+                  {modAFlag}
                 </span>
               </div>
             </div>

@@ -112,6 +112,49 @@ export default function Reports({ selectedLotId, onSelectLot }) {
     futureRiskPrediction: null,
   };
 
+  const rawModA = aiAssessment.lotAnomaly?.parameters?.rdson?.aiFlag ?? aiAssessment.lotAnomaly?.aiFlag;
+  const noveltyVal = aiAssessment.lotAnomaly?.parameters?.rdson?.peerComparisonEvidence?.noveltyPercentile;
+  const robustZVal = aiAssessment.lotAnomaly?.parameters?.rdson?.peerComparisonEvidence?.robustZScore ?? aiAssessment.lotAnomaly?.parameters?.rdson?.peerComparisonEvidence?.zScore;
+
+  let modAStatus = 'NOT_EVALUATED';
+  if (rawModA === 'FLAGGED' || rawModA === '1' || rawModA === 'TRUE') {
+    modAStatus = 'FLAGGED';
+  } else if (rawModA === 'NOT FLAGGED' || rawModA === 'NOT_FLAGGED' || rawModA === '0' || rawModA === 'FALSE' || rawModA === 'NOMINAL' || rawModA === 'NORMAL' || rawModA === 'PASS') {
+    modAStatus = 'NOT FLAGGED';
+  } else if (typeof noveltyVal === 'number' && !isNaN(noveltyVal)) {
+    modAStatus = noveltyVal >= 90.0 ? 'FLAGGED' : 'NOT FLAGGED';
+  } else if (typeof robustZVal === 'number' && !isNaN(robustZVal)) {
+    modAStatus = Math.abs(robustZVal) > 3.0 ? 'FLAGGED' : 'NOT FLAGGED';
+  }
+
+  const rawModB = aiAssessment.prediction?.parameters?.rdson?.aiFlag ?? aiAssessment.prediction?.aiFlag;
+  let modBStatus = 'NOT_EVALUATED';
+  if (rawModB === 'FLAGGED' || rawModB === '1' || rawModB === 'TRUE') {
+    modBStatus = 'FLAGGED';
+  } else if (rawModB === 'NOT FLAGGED' || rawModB === 'NOT_FLAGGED' || rawModB === '0' || rawModB === 'FALSE' || rawModB === 'NOMINAL' || rawModB === 'NORMAL' || rawModB === 'PASS') {
+    modBStatus = 'NOT FLAGGED';
+  }
+
+  const rawModC = aiAssessment.moduleC?.parameters?.rdson?.aiFlag ?? aiAssessment.moduleC?.aiFlag;
+  const m3Param = aiAssessment.moduleC?.parameters?.rdson || {};
+  const maxRDSInst = typeof m3Param.maxRDSInstantaneousOhm === 'number' ? m3Param.maxRDSInstantaneousOhm : null;
+  const exceedCount = typeof m3Param.limitExceedanceCount === 'number' ? m3Param.limitExceedanceCount : null;
+  const evidenceTransId = m3Param.evidenceTransientId || null;
+
+  let modCStatus = 'NOT_EVALUATED';
+  if (rawModC === 'FLAGGED' || rawModC === '1' || rawModC === 'TRUE') {
+    modCStatus = 'FLAGGED';
+  } else if (rawModC === 'NOT FLAGGED' || rawModC === 'NOT_FLAGGED' || rawModC === '0' || rawModC === 'FALSE' || rawModC === 'NOMINAL' || rawModC === 'NORMAL' || rawModC === 'PASS') {
+    modCStatus = 'NOT FLAGGED';
+  } else if (maxRDSInst !== null || exceedCount !== null || evidenceTransId !== null) {
+    const rdLimit = typeof engineeringLimits.rdson?.limitValue === 'number' ? engineeringLimits.rdson.limitValue : (typeof engineeringLimits.rdson === 'number' ? engineeringLimits.rdson : null);
+    if ((exceedCount !== null && exceedCount > 0) || (maxRDSInst !== null && rdLimit !== null && maxRDSInst > rdLimit)) {
+      modCStatus = 'FLAGGED';
+    } else {
+      modCStatus = 'NOT FLAGGED';
+    }
+  }
+
   // 4. Lot report metrics
   const activeLotRecords = lotsMap[selectedLotId] || (lotsMap[availableLots[0]] || []);
   const lotTotalUnits = activeLotRecords.length;
@@ -413,7 +456,7 @@ export default function Reports({ selectedLotId, onSelectLot }) {
             <div className="spad-card" style={{ padding: '18px' }}>
               <div className="spad-card-header" style={{ marginBottom: '10px' }}>
                 <span className="spad-section-pill ai-pill">MODULE A</span>
-                <span className="font-mono text-cyan" style={{ fontSize: '11px', fontWeight: '700' }}>STATUS: {aiAssessment.lotAnomaly?.parameters?.rdson?.aiFlag || (aiAssessment.lotAnomaly?.status === 'ANALYZED' ? 'NOT FLAGGED' : 'NOT_EVALUATED')}</span>
+                <span className="font-mono text-cyan" style={{ fontSize: '11px', fontWeight: '700' }}>STATUS: {modAStatus}</span>
               </div>
               <h4 style={{ fontSize: '13px', fontWeight: '700', color: '#f8fafc', margin: '0 0 10px 0' }}>Intra-Lot Anomaly Detection (Isolation Forest)</h4>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '12px' }}>
@@ -436,7 +479,7 @@ export default function Reports({ selectedLotId, onSelectLot }) {
             <div className="spad-card" style={{ padding: '18px' }}>
               <div className="spad-card-header" style={{ marginBottom: '10px' }}>
                 <span className="spad-section-pill ai-pill">MODULE B</span>
-                <span className="font-mono text-cyan" style={{ fontSize: '11px', fontWeight: '700' }}>STATUS: {aiAssessment.prediction?.parameters?.rdson?.aiFlag || (aiAssessment.prediction?.status === 'PREDICTED' ? 'NOT FLAGGED' : 'NOT_EVALUATED')}</span>
+                <span className="font-mono text-cyan" style={{ fontSize: '11px', fontWeight: '700' }}>STATUS: {modBStatus}</span>
               </div>
               <h4 style={{ fontSize: '13px', fontWeight: '700', color: '#f8fafc', margin: '0 0 10px 0' }}>Time-Series Drift Prediction (Random Forest)</h4>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '12px' }}>
@@ -463,7 +506,7 @@ export default function Reports({ selectedLotId, onSelectLot }) {
             <div className="spad-card" style={{ padding: '18px' }}>
               <div className="spad-card-header" style={{ marginBottom: '10px' }}>
                 <span className="spad-section-pill ai-pill">MODULE C</span>
-                <span className="font-mono text-cyan" style={{ fontSize: '11px', fontWeight: '700' }}>STATUS: {aiAssessment.moduleC?.parameters?.rdson?.aiFlag || (aiAssessment.moduleC?.status === 'ANALYZED' ? 'NOT FLAGGED' : 'NOT_EVALUATED')}</span>
+                <span className="font-mono text-cyan" style={{ fontSize: '11px', fontWeight: '700' }}>STATUS: {modCStatus}</span>
               </div>
               <h4 style={{ fontSize: '13px', fontWeight: '700', color: '#f8fafc', margin: '0 0 10px 0' }}>Transient Pulse Extraction &amp; Exceedance</h4>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '12px' }}>

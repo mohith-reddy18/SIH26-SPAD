@@ -213,15 +213,22 @@ export default function ComponentTable({ records = [], onSelectComponent }) {
                 }
 
                 let m2Flag = 'NOT_EVALUATED';
-                const rawM2Flag = m2Param.aiFlag ||
-                                  item.aiAssessment?.lotAnomaly?.overallStatus ||
-                                  (item.anomalies?.populationAbnormality !== undefined
-                                    ? (item.anomalies.populationAbnormality ? 'FLAGGED' : 'NOT FLAGGED')
-                                    : null);
-                if (rawM2Flag) {
-                  const s = String(rawM2Flag).toUpperCase().trim();
-                  if (s === 'FLAGGED') m2Flag = 'FLAGGED';
-                  else if (s === 'NOT FLAGGED' || s === 'NOT_FLAGGED' || s === 'ANALYZED' || s === 'NOMINAL' || s === 'NORMAL' || s === 'PASS') m2Flag = 'NOT FLAGGED';
+                const rawM2Flag = m2Param.aiFlag ?? item.aiAssessment?.lotAnomaly?.aiFlag;
+                const novelty = typeof m2Param.peerComparisonEvidence?.noveltyPercentile === 'number'
+                  ? m2Param.peerComparisonEvidence.noveltyPercentile
+                  : null;
+                const robustZ = typeof m2Param.peerComparisonEvidence?.robustZScore === 'number'
+                  ? m2Param.peerComparisonEvidence.robustZScore
+                  : (typeof m2Param.peerComparisonEvidence?.zScore === 'number' ? m2Param.peerComparisonEvidence.zScore : null);
+
+                if (rawM2Flag === 'FLAGGED' || rawM2Flag === '1' || rawM2Flag === 'TRUE') {
+                  m2Flag = 'FLAGGED';
+                } else if (rawM2Flag === 'NOT FLAGGED' || rawM2Flag === 'NOT_FLAGGED' || rawM2Flag === '0' || rawM2Flag === 'FALSE' || rawM2Flag === 'NOMINAL' || rawM2Flag === 'NORMAL' || rawM2Flag === 'PASS') {
+                  m2Flag = 'NOT FLAGGED';
+                } else if (novelty !== null) {
+                  m2Flag = novelty >= 90.0 ? 'FLAGGED' : 'NOT FLAGGED';
+                } else if (robustZ !== null) {
+                  m2Flag = Math.abs(robustZ) > 3.0 ? 'FLAGGED' : 'NOT FLAGGED';
                 }
 
                 return (

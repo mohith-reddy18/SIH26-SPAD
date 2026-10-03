@@ -641,7 +641,7 @@ async function processRemoteScreeningRun({ lotId, componentId, customLimits = nu
     let ifFlag = 'NOT_EVALUATED';
     if (rawIfFlag === 1 || rawIfFlag === true || (typeof rawIfFlag === 'string' && (rawIfFlag.trim() === '1' || rawIfFlag.trim().toUpperCase() === 'TRUE' || rawIfFlag.trim().toUpperCase() === 'FLAGGED' || rawIfFlag.trim().toUpperCase() === 'ANOMALY'))) {
       ifFlag = 'FLAGGED';
-    } else if (rawIfFlag === 0 || rawIfFlag === false || (typeof rawIfFlag === 'string' && (rawIfFlag.trim() === '0' || rawIfFlag.trim().toUpperCase() === 'FALSE' || rawIfFlag.trim().toUpperCase() === 'NOT FLAGGED' || rawIfFlag.trim().toUpperCase() === 'NOT_FLAGGED' || rawIfFlag.trim().toUpperCase() === 'PASS' || rawIfFlag.trim().toUpperCase() === 'NOMINAL' || rawIfFlag.trim().toUpperCase() === 'NORMAL' || rawIfFlag.trim().toUpperCase() === 'ANALYZED'))) {
+    } else if (rawIfFlag === 0 || rawIfFlag === false || (typeof rawIfFlag === 'string' && (rawIfFlag.trim() === '0' || rawIfFlag.trim().toUpperCase() === 'FALSE' || rawIfFlag.trim().toUpperCase() === 'NOT FLAGGED' || rawIfFlag.trim().toUpperCase() === 'NOT_FLAGGED' || rawIfFlag.trim().toUpperCase() === 'PASS' || rawIfFlag.trim().toUpperCase() === 'NOMINAL' || rawIfFlag.trim().toUpperCase() === 'NORMAL'))) {
       ifFlag = 'NOT FLAGGED';
     } else if (results.length < 3) {
       // Cohort < 3 units rule
@@ -656,7 +656,7 @@ async function processRemoteScreeningRun({ lotId, componentId, customLimits = nu
       ifFlag = Math.abs(peerEvidenceObj.zScore) > 3.0 ? 'FLAGGED' : 'NOT FLAGGED';
     }
 
-    const divergenceTypeVal = item.lotAnomaly?.divergenceType ?? item.divergenceType ?? (ifFlag === 'FLAGGED' ? 'ELEVATED_OUTLIER' : ifFlag === 'NOT FLAGGED' ? 'NOMINAL' : null);
+    const divergenceTypeVal = item.lotAnomaly?.divergenceType ?? item.divergenceType ?? null;
 
     // 5.5 Extract & preserve complete Module C (Transient Pulse Analysis) from Python or dataset evidence
     const rawModuleC = item.moduleC ?? item.Module_C ?? item.aiAssessment?.moduleC ?? item.transientAnalysis ?? datasetTransientMap.get(compId) ?? null;

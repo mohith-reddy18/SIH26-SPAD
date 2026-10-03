@@ -100,17 +100,19 @@ export default function LotAnomalyDetection({ records = [] }) {
         peerEvidence = rec.evidence;
       }
 
-      let rawFlag = targetParam?.aiFlag || la?.status;
+      let rawFlag = targetParam?.aiFlag ?? la?.aiFlag;
+      let noveltyPercentile = targetParam?.peerComparisonEvidence?.noveltyPercentile;
+      let robustZ = targetParam?.peerComparisonEvidence?.robustZScore ?? targetParam?.peerComparisonEvidence?.zScore;
+      
       let aiFlag = 'NOT_EVALUATED';
-      if (rawFlag) {
-        const s = String(rawFlag).toUpperCase().trim();
-        if (s === 'FLAGGED') {
-          aiFlag = 'FLAGGED';
-        } else if (s === 'NOT FLAGGED' || s === 'NOT_FLAGGED' || s === 'ANALYZED' || s === 'NOMINAL' || s === 'NORMAL' || s === 'PASS') {
-          aiFlag = 'NOT FLAGGED';
-        } else if (s === 'INSUFFICIENT_COHORT' || s === 'NOT_EVALUATED') {
-          aiFlag = 'NOT_EVALUATED';
-        }
+      if (rawFlag === 'FLAGGED' || rawFlag === '1' || rawFlag === 'TRUE') {
+        aiFlag = 'FLAGGED';
+      } else if (rawFlag === 'NOT FLAGGED' || rawFlag === 'NOT_FLAGGED' || rawFlag === '0' || rawFlag === 'FALSE' || rawFlag === 'NOMINAL' || rawFlag === 'NORMAL' || rawFlag === 'PASS') {
+        aiFlag = 'NOT FLAGGED';
+      } else if (typeof noveltyPercentile === 'number' && !isNaN(noveltyPercentile)) {
+        aiFlag = noveltyPercentile >= 90.0 ? 'FLAGGED' : 'NOT FLAGGED';
+      } else if (typeof robustZ === 'number' && !isNaN(robustZ)) {
+        aiFlag = Math.abs(robustZ) > 3.0 ? 'FLAGGED' : 'NOT FLAGGED';
       }
 
       if (records.length < 3 && aiFlag !== 'FLAGGED') {

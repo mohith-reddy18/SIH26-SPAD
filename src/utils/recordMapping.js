@@ -354,31 +354,39 @@ export function mapScreeningRecord(record) {
         summaryText: 'No model explanation available for this record.',
       };
 
-  // Safe Anomalies object (derived from real backend record only)
-  const rawAnomalies = record.anomalies;
+  // Safe Anomalies object (derived from real canonical aiAssessment record only)
   const lotAnomalyObj = aiAssessmentObj.lotAnomaly;
-  let anomalies = {
-    populationAbnormality: null,
-    trajectoryAbnormality: null,
-    futureRiskPrediction: null,
-  };
+  const lotParam = lotAnomalyObj?.parameters?.rdson || Object.values(lotAnomalyObj?.parameters || {})[0] || {};
+  const predParam = aiAssessmentObj.prediction?.parameters?.rdson || Object.values(aiAssessmentObj.prediction?.parameters || {})[0] || {};
 
-  if (rawAnomalies && typeof rawAnomalies === 'object') {
-    anomalies = {
-      populationAbnormality: typeof rawAnomalies.populationAbnormality === 'boolean' ? rawAnomalies.populationAbnormality : null,
-      trajectoryAbnormality: typeof rawAnomalies.trajectoryAbnormality === 'boolean' ? rawAnomalies.trajectoryAbnormality : null,
-      futureRiskPrediction: typeof rawAnomalies.futureRiskPrediction === 'string' ? rawAnomalies.futureRiskPrediction : null,
-    };
-  } else if (lotAnomalyObj && typeof lotAnomalyObj === 'object') {
-    const lotAiFlag = lotAnomalyObj.parameters?.rdson?.aiFlag ?? lotAnomalyObj.aiFlag;
-    const predAiFlag = aiAssessmentObj.prediction?.parameters?.rdson?.aiFlag ?? aiAssessmentObj.prediction?.aiFlag;
+  const rawLotAiFlag = lotParam.aiFlag ?? lotAnomalyObj?.aiFlag;
+  const noveltyVal = lotParam.peerComparisonEvidence?.noveltyPercentile;
+  const robustZVal = lotParam.peerComparisonEvidence?.robustZScore ?? lotParam.peerComparisonEvidence?.zScore;
 
-    anomalies = {
-      populationAbnormality: lotAiFlag === 'FLAGGED' ? true : lotAiFlag === 'NOT FLAGGED' ? false : (lotAnomalyObj.status === 'ANALYZED' ? false : null),
-      trajectoryAbnormality: predAiFlag === 'FLAGGED' ? true : predAiFlag === 'NOT FLAGGED' ? false : (aiAssessmentObj.prediction?.status === 'PREDICTED' ? false : null),
-      futureRiskPrediction: typeof riskScore === 'number' ? `${aiRisk}% Risk` : null,
-    };
+  let populationAbnormality = null;
+  if (rawLotAiFlag === 'FLAGGED' || rawLotAiFlag === '1' || rawLotAiFlag === 'TRUE') {
+    populationAbnormality = true;
+  } else if (rawLotAiFlag === 'NOT FLAGGED' || rawLotAiFlag === 'NOT_FLAGGED' || rawLotAiFlag === '0' || rawLotAiFlag === 'FALSE' || rawLotAiFlag === 'NOMINAL' || rawLotAiFlag === 'NORMAL' || rawLotAiFlag === 'PASS') {
+    populationAbnormality = false;
+  } else if (typeof noveltyVal === 'number' && !isNaN(noveltyVal)) {
+    populationAbnormality = noveltyVal >= 90.0;
+  } else if (typeof robustZVal === 'number' && !isNaN(robustZVal)) {
+    populationAbnormality = Math.abs(robustZVal) > 3.0;
   }
+
+  const rawPredAiFlag = predParam.aiFlag ?? aiAssessmentObj.prediction?.aiFlag;
+  let trajectoryAbnormality = null;
+  if (rawPredAiFlag === 'FLAGGED' || rawPredAiFlag === '1' || rawPredAiFlag === 'TRUE') {
+    trajectoryAbnormality = true;
+  } else if (rawPredAiFlag === 'NOT FLAGGED' || rawPredAiFlag === 'NOT_FLAGGED' || rawPredAiFlag === '0' || rawPredAiFlag === 'FALSE' || rawPredAiFlag === 'NOMINAL' || rawPredAiFlag === 'NORMAL' || rawPredAiFlag === 'PASS') {
+    trajectoryAbnormality = false;
+  }
+
+  const anomalies = {
+    populationAbnormality,
+    trajectoryAbnormality,
+    futureRiskPrediction: typeof riskScore === 'number' ? `${aiRisk}% Risk` : null,
+  };
 
   return {
     id: componentId,

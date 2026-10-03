@@ -306,13 +306,13 @@ export default function FailureAnalysis({ selectedLotId, onSelectLot }) {
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(56, 189, 248, 0.04)', borderRadius: '4px' }}>
                 <span style={{ fontSize: '13px', color: '#94a3b8' }}>Module A (Lot Anomaly):</span>
                 <span className="font-mono" style={{ color: anomalies.populationAbnormality === true ? '#f59e0b' : anomalies.populationAbnormality === false ? 'var(--spad-green, #22C55E)' : '#94a3b8', fontWeight: '700' }}>
-                  {anomalies.populationAbnormality === true ? 'FLAGGED (Outlier)' : anomalies.populationAbnormality === false ? 'NOMINAL (Within Bounds)' : 'NOT_EVALUATED'}
+                  {anomalies.populationAbnormality === true ? 'FLAGGED' : anomalies.populationAbnormality === false ? 'NOT FLAGGED' : 'NOT_EVALUATED'}
                 </span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(56, 189, 248, 0.04)', borderRadius: '4px' }}>
                 <span style={{ fontSize: '13px', color: '#94a3b8' }}>Module B (Drift Forecast):</span>
                 <span className="font-mono" style={{ color: anomalies.trajectoryAbnormality === true ? '#f59e0b' : anomalies.trajectoryAbnormality === false ? 'var(--spad-green, #22C55E)' : '#94a3b8', fontWeight: '700' }}>
-                  {anomalies.trajectoryAbnormality === true ? 'FLAGGED (Drift Non-Linear)' : anomalies.trajectoryAbnormality === false ? 'NOMINAL (Normal Tracking)' : 'NOT_EVALUATED'}
+                  {anomalies.trajectoryAbnormality === true ? 'FLAGGED' : anomalies.trajectoryAbnormality === false ? 'NOT FLAGGED' : 'NOT_EVALUATED'}
                 </span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(56, 189, 248, 0.04)', borderRadius: '4px' }}>
