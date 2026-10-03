@@ -1,5 +1,12 @@
 import React, { useEffect } from 'react';
-import { getParameterMeta, getNormalizedEngineeringStatus, getNormalizedAiStatus, formatStageLabel } from '../../utils/recordMapping';
+import {
+  getParameterMeta,
+  getNormalizedEngineeringStatus,
+  getNormalizedAiStatus,
+  formatStageLabel,
+  extractLatestValue,
+  extractPredictedValue,
+} from '../../utils/recordMapping';
 
 // Helper for Engineering Status badge styles
 function getEngineeringBadgeStyle(status) {
@@ -29,65 +36,222 @@ function getAiBadgeStyle(status) {
 }
 
 // Deterministic Engineering Screening Decision Evaluation
-export function evaluateComponentEngineeringDecision(measurements = {}, engineeringLimits = {}, explicitStatus = null) {
-  const keys = Object.keys(measurements || {});
-  const paramKeys = keys.length > 0 ? keys : Object.keys(engineeringLimits || {});
+export function evaluateComponentEngineeringDecision(
+  measurements = {},
+  engineeringLimits = {},
+  explicitStatus = null,
+  predictionVal = null,
+  componentObj = null
+) {
+  const meas = measurements || {};
+  const limits = engineeringLimits || {};
+  const comp = componentObj || {};
 
-  if (paramKeys.length === 0) {
-    return {
-      decision: explicitStatus ? getNormalizedEngineeringStatus(explicitStatus) : 'NOT_EVALUATED',
-      violatingParametersCount: 0,
-      totalParametersCount: 0,
-      evaluatedLimitCount: 0,
-      reasonText: 'No parameter telemetry available.',
-      parameters: [],
-    };
+  // 1. Resolve authoritative RDS(on) engineering limit
+  // Checking compLimits / engineeringLimits / component
+  let rdsSpecLimit = undefined;
+  const rawRdsLimit =
+    limits.rdson ??
+    limits.rdson_ohm ??
+    limits.rds_on ??
+    comp.engineeringLimits?.rdson ??
+    comp.engineeringLimits?.rdson_ohm ??
+    comp.engineeringLimits?.rds_on ??
+    comp.aiAssessment?.prediction?.parameters?.rdson?.engineeringLimit;
+
+  if (rawRdsLimit !== undefined && rawRdsLimit !== null) {
+    if (typeof rawRdsLimit === 'number' && !isNaN(rawRdsLimit)) {
+      rdsSpecLimit = rawRdsLimit;
+    } else if (typeof rawRdsLimit.limitValue === 'number' && !isNaN(rawRdsLimit.limitValue)) {
+      rdsSpecLimit = rawRdsLimit.limitValue;
+    } else if (typeof rawRdsLimit.upper === 'number' && !isNaN(rawRdsLimit.upper)) {
+      rdsSpecLimit = rawRdsLimit.upper;
+    } else if (typeof rawRdsLimit.max === 'number' && !isNaN(rawRdsLimit.max)) {
+      rdsSpecLimit = rawRdsLimit.max;
+    } else if (typeof rawRdsLimit.value === 'number' && !isNaN(rawRdsLimit.value)) {
+      rdsSpecLimit = rawRdsLimit.value;
+    }
+  }
+
+  const hasRdsLimit = typeof rdsSpecLimit === 'number' && !isNaN(rdsSpecLimit);
+
+  // 2. Extract 0h, 24h, ΔRDS, and 168h forecast from canonical fields
+  const m1Param = comp.aiAssessment?.prediction?.parameters?.rdson || {};
+
+  const obs0h =
+    meas.rdson?.['0h'] ??
+    meas.rdson?.['0hr'] ??
+    meas.rdson?.[0] ??
+    (Array.isArray(meas.rdson) ? meas.rdson[0] : null) ??
+    m1Param.observed?.['0h'] ??
+    m1Param.observed?.['0hr'] ??
+    meas['0h'] ??
+    meas.RDS0 ??
+    comp.RDS0 ??
+    (typeof meas.rdson === 'number' && (comp.stage === '0%' || comp.stage === '0hr' || comp.stage === '0h') ? meas.rdson : null) ??
+    null;
+
+  const obs24h =
+    meas.rdson?.['24h'] ??
+    meas.rdson?.['24hr'] ??
+    meas.rdson?.[1] ??
+    (Array.isArray(meas.rdson) ? meas.rdson[1] : null) ??
+    m1Param.observed?.['24h'] ??
+    m1Param.observed?.['24hr'] ??
+    meas['24h'] ??
+    meas.RDS33 ??
+    comp.RDS33 ??
+    (typeof meas.rdson === 'number' && (comp.stage === '33.33%' || comp.stage === '24hr' || comp.stage === '24h') ? meas.rdson : null) ??
+    null;
+
+  let deltaVal = null;
+  if (typeof meas.delta_rdson === 'number' && !isNaN(meas.delta_rdson)) {
+    deltaVal = meas.delta_rdson;
+  } else if (typeof meas.deltaRdson === 'number' && !isNaN(meas.deltaRdson)) {
+    deltaVal = meas.deltaRdson;
+  } else if (typeof comp.deltaRdson === 'number' && !isNaN(comp.deltaRdson)) {
+    deltaVal = comp.deltaRdson;
+  } else if (obs0h !== null && obs24h !== null) {
+    deltaVal = Number((obs24h - obs0h).toFixed(6));
+  }
+
+  // 168h forecast extraction
+  let pred168h = null;
+  if (typeof predictionVal === 'number' && !isNaN(predictionVal)) {
+    pred168h = predictionVal;
+  } else if (typeof m1Param.predicted168h === 'number' && !isNaN(m1Param.predicted168h)) {
+    pred168h = m1Param.predicted168h;
+  } else if (typeof comp.predictions?.rdson === 'number' && !isNaN(comp.predictions.rdson)) {
+    pred168h = comp.predictions.rdson;
+  } else if (typeof comp.predictions?.rdson?.predicted168h === 'number' && !isNaN(comp.predictions.rdson.predicted168h)) {
+    pred168h = comp.predictions.rdson.predicted168h;
+  } else if (typeof comp.predictions?.['rdson_168h'] === 'number' && !isNaN(comp.predictions['rdson_168h'])) {
+    pred168h = comp.predictions['rdson_168h'];
+  } else if (typeof comp.predicted168h === 'number' && !isNaN(comp.predicted168h)) {
+    pred168h = comp.predicted168h;
+  } else if (typeof comp.Predicted_RDS100 === 'number' && !isNaN(comp.Predicted_RDS100)) {
+    pred168h = comp.Predicted_RDS100;
   }
 
   const paramResults = [];
   let violatingCount = 0;
   let evaluatedLimitCount = 0;
 
-  paramKeys.forEach((key) => {
-    const rawLimit = engineeringLimits ? engineeringLimits[key] : null;
+  // Check if this component has RDS data
+  const hasRdsData =
+    obs0h !== null ||
+    obs24h !== null ||
+    deltaVal !== null ||
+    pred168h !== null ||
+    meas.rdson !== undefined ||
+    meas.RDS0 !== undefined ||
+    limits.rdson !== undefined;
+
+  if (hasRdsData) {
+    // 1. RDS(on) — 0h OBSERVED
+    const is0hViolated = hasRdsLimit && obs0h !== null && obs0h > rdsSpecLimit;
+    if (hasRdsLimit && obs0h !== null) evaluatedLimitCount += 1;
+    if (is0hViolated) violatingCount += 1;
+
+    paramResults.push({
+      id: 'rdson_0h',
+      key: 'rdson_0h',
+      name: 'RDS(on) — 0h OBSERVED',
+      shortName: 'RDS(0h)',
+      unit: 'Ω',
+      limit: hasRdsLimit ? rdsSpecLimit : undefined,
+      currentValue: obs0h,
+      isViolated: is0hViolated,
+      status: !hasRdsLimit || obs0h === null ? 'NOT EVALUATED' : is0hViolated ? 'EXCEEDS LIMIT' : 'WITHIN LIMIT',
+    });
+
+    // 2. RDS(on) — 24h OBSERVED
+    const is24hViolated = hasRdsLimit && obs24h !== null && obs24h > rdsSpecLimit;
+    if (hasRdsLimit && obs24h !== null) evaluatedLimitCount += 1;
+    if (is24hViolated) violatingCount += 1;
+
+    paramResults.push({
+      id: 'rdson_24h',
+      key: 'rdson_24h',
+      name: 'RDS(on) — 24h OBSERVED',
+      shortName: 'RDS(24h)',
+      unit: 'Ω',
+      limit: hasRdsLimit ? rdsSpecLimit : undefined,
+      currentValue: obs24h,
+      isViolated: is24hViolated,
+      status: !hasRdsLimit || obs24h === null ? 'NOT EVALUATED' : is24hViolated ? 'EXCEEDS LIMIT' : 'WITHIN LIMIT',
+    });
+
+    // 3. ΔRDS — Early Drift (DO NOT apply the RDS(on) engineering limit)
+    paramResults.push({
+      id: 'delta_rdson',
+      key: 'delta_rdson',
+      name: 'ΔRDS — Early Drift',
+      shortName: 'ΔRDS',
+      unit: 'Ω',
+      limit: undefined,
+      currentValue: deltaVal,
+      isViolated: false,
+      status: '—',
+    });
+
+    // 4. RDS(on) — 168h FORECAST (if predicted168h exists)
+    if (pred168h !== null && typeof pred168h === 'number' && !isNaN(pred168h)) {
+      const isPredViolated = hasRdsLimit && pred168h > rdsSpecLimit;
+      if (hasRdsLimit) evaluatedLimitCount += 1;
+      if (isPredViolated) violatingCount += 1;
+
+      paramResults.push({
+        id: 'rdson_168h_forecast',
+        key: 'rdson_168h_forecast',
+        name: 'RDS(on) — 168h FORECAST',
+        shortName: 'RDS(168h)',
+        unit: 'Ω',
+        limit: hasRdsLimit ? rdsSpecLimit : undefined,
+        currentValue: pred168h,
+        isViolated: isPredViolated,
+        status: !hasRdsLimit ? 'NOT EVALUATED' : isPredViolated ? 'EXCEEDS LIMIT' : 'WITHIN LIMIT',
+      });
+    }
+  }
+
+  // Handle other parameters (temp, vgs, vds, freq, dutyCycle, v_th, iddq, leakage, etc.)
+  const rdsKeys = new Set([
+    'rdson', 'rdson_ohm', 'rds_on', 'rdson_0h', 'rdson_24h', 'rdson_168h', 'rds0', 'rds33',
+    '0h', '24h', '96h', '168h', 'delta_rdson', 'deltardson', 'delta_rds'
+  ]);
+
+  const otherKeys = Object.keys({ ...meas, ...limits }).filter((k) => !rdsKeys.has(String(k).toLowerCase()));
+
+  otherKeys.forEach((key) => {
+    const rawLimit = limits[key];
     const meta = getParameterMeta(key, rawLimit);
-    const data = measurements ? measurements[key] : null;
+    const data = meas[key];
 
     let specLimit = undefined;
     if (rawLimit !== undefined && rawLimit !== null) {
-      if (typeof rawLimit === 'number') specLimit = rawLimit;
-      else if (typeof rawLimit.limitValue === 'number') specLimit = rawLimit.limitValue;
-      else if (typeof rawLimit.upper === 'number') specLimit = rawLimit.upper;
-      else if (typeof rawLimit.max === 'number') specLimit = rawLimit.max;
+      if (typeof rawLimit === 'number' && !isNaN(rawLimit)) specLimit = rawLimit;
+      else if (typeof rawLimit.limitValue === 'number' && !isNaN(rawLimit.limitValue)) specLimit = rawLimit.limitValue;
+      else if (typeof rawLimit.upper === 'number' && !isNaN(rawLimit.upper)) specLimit = rawLimit.upper;
+      else if (typeof rawLimit.max === 'number' && !isNaN(rawLimit.max)) specLimit = rawLimit.max;
+      else if (typeof rawLimit.value === 'number' && !isNaN(rawLimit.value)) specLimit = rawLimit.value;
     }
 
-    const hasOfficialLimit = typeof specLimit === 'number' && !isNaN(specLimit);
-    if (hasOfficialLimit) {
+    const hasOtherLimit = typeof specLimit === 'number' && !isNaN(specLimit);
+    if (hasOtherLimit) {
       evaluatedLimitCount += 1;
     }
 
-    let maxObserved = null;
-    let isViolated = false;
+    let val = null;
+    if (typeof data === 'number' && !isNaN(data)) {
+      val = data;
+    } else {
+      val = extractLatestValue(data);
+    }
 
-    if (Array.isArray(data) && data.length > 0) {
-      const valid = data.filter((v) => typeof v === 'number' && !isNaN(v));
-      if (valid.length > 0) maxObserved = Math.max(...valid);
-      if (hasOfficialLimit) {
-        isViolated = valid.some((val) => val > specLimit);
-      }
-    } else if (typeof data === 'number' && !isNaN(data)) {
-      maxObserved = data;
-      if (hasOfficialLimit) {
-        isViolated = data > specLimit;
-      }
-    } else if (data && typeof data === 'object') {
-      const vals = Object.values(data).filter((v) => typeof v === 'number' && !isNaN(v));
-      if (vals.length > 0) {
-        maxObserved = Math.max(...vals);
-        if (hasOfficialLimit) {
-          isViolated = vals.some((v) => v > specLimit);
-        }
-      }
+    let isViolated = false;
+    if (hasOtherLimit && val !== null) {
+      isViolated = val > specLimit;
     }
 
     if (isViolated) {
@@ -100,12 +264,23 @@ export function evaluateComponentEngineeringDecision(measurements = {}, engineer
       name: meta.name || key,
       shortName: meta.shortName || key,
       unit: meta.unit || '',
-      limit: hasOfficialLimit ? specLimit : undefined,
-      currentValue: maxObserved,
+      limit: hasOtherLimit ? specLimit : undefined,
+      currentValue: val,
       isViolated,
-      status: !hasOfficialLimit ? 'NOT EVALUATED' : isViolated ? 'EXCEEDS LIMIT' : 'WITHIN LIMIT',
+      status: !hasOtherLimit || val === null ? 'NOT EVALUATED' : isViolated ? 'EXCEEDS LIMIT' : 'WITHIN LIMIT',
     });
   });
+
+  if (paramResults.length === 0) {
+    return {
+      decision: explicitStatus ? getNormalizedEngineeringStatus(explicitStatus) : 'NOT_EVALUATED',
+      violatingParametersCount: 0,
+      totalParametersCount: 0,
+      evaluatedLimitCount: 0,
+      reasonText: 'No parameter telemetry available.',
+      parameters: [],
+    };
+  }
 
   let decision = 'NOT_EVALUATED';
   if (explicitStatus) {
@@ -173,6 +348,23 @@ export default function ComponentDetailModal({
   const m1Params = predictionObj?.parameters || {};
   const m1Param = m1Params.rdson || Object.values(m1Params)[0] || {};
 
+  const pred96h = (typeof m1Param.predicted96h === 'number') ? m1Param.predicted96h : null;
+  const pred168h = (typeof m1Param.predicted168h === 'number')
+    ? m1Param.predicted168h
+    : (typeof m1Param === 'number')
+    ? m1Param
+    : (typeof component.predictions?.rdson === 'number')
+    ? component.predictions.rdson
+    : (typeof component.predictions?.rdson?.predicted168h === 'number')
+    ? component.predictions.rdson.predicted168h
+    : (typeof component.predictions?.['rdson_168h'] === 'number')
+    ? component.predictions['rdson_168h']
+    : (typeof component.predicted168h === 'number')
+    ? component.predicted168h
+    : (typeof component.Predicted_RDS100 === 'number')
+    ? component.Predicted_RDS100
+    : null;
+
   // 1. Engineering Screening Evaluation (Resolving active limits with precedence)
   const compLimits = {
     ...(component.engineeringLimits && typeof component.engineeringLimits === 'object' ? component.engineeringLimits : {}),
@@ -182,7 +374,9 @@ export default function ComponentDetailModal({
   const engineeringResult = evaluateComponentEngineeringDecision(
     component.measurements,
     compLimits,
-    component.engineeringStatus || component.status
+    component.engineeringStatus || component.status,
+    pred168h,
+    component
   );
   const engBadgeStyle = getEngineeringBadgeStyle(engineeringResult.decision);
 
@@ -203,23 +397,6 @@ export default function ComponentDetailModal({
                  component.measurements?.RDS33 ??
                  component.RDS33 ??
                  null;
-
-  const pred96h = (typeof m1Param.predicted96h === 'number') ? m1Param.predicted96h : null;
-  const pred168h = (typeof m1Param.predicted168h === 'number')
-    ? m1Param.predicted168h
-    : (typeof m1Param === 'number')
-    ? m1Param
-    : (typeof component.predictions?.rdson === 'number')
-    ? component.predictions.rdson
-    : (typeof component.predictions?.rdson?.predicted168h === 'number')
-    ? component.predictions.rdson.predicted168h
-    : (typeof component.predictions?.['rdson_168h'] === 'number')
-    ? component.predictions['rdson_168h']
-    : (typeof component.predicted168h === 'number')
-    ? component.predicted168h
-    : (typeof component.Predicted_RDS100 === 'number')
-    ? component.Predicted_RDS100
-    : null;
 
   const m1Status = (pred168h !== null || m1Param.status === 'PREDICTED')
     ? 'PREDICTED'
@@ -405,7 +582,13 @@ export default function ComponentDetailModal({
                 >
                   {components.map((c) => {
                     const cId = c.id || c.componentId;
-                    const evalRes = evaluateComponentEngineeringDecision(c.measurements, c.engineeringLimits, c.engineeringStatus || c.status);
+                    const evalRes = evaluateComponentEngineeringDecision(
+                      c.measurements,
+                      c.engineeringLimits,
+                      c.engineeringStatus || c.status,
+                      extractPredictedValue(c, 'rdson'),
+                      c
+                    );
                     return (
                       <option key={cId} value={cId}>
                         {cId} ({evalRes.decision})
@@ -525,12 +708,15 @@ export default function ComponentDetailModal({
                 <tbody>
                   {engineeringResult.parameters.map((param) => {
                     const isViolated = param.isViolated;
-                    const valueDisplay = param.currentValue !== null
-                      ? `${param.currentValue.toFixed(param.unit === 'Ω' ? 3 : 2)} ${param.unit}`
+                    const valueDisplay = param.currentValue !== null && param.currentValue !== undefined
+                      ? `${typeof param.currentValue === 'number' ? param.currentValue.toFixed(param.unit === 'Ω' ? 3 : 2) : param.currentValue} ${param.unit}`
                       : '—';
-                    const limitDisplay = param.limit !== undefined
+                    const limitDisplay = param.limit !== undefined && param.limit !== null
                       ? `${param.limit.toFixed(param.unit === 'Ω' ? 3 : 2)} ${param.unit}`
-                      : '— (None Available)';
+                      : '—';
+
+                    const isNoLimitRow = param.limit === undefined || param.limit === null;
+                    const isDriftRow = param.status === '—';
 
                     return (
                       <tr key={param.id} className={isViolated ? 'row-breach' : 'row-within'}>
@@ -544,9 +730,13 @@ export default function ComponentDetailModal({
                           {limitDisplay}
                         </td>
                         <td>
-                          <span className={`spad-limit-pill ${param.limit === undefined ? 'pill-within' : isViolated ? 'pill-breach' : 'pill-within'}`}>
-                            {param.limit === undefined ? 'NOT EVALUATED' : isViolated ? '✕ EXCEEDS LIMIT' : '✓ WITHIN LIMIT'}
-                          </span>
+                          {isDriftRow ? (
+                            <span className="font-mono text-slate" style={{ paddingLeft: '8px' }}>—</span>
+                          ) : (
+                            <span className={`spad-limit-pill ${isNoLimitRow ? 'pill-within' : isViolated ? 'pill-breach' : 'pill-within'}`}>
+                              {isNoLimitRow ? 'NOT EVALUATED' : isViolated ? '✕ EXCEEDS LIMIT' : '✓ WITHIN LIMIT'}
+                            </span>
+                          )}
                         </td>
                       </tr>
                     );
