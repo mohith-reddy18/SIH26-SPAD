@@ -182,20 +182,7 @@ export function evaluateComponentEngineeringDecision(
       status: !hasRdsLimit || obs24h === null ? 'NOT EVALUATED' : is24hViolated ? 'EXCEEDS LIMIT' : 'WITHIN LIMIT',
     });
 
-    // 3. ΔRDS — Early Drift (DO NOT apply the RDS(on) engineering limit)
-    paramResults.push({
-      id: 'delta_rdson',
-      key: 'delta_rdson',
-      name: 'ΔRDS — Early Drift',
-      shortName: 'ΔRDS',
-      unit: 'Ω',
-      limit: undefined,
-      currentValue: deltaVal,
-      isViolated: false,
-      status: '—',
-    });
-
-    // 4. RDS(on) — 168h FORECAST (if predicted168h exists)
+    // 3. RDS(on) — 168h FORECAST (if predicted168h exists)
     if (pred168h !== null && typeof pred168h === 'number' && !isNaN(pred168h)) {
       const isPredViolated = hasRdsLimit && pred168h > rdsSpecLimit;
       if (hasRdsLimit) evaluatedLimitCount += 1;
