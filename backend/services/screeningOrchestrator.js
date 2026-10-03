@@ -626,15 +626,13 @@ async function processRemoteScreeningRun({ lotId, componentId, customLimits = nu
       // Cohort < 3 units rule
       ifFlag = 'NOT_EVALUATED';
     } else if (typeof noveltyPercentileVal === 'number' && !isNaN(noveltyPercentileVal)) {
-      // Novelty percentile >= 90.0% rule
+      // Novelty percentile rule (>= 90 -> FLAGGED, < 90 -> NOT FLAGGED)
       ifFlag = noveltyPercentileVal >= 90.0 ? 'FLAGGED' : 'NOT FLAGGED';
     } else if (typeof item.zScore === 'number' && !isNaN(item.zScore)) {
-      // Robust z-score > 3.0 rule
+      // Robust z-score rule (> 3.0 -> FLAGGED, <= 3.0 -> NOT FLAGGED)
       ifFlag = Math.abs(item.zScore) > 3.0 ? 'FLAGGED' : 'NOT FLAGGED';
     } else if (typeof peerEvidenceObj.zScore === 'number' && !isNaN(peerEvidenceObj.zScore)) {
       ifFlag = Math.abs(peerEvidenceObj.zScore) > 3.0 ? 'FLAGGED' : 'NOT FLAGGED';
-    } else if (lotAnomalyScore !== null && typeof lotAnomalyScore === 'number' && !isNaN(lotAnomalyScore)) {
-      ifFlag = 'NOT FLAGGED';
     }
 
     const divergenceTypeVal = item.lotAnomaly?.divergenceType ?? item.divergenceType ?? (ifFlag === 'FLAGGED' ? 'ELEVATED_OUTLIER' : 'NOMINAL');
