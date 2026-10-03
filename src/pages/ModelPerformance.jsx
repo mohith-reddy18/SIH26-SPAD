@@ -125,6 +125,10 @@ export default function ModelPerformance({ selectedLotId }) {
   const evidenceTransId = m3Param.evidenceTransientId || null;
   const evidenceTimeUs = typeof m3Param.evidenceTimeUs === 'number' ? m3Param.evidenceTimeUs : null;
 
+  const rdLimit = typeof activeRecord?.engineeringLimits?.rdson?.limitValue === 'number'
+    ? activeRecord.engineeringLimits.rdson.limitValue
+    : (typeof activeRecord?.engineeringLimits?.rdson === 'number' ? activeRecord.engineeringLimits.rdson : null);
+
   const rawModC = m3Param.aiFlag ?? moduleCObj?.aiFlag;
   let m3Flag = 'NOT_EVALUATED';
   if (rawModC === 'FLAGGED' || rawModC === '1' || rawModC === 'TRUE') {
@@ -132,9 +136,6 @@ export default function ModelPerformance({ selectedLotId }) {
   } else if (rawModC === 'NOT FLAGGED' || rawModC === 'NOT_FLAGGED' || rawModC === '0' || rawModC === 'FALSE' || rawModC === 'NOMINAL' || rawModC === 'NORMAL' || rawModC === 'PASS') {
     m3Flag = 'NOT FLAGGED';
   } else if (maxRDSInst !== null || exceedanceCount !== null || evidenceTransId !== null) {
-    const rdLimit = typeof activeRecord?.engineeringLimits?.rdson?.limitValue === 'number'
-      ? activeRecord.engineeringLimits.rdson.limitValue
-      : (typeof activeRecord?.engineeringLimits?.rdson === 'number' ? activeRecord.engineeringLimits.rdson : null);
     if ((exceedanceCount !== null && exceedanceCount > 0) || (maxRDSInst !== null && rdLimit !== null && maxRDSInst > rdLimit)) {
       m3Flag = 'FLAGGED';
     } else {
@@ -424,8 +425,8 @@ export default function ModelPerformance({ selectedLotId }) {
             </div>
 
             <p className="spad-shap-intro-desc">
-              SHAP attribution identifies how individual measurement features mathematically contributed to the AI model's predicted 100% failure risk.
-              <strong> Positive values (+)</strong> increased predicted risk, while <strong>negative values (-)</strong> reduced risk toward baseline.
+              SHAP feature attribution identifies how individual measurement features mathematically contributed to the Random Forest 100% degradation risk index projection.
+              <strong> Positive values (+)</strong> increased projected risk, while <strong>negative values (-)</strong> reduced projected risk toward baseline.
             </p>
 
             {/* Risk Assessment Banner */}
@@ -440,13 +441,13 @@ export default function ModelPerformance({ selectedLotId }) {
                     {riskCategory}
                   </span>
                 </div>
-                <span style={{ fontSize: '10px', color: '#94a3b8', marginTop: '2px' }}>From Random Forest drift projection</span>
+                <span style={{ fontSize: '10px', color: '#94a3b8', marginTop: '2px' }}>Derived from Random Forest drift projection</span>
               </div>
 
               <div className="spad-shap-pred-item">
-                <span className="spad-pred-label">LOT BASELINE EXPECTED RISK (E[f(x)]):</span>
+                <span className="spad-pred-label">LOT BASELINE EXPECTED RISK INDEX (E[f(x)]):</span>
                 <span className="spad-pred-base font-mono">
-                  {explanation.baseValue !== null && typeof explanation.baseValue === 'number' ? `${(explanation.baseValue * 100).toFixed(1)}%` : '—'}
+                  {hasRealShap && explanation.baseValue !== null && typeof explanation.baseValue === 'number' ? `${(explanation.baseValue * 100).toFixed(1)}%` : '—'}
                 </span>
                 <span style={{ fontSize: '10px', color: '#94a3b8', marginTop: '2px' }}>Intra-lot reference prior</span>
               </div>
@@ -463,16 +464,21 @@ export default function ModelPerformance({ selectedLotId }) {
             <div className="spad-shap-contributions-container">
               <div className="spad-shap-bar-header">
                 <span className="spad-shap-col-feature">FEATURE NAME &amp; TELEMETRY</span>
-                <span className="spad-shap-col-bars">SHAP CONTRIBUTION TO RISK SCORE</span>
+                <span className="spad-shap-col-bars">SHAP CONTRIBUTION TO RISK INDEX</span>
                 <span className="spad-shap-col-val">IMPACT</span>
               </div>
 
               <div className="spad-shap-features-list">
                 {!hasRealShap ? (
                   <div style={{ padding: '24px', textAlign: 'center', color: '#94a3b8', fontSize: '13px', background: 'rgba(15, 23, 42, 0.4)', borderRadius: '6px' }}>
-                    <p style={{ margin: '0 0 6px 0', fontWeight: '600', color: '#cbd5e1' }}>SHAP attribution unavailable for this screening record.</p>
+                    <p style={{ margin: '0 0 6px 0', fontWeight: '700', color: '#f8fafc', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                      SHAP FEATURE ATTRIBUTION UNAVAILABLE
+                    </p>
+                    <p style={{ margin: '0 0 4px 0', color: '#cbd5e1' }}>
+                      TreeExplainer feature-attribution values were not returned for this screening record.
+                    </p>
                     <span style={{ fontSize: '12px', color: '#64748b' }}>
-                      The deployed screening response did not return TreeExplainer feature attributions. No attribution values are fabricated.
+                      No attribution values or feature contributions are fabricated.
                     </span>
                   </div>
                 ) : (
@@ -498,7 +504,7 @@ export default function ModelPerformance({ selectedLotId }) {
                               <div
                                 className="spad-shap-bar-fill neg"
                                 style={{ width: `${barWidthPercent}%` }}
-                                title={`Negative impact: ${val.toFixed(2)} (reduces risk)`}
+                                title={`Negative impact: ${val.toFixed(2)} (reduces risk index)`}
                               />
                             )}
                           </div>
@@ -507,7 +513,7 @@ export default function ModelPerformance({ selectedLotId }) {
                               <div
                                 className="spad-shap-bar-fill pos"
                                 style={{ width: `${barWidthPercent}%` }}
-                                title={`Positive impact: +${val.toFixed(2)} (increases risk)`}
+                                title={`Positive impact: +${val.toFixed(2)} (increases risk index)`}
                               />
                             )}
                           </div>
@@ -526,15 +532,15 @@ export default function ModelPerformance({ selectedLotId }) {
 
               {hasRealShap && (
                 <div className="spad-shap-scale-legend">
-                  <span className="text-green">◀ Negative SHAP (Reduces Risk)</span>
+                  <span className="text-green">◀ Negative SHAP (Reduces Risk Index)</span>
                   <span className="spad-shap-scale-center font-mono">0.00 Base</span>
-                  <span className="text-red">Positive SHAP (Increases Risk) ▶</span>
+                  <span className="text-red">Positive SHAP (Increases Risk Index) ▶</span>
                 </div>
               )}
             </div>
 
             <div className="spad-shap-disclaimer-note">
-              <span className="font-bold text-cyan">Technical Boundary:</span> SHAP attributions describe the mathematical feature contributions to the Bayesian ML model's early-risk forecast. The deterministic screening disposition (NORMAL / SUSPECT / CRITICAL) is independently evaluated against MIL-STD engineering specification limits.
+              <span className="font-bold text-cyan">Technical Boundary:</span> SHAP attributions describe the mathematical feature contributions to the Random Forest model's 100% drift risk index projection. The deterministic screening disposition (NORMAL / SUSPECT / CRITICAL) is independently evaluated against MIL-STD engineering specification limits.
             </div>
           </section>
 
@@ -546,7 +552,7 @@ export default function ModelPerformance({ selectedLotId }) {
               <div className="spad-section-title-wrap">
                 <span className="spad-section-pill ai-pill">SECTION 4 • TRANSIENT MONITORING</span>
                 <h2 className="spad-section-title">
-                  Module C • Transient Pulse Extraction &amp; Overstress Telemetry
+                  MODULE C • TRANSIENT PULSE EXTRACTION &amp; OVERSTRESS TELEMETRY
                 </h2>
               </div>
               <span className="spad-status-pill" style={{ backgroundColor: modCColor + '20', color: modCColor, borderColor: modCColor + '60' }}>
@@ -558,15 +564,20 @@ export default function ModelPerformance({ selectedLotId }) {
               Sub-microsecond transient waveform analysis monitors instantaneous peak resistance (RDS) during pulse switching transitions to capture latent oxide rupture or bond-wire degradation before steady-state shift.
             </p>
 
-            {maxRDSInst === null && evidenceTransId === null ? (
-              <div style={{ padding: '20px', textAlign: 'center', color: '#94a3b8', fontSize: '13px', background: 'rgba(15, 23, 42, 0.4)', borderRadius: '6px', marginBottom: '16px' }}>
-                <p style={{ margin: '0 0 6px 0', fontWeight: '600', color: '#cbd5e1' }}>Transient evidence unavailable for this screening record.</p>
+            {maxRDSInst === null && evidenceTransId === null && exceedanceCount === null ? (
+              <div style={{ padding: '24px', textAlign: 'center', color: '#94a3b8', fontSize: '13px', background: 'rgba(15, 23, 42, 0.4)', borderRadius: '6px', marginBottom: '16px' }}>
+                <p style={{ margin: '0 0 6px 0', fontWeight: '700', color: '#f8fafc', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                  TRANSIENT EVIDENCE NOT AVAILABLE FOR THIS RECORD
+                </p>
+                <p style={{ margin: '0 0 4px 0', color: '#cbd5e1' }}>
+                  Module C transient telemetry was not persisted for this screening record. No transient result is inferred.
+                </p>
                 <span style={{ fontSize: '12px', color: '#64748b' }}>
-                  No persisted transient telemetry is available for this record. No transient result is inferred.
+                  Sub-microsecond pulse sampling requires high-speed oscilloscope capture. In accordance with SPAD integrity rules, no synthetic pulse telemetry is fabricated.
                 </span>
               </div>
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginBottom: '16px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '12px', marginBottom: '16px' }}>
                 <div className="spad-lot-metric-pill" style={{ background: 'var(--spad-inset, #101119)', padding: '12px 14px' }}>
                   <span className="spad-lot-metric-label">MAX INSTANTANEOUS RDS(ON)</span>
                   <span className="spad-lot-metric-val font-mono text-cyan" style={{ fontSize: '15px' }}>
@@ -597,6 +608,21 @@ export default function ModelPerformance({ selectedLotId }) {
                     {evidenceTimeUs !== null ? `${evidenceTimeUs.toFixed(2)} µs` : '—'}
                   </span>
                   <span style={{ fontSize: '10px', color: '#94a3b8', marginTop: '2px' }}>Transient pulse window offset</span>
+                </div>
+
+                <div className="spad-lot-metric-pill" style={{ background: 'var(--spad-inset, #101119)', padding: '12px 14px' }}>
+                  <span className="spad-lot-metric-label">CONFIGURED RDS(ON) LIMIT</span>
+                  <span className="spad-lot-metric-val font-mono text-slate" style={{ fontSize: '14px' }}>
+                    {rdLimit !== null ? `${rdLimit.toFixed(3)} Ω` : '—'}
+                  </span>
+                  <span style={{ fontSize: '10px', color: '#94a3b8', marginTop: '2px' }}>Specification upper fence</span>
+                </div>
+
+                <div className="spad-lot-metric-pill" style={{ background: 'var(--spad-inset, #101119)', padding: '12px 14px' }}>
+                  <span className="spad-lot-metric-label">MODULE C AI EVALUATION</span>
+                  <span className={`spad-ai-status-tag ${m3Flag === 'FLAGGED' ? 'tag-warning' : m3Flag === 'NOT FLAGGED' ? 'tag-nominal' : ''}`} style={{ marginTop: '4px' }}>
+                    {m3Flag}
+                  </span>
                 </div>
               </div>
             )}
